@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div id="root">
+    <div class="error"></div>
+    <div id="header">
+        <h1>Rusty Statusphere</h1>
+        <p>Set your status on the Atmosphere.</p>
+    </div>
+    <div class="container">
+        <div class="card">
+            {% if let Some(Profile {did, display_name}) = profile %}
+            <form action="/logout" method="get" class="session-form">
+                <div>
+                    Hi,
+                    {% if let Some(display_name) = display_name %}
+                    <strong>{{display_name}}</strong>
+                    {% else %}
+                    <strong>friend</strong>
+                    {% endif %}. What's
+                    your status today??
+                </div>
+                <div>
+                    <button type="submit">Log out</button>
+                </div>
+            </form>
+            {% else %}
+            <div class="session-form">
+                <div><a href="/login">Log in</a> to set your status!</div>
+                <div>
+                    <a href="/login" class="button">Log in</a>
+                </div>
+            </div>
+            {% endif %}
+
+
+        </div>
+        <form action="/status" method="post" class="status-options">
+            {% for status in status_options %}
+            <button
+                    class="{% if let Some(my_status) = my_status %} {%if my_status == status %} status-option selected {% else %} status-option {% endif %} {% else %} status-option  {%endif%} "
+                    name="status" value="{{status}}">
+                {{status}}
+            </button>
+
+            {% endfor %}
+        </form>
+        {% for status in statuses %}
+        <div class="{% if loop.first %} status-line no-line {% else %} status-line {% endif %} ">
+            <div>
+                <div class="status">{{status.status}}</div>
+            </div>
+            <div class="desc">
+                <a class="author"
+                   href="https://bsky.app/profile/{{status.author_did}}">{{status.author_display_name()}}</a>
+                {% if status.is_today() %}
+                is feeling {{status.status}} today
+                {% else %}
+                was feeling {{status.status}} on {{status.created_at}}
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{%endblock content%}

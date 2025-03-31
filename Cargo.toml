@@ -4,15 +4,31 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-askama = "0.12"
 actix-files = "0.6.6"
 actix-session = { version = "0.10", features = ["cookie-session"] }
-actix-web = "4.9"
-serde = { version = "1.0", features = ["derive"] }
-log = "0.4"
-async-stream = "0.3"
-env_logger = "0.11"
+actix-web = "4.10.2"
 anyhow = "1.0.97"
-serde_json = "1.0.140"
+askama = "0.13"
+atrium-common = "0.1.1"
 atrium-api = "0.25.0"
-atrium-xrpc-client = "0.5.10"
+atrium-identity = "0.1.3"
+atrium-oauth = "0.1.0"
+chrono = "0.4.40"
+env_logger = "0.11.7"
+hickory-resolver = "0.24.1"
+log = "0.4.27"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+rocketman = "0.1.1" # pyt the latest version here
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+dotenv = "0.15.0"
+thiserror = "1.0.69"
+async-sqlite = "0.5.0"
+async-trait = "0.1.88"
+
+[build-dependencies]
+askama = "0.13"
+
+
+[profile.dev.package.askama_derive]
+opt-level = 3
