@@ -1,13 +1,4 @@
-
-
-# !!!!!!!!!!!!!!!Squash before going public!!!!!!!!!!
-
-
-
-
-
-
-
+# Rusty Statusphere
 
 Originally taken
 from [bluesky-social/atproto-website](https://github.com/bluesky-social/atproto-website/blob/dbcd70ced53078579c7e5b015a26db295b7a7807/src/app/%5Blocale%5D/guides/applications/en.mdx)
