@@ -52,7 +52,7 @@ aggregate them into our SQLite database.
 Start by cloning the repo and installing packages.
 
 ```bash
-git clone git@github.com:fatfingers23/rusty_statusphere_example_app.git
+git clone https://github.com/fatfingers23/rusty_statusphere_example_app.git
 cd rusty_statusphere_example_app
 cp .env.template .env
 cargo run
