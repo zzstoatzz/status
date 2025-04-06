@@ -121,7 +121,7 @@ async fn oauth_callback(
                 None => {
                     let html = ErrorTemplate {
                         title: "Error",
-                        error: "The OAuth agent did not return a DID. My try relogging in.",
+                        error: "The OAuth agent did not return a DID. May try logging in.",
                     };
                     HttpResponse::Ok().body(html.render().expect("template should be valid"))
                 }
@@ -290,7 +290,7 @@ async fn home(
                     None
                 });
 
-            // gets the users session from the session store to resume
+            // gets the user's session from the session store to resume
             match oauth_client.restore(&did).await {
                 Ok(session) => {
                     //Creates an agent to make authenticated requests
@@ -385,7 +385,7 @@ async fn status(
     match session.get::<String>("did").unwrap_or(None) {
         Some(did_string) => {
             let did = Did::new(did_string.clone()).expect("failed to parse did");
-            // gets the users session from the session store to resume
+            // gets the user's session from the session store to resume
             match oauth_client.restore(&did).await {
                 Ok(session) => {
                     let agent = Agent::new(session);
@@ -502,7 +502,7 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Could not create the database");
 
-    //Create a new handle resolver for home page
+    //Create a new handle resolver for the home page
     let http_client = Arc::new(DefaultHttpClient::default());
 
     let handle_resolver = CommonDidResolver::new(CommonDidResolverConfig {
