@@ -2716,9 +2716,9 @@ dependencies = [
 
 [[package]]
 name = "rocketman"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72eca7751d4341e1ec6227b2300aed5c86c48b58cdae4a6e41e5c3ad7522ec2c"
+checksum = "4a3aae946adbfdcf80cad8793e02d8eb94be06c925331aa56aeb446795893361"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2735,6 +2735,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "zstd",
 ]
 
 [[package]]

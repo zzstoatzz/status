@@ -177,7 +177,8 @@ impl StatusFromDb {
     ) -> Result<Vec<Self>, async_sqlite::Error> {
         Ok(pool
             .conn(move |conn| {
-                let mut stmt = conn.prepare("SELECT * FROM status ORDER BY indexedAt DESC")?;
+                let mut stmt =
+                    conn.prepare("SELECT * FROM status ORDER BY indexedAt DESC LIMIT 10")?;
                 let status_iter = stmt
                     .query_map([], |row| Ok(Self::map_from_row(row).unwrap()))
                     .unwrap();
