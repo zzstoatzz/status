@@ -121,7 +121,7 @@ async fn oauth_callback(
                 None => {
                     let html = ErrorTemplate {
                         title: "Error",
-                        error: "The OAuth agent did not return a DID. May try logging in.",
+                        error: "The OAuth agent did not return a DID. May try re-logging in.",
                     };
                     HttpResponse::Ok().body(html.render().expect("template should be valid"))
                 }
