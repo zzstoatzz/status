@@ -628,7 +628,7 @@ Now let's run some code-generation using our schema:
 > schema.
 
 ```bash
-esquema-cli generate -l ./lexicons/ -o ./src/lexicons/
+esquema-cli generate local -l ./lexicons/ -o ./src/lexicons/
 ```
 
 
