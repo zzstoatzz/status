@@ -216,6 +216,32 @@ impl StatusFromDb {
             .await
     }
 
+    /// Loads paginated statuses for infinite scrolling
+    pub async fn load_statuses_paginated(
+        pool: &Data<Arc<Pool>>,
+        offset: i32,
+        limit: i32,
+    ) -> Result<Vec<Self>, async_sqlite::Error> {
+        pool
+            .conn(move |conn| {
+                let mut stmt = conn.prepare(
+                    "SELECT * FROM status ORDER BY startedAt DESC LIMIT ?1 OFFSET ?2"
+                )?;
+                let status_iter = stmt
+                    .query_map(rusqlite::params![limit, offset], |row| {
+                        Ok(Self::map_from_row(row).unwrap())
+                    })
+                    .unwrap();
+
+                let mut statuses = Vec::new();
+                for status in status_iter {
+                    statuses.push(status?);
+                }
+                Ok(statuses)
+            })
+            .await
+    }
+
     /// Loads the logged-in users current status
     pub async fn my_status(
         pool: &Data<Arc<Pool>>,

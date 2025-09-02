@@ -91,6 +91,16 @@
                 <p>no status updates yet</p>
             </div>
             {% endif %}
+            
+            <!-- Loading indicator -->
+            <div id="loading-indicator" style="display: none; text-align: center; padding: 2rem;">
+                <span style="color: var(--text-tertiary);">Loading more...</span>
+            </div>
+            
+            <!-- End of feed indicator -->
+            <div id="end-of-feed" style="display: none; text-align: center; padding: 2rem;">
+                <span style="color: var(--text-tertiary);">You've reached the beginning of time ✨</span>
+            </div>
         </div>
 
         <!-- Navigation -->
@@ -533,6 +543,133 @@ const formatLocalTime = () => {
     });
 };
 
+// Infinite scroll variables
+let isLoading = false;
+let offset = {% if !statuses.is_empty() %}{{ statuses.len() }}{% else %}0{% endif %};
+let hasMore = true;
+
+// Load more statuses
+const loadMoreStatuses = async () => {
+    if (isLoading || !hasMore) return;
+    
+    isLoading = true;
+    const loadingIndicator = document.getElementById('loading-indicator');
+    loadingIndicator.style.display = 'block';
+    
+    try {
+        const response = await fetch(`/api/feed?offset=${offset}&limit=20`);
+        const newStatuses = await response.json();
+        
+        if (newStatuses.length === 0) {
+            hasMore = false;
+            loadingIndicator.style.display = 'none';
+            document.getElementById('end-of-feed').style.display = 'block';
+            return;
+        }
+        
+        const statusList = document.querySelector('.status-list');
+        
+        // Render new statuses
+        newStatuses.forEach(status => {
+            const statusItem = document.createElement('div');
+            statusItem.className = 'status-item';
+            
+            let emojiHtml = '';
+            if (status.status.startsWith('custom:')) {
+                const emojiName = status.status.substring(7);
+                emojiHtml = `<img src="/emojis/${emojiName}.png" alt="${emojiName}" class="custom-emoji-display" onerror="this.onerror=null; this.src='/emojis/${emojiName}.gif';">`;
+            } else {
+                emojiHtml = status.status;
+            }
+            
+            // Format the timestamp
+            const date = new Date(status.started_at);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            let timeText = '';
+            if (diffMins < 1) {
+                timeText = 'just now';
+            } else if (diffMins < 60) {
+                timeText = `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+            } else if (diffHours < 24) {
+                timeText = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+            } else if (diffDays < 7) {
+                timeText = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+            } else {
+                timeText = date.toLocaleDateString();
+            }
+            
+            // Calculate expiry if present
+            let expiryHtml = '';
+            if (status.expires_at) {
+                const expiryDate = new Date(status.expires_at);
+                if (expiryDate > now) {
+                    const futureMs = expiryDate - now;
+                    const futureMins = Math.floor(futureMs / 60000);
+                    const futureHours = Math.floor(futureMs / 3600000);
+                    const futureDays = Math.floor(futureMs / 86400000);
+                    
+                    let expiryText = '';
+                    if (futureMins < 1) {
+                        expiryText = 'expires soon';
+                    } else if (futureMins < 60) {
+                        expiryText = `expires in ${futureMins} minute${futureMins !== 1 ? 's' : ''}`;
+                    } else if (futureHours < 24) {
+                        expiryText = `expires in ${futureHours} hour${futureHours !== 1 ? 's' : ''}`;
+                    } else {
+                        expiryText = `expires in ${futureDays} day${futureDays !== 1 ? 's' : ''}`;
+                    }
+                    expiryHtml = ` • ${expiryText}`;
+                } else {
+                    expiryHtml = ' • expired';
+                }
+            }
+            
+            const displayName = status.handle || status.author_did;
+            const profileUrl = status.handle ? `/${status.handle}` : '#';
+            
+            statusItem.innerHTML = `
+                <span class="status-emoji">${emojiHtml}</span>
+                <div class="status-content">
+                    <div class="status-main">
+                        <a class="status-author" href="${profileUrl}">${displayName}</a>
+                        ${status.text ? `<span class="status-text">${status.text}</span>` : ''}
+                    </div>
+                    <div class="status-meta">
+                        <span>${timeText}</span>${expiryHtml}
+                    </div>
+                </div>
+            `;
+            
+            statusList.appendChild(statusItem);
+        });
+        
+        offset += newStatuses.length;
+        loadingIndicator.style.display = 'none';
+    } catch (error) {
+        console.error('Error loading more statuses:', error);
+        loadingIndicator.style.display = 'none';
+    } finally {
+        isLoading = false;
+    }
+};
+
+// Check scroll position
+const checkScroll = () => {
+    const scrollHeight = document.documentElement.scrollHeight;
+    const scrollTop = window.scrollY;
+    const clientHeight = window.innerHeight;
+    
+    // Load more when user is 200px from the bottom
+    if (scrollTop + clientHeight >= scrollHeight - 200) {
+        loadMoreStatuses();
+    }
+};
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
@@ -543,6 +680,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (themeToggle) {
         themeToggle.addEventListener('click', toggleTheme);
     }
+    
+    // Set up infinite scrolling
+    window.addEventListener('scroll', checkScroll);
+    
+    // Check if we need to load more on initial page load
+    // (in case the initial content doesn't fill the viewport)
+    setTimeout(() => {
+        if (document.documentElement.scrollHeight <= window.innerHeight) {
+            loadMoreStatuses();
+        }
+    }, 100);
     
     // Update times every minute
     setInterval(formatLocalTime, 60000);

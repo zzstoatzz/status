@@ -553,6 +553,59 @@ async fn owner_status_json(
     Ok(web::Json(response))
 }
 
+/// Get paginated statuses for infinite scrolling
+#[get("/api/feed")]
+async fn api_feed(
+    query: web::Query<HashMap<String, String>>,
+    db_pool: web::Data<Arc<Pool>>,
+    handle_resolver: web::Data<HandleResolver>,
+) -> Result<impl Responder> {
+    let offset = query.get("offset")
+        .and_then(|s| s.parse::<i32>().ok())
+        .unwrap_or(0);
+    let limit = query.get("limit")
+        .and_then(|s| s.parse::<i32>().ok())
+        .unwrap_or(20)
+        .min(50); // Cap at 50 items per request
+    
+    let mut statuses = StatusFromDb::load_statuses_paginated(&db_pool, offset, limit)
+        .await
+        .unwrap_or_else(|err| {
+            log::error!("Error loading statuses: {err}");
+            vec![]
+        });
+    
+    // Resolve handles for each status
+    let mut quick_resolve_map: HashMap<Did, String> = HashMap::new();
+    for db_status in &mut statuses {
+        let authors_did = Did::new(db_status.author_did.clone()).expect("failed to parse did");
+        match quick_resolve_map.get(&authors_did) {
+            None => {}
+            Some(found_handle) => {
+                db_status.handle = Some(found_handle.clone());
+                continue;
+            }
+        }
+        db_status.handle = match handle_resolver.resolve(&authors_did).await {
+            Ok(did_doc) => match did_doc.also_known_as {
+                None => None,
+                Some(also_known_as) => match also_known_as.is_empty() {
+                    true => None,
+                    false => {
+                        let full_handle = also_known_as.first().unwrap();
+                        let handle = full_handle.replace("at://", "");
+                        quick_resolve_map.insert(authors_did, handle.clone());
+                        Some(handle)
+                    }
+                },
+            },
+            Err(_) => None,
+        };
+    }
+    
+    Ok(HttpResponse::Ok().json(statuses))
+}
+
 /// Get all custom emojis available on the site
 #[get("/api/custom-emojis")]
 async fn get_custom_emojis() -> Result<impl Responder> {
@@ -1334,6 +1387,7 @@ async fn main() -> std::io::Result<()> {
             .service(status_json)
             .service(owner_status_json)
             .service(get_custom_emojis)
+            .service(api_feed)
             .service(user_status_page)
             .service(user_status_json)
             .service(status)
