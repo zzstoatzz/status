@@ -1150,7 +1150,7 @@ async fn hide_status(
                 .conn(move |conn| {
                     conn.execute(
                         "UPDATE status SET hidden = ?1 WHERE uri = ?2",
-                        [&hidden as &dyn rusqlite::ToSql, &uri as &dyn rusqlite::ToSql],
+                        rusqlite::params![hidden, uri],
                     )
                 })
                 .await;
