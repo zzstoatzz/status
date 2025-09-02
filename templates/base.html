@@ -3,7 +3,22 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>status.zzstoatzz.io</title>
+    <title>{% block title %}status.zzstoatzz.io{% endblock %}</title>
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://status.zzstoatzz.io{% block og_url %}{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}Status Updates{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Real-time status updates from the BlueSky network{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}https://status.zzstoatzz.io/og-image.png{% endblock %}">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary">
+    <meta property="twitter:url" content="https://status.zzstoatzz.io{% block twitter_url %}{% endblock %}">
+    <meta property="twitter:title" content="{% block twitter_title %}Status Updates{% endblock %}">
+    <meta property="twitter:description" content="{% block twitter_description %}Real-time status updates from the BlueSky network{% endblock %}">
+    <meta property="twitter:image" content="{% block twitter_image %}https://status.zzstoatzz.io/og-image.png{% endblock %}">
+    
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>

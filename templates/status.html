@@ -1,5 +1,13 @@
 {% extends "base.html" %}
 
+{% block title %}@{{ handle }} - status.zzstoatzz.io{% endblock %}
+{% block og_url %}/@{{ handle }}{% endblock %}
+{% block og_title %}@{{ handle }}'s Status{% endblock %}
+{% block og_description %}{% if let Some(current) = current_status %}{{ current.status }} {% if current.text.is_some() %}{{ current.text.as_ref().unwrap() }}{% endif %}{% else %}No status set{% endif %}{% endblock %}
+{% block twitter_url %}/@{{ handle }}{% endblock %}
+{% block twitter_title %}@{{ handle }}'s Status{% endblock %}
+{% block twitter_description %}{% if let Some(current) = current_status %}{{ current.status }} {% if current.text.is_some() %}{{ current.text.as_ref().unwrap() }}{% endif %}{% else %}No status set{% endif %}{% endblock %}
+
 {% block content %}
 <div id="root">
     <div class="container">
@@ -22,6 +30,7 @@
                 <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                 </svg>
+                <span class="theme-indicator" id="theme-indicator"></span>
             </button>
             {% endif %}
         </header>
@@ -106,7 +115,14 @@
 
         <!-- Emoji Picker (hidden by default) -->
         <div class="emoji-picker" id="emoji-picker" style="display: none;">
-            <div class="emoji-categories">
+            <div class="emoji-search-container">
+                <input type="text" 
+                       id="emoji-search" 
+                       class="emoji-search" 
+                       placeholder="Search emojis..." 
+                       autocomplete="off">
+            </div>
+            <div class="emoji-categories" id="emoji-categories">
                 <button class="category-btn active" data-category="frequent">Frequent</button>
                 <button class="category-btn" data-category="people">People</button>
                 <button class="category-btn" data-category="nature">Nature</button>
@@ -273,6 +289,31 @@ body {
 
 .theme-toggle:hover {
     background: var(--bg-tertiary);
+}
+
+.theme-toggle {
+    position: relative;
+}
+
+.theme-indicator {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 1000;
+}
+
+.theme-indicator.visible {
+    opacity: 1;
 }
 
 .sun-icon, .moon-icon {
@@ -457,12 +498,41 @@ body {
     z-index: 1000;
 }
 
+.emoji-search-container {
+    margin-bottom: 1rem;
+}
+
+.emoji-search {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.emoji-search:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.1);
+}
+
+.emoji-search::placeholder {
+    color: var(--text-tertiary);
+}
+
 .emoji-categories {
     display: flex;
     gap: 0.25rem;
     margin-bottom: 1rem;
     overflow-x: auto;
     padding-bottom: 0.5rem;
+}
+
+.emoji-categories.hidden {
+    display: none;
 }
 
 .category-btn {
@@ -670,14 +740,89 @@ body {
         padding: 1rem;
     }
     
+    .container {
+        max-width: 100%;
+    }
+    
     .status-emoji {
         font-size: 3rem;
+    }
+    
+    /* Fix input group on mobile */
+    .input-group {
+        flex-wrap: wrap;
+        padding: 0.75rem;
+    }
+    
+    .emoji-trigger {
+        font-size: 1.5rem;
+    }
+    
+    #status-text {
+        width: 100%;
+        min-width: 0;
+        flex: 1 1 100%;
+        order: 2;
+        margin-top: 0.5rem;
+        padding: 0.5rem 0;
+    }
+    
+    .input-actions {
+        order: 3;
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 0.5rem;
+    }
+    
+    .clear-after-btn {
+        flex: 1;
+        justify-content: center;
+    }
+    
+    .clear-after-btn span {
+        display: inline-block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .save-btn {
+        min-width: 80px;
     }
     
     .emoji-picker {
         width: calc(100vw - 2rem);
         left: 1rem;
         right: 1rem;
+        max-width: none;
+    }
+    
+    .clear-picker {
+        width: calc(100vw - 2rem);
+        left: 1rem !important;
+        right: 1rem;
+        max-width: none;
+    }
+    
+    /* History section improvements */
+    .history {
+        padding: 1.5rem 0;
+    }
+    
+    .history h3 {
+        font-size: 0.75rem;
+        text-align: center;
+        margin-bottom: 1.25rem;
+    }
+    
+    .history-item {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .history-item:last-child {
+        border-bottom: none;
     }
 }
 </style>
@@ -710,7 +855,193 @@ const toggleTheme = () => {
     } else {
         document.body.setAttribute('data-theme', next);
     }
+    
+    // Show theme indicator
+    const indicator = document.getElementById('theme-indicator');
+    if (indicator) {
+        indicator.textContent = next;
+        indicator.classList.add('visible');
+        setTimeout(() => {
+            indicator.classList.remove('visible');
+        }, 1500);
+    }
 };
+
+// Emoji data with search keywords
+const emojiKeywords = {
+    '😊': ['happy', 'smile', 'joy', 'pleased'],
+    '👍': ['thumbs up', 'good', 'yes', 'approve', 'like'],
+    '❤️': ['heart', 'love', 'red heart'],
+    '😂': ['laugh', 'lol', 'funny', 'tears', 'joy'],
+    '🎉': ['party', 'celebrate', 'tada', 'celebration'],
+    '🔥': ['fire', 'hot', 'lit', 'flame'],
+    '✨': ['sparkle', 'star', 'shine', 'magic'],
+    '💯': ['100', 'hundred', 'perfect', 'score'],
+    '🚀': ['rocket', 'launch', 'fast', 'space'],
+    '💪': ['muscle', 'strong', 'flex', 'arm'],
+    '🙏': ['pray', 'please', 'thanks', 'hope'],
+    '👏': ['clap', 'applause', 'bravo'],
+    '😴': ['sleep', 'tired', 'zzz', 'sleepy'],
+    '🤔': ['think', 'thinking', 'hmm', 'wonder'],
+    '😎': ['cool', 'sunglasses', 'awesome'],
+    '🥳': ['party', 'celebrate', 'birthday', 'hat'],
+    '😍': ['love', 'heart eyes', 'adore'],
+    '🤗': ['hug', 'hugging', 'embrace'],
+    '😭': ['cry', 'sad', 'tears', 'sob'],
+    '😱': ['scream', 'shock', 'omg', 'scared'],
+    '🤯': ['mind blown', 'explode', 'boom', 'wow'],
+    '🥺': ['pleading', 'puppy eyes', 'please', 'beg'],
+    '💀': ['skull', 'dead', 'death', 'skeleton'],
+    '🤡': ['clown', 'funny', 'circus'],
+    '👻': ['ghost', 'boo', 'spooky', 'halloween'],
+    '🎈': ['balloon', 'party', 'birthday'],
+    '🎂': ['cake', 'birthday', 'dessert'],
+    '🍕': ['pizza', 'food', 'cheese', 'slice'],
+    '🍔': ['burger', 'hamburger', 'food'],
+    '☕': ['coffee', 'cafe', 'hot', 'drink'],
+    '🍺': ['beer', 'drink', 'alcohol', 'bar'],
+    '🌟': ['star', 'shine', 'bright'],
+    '☀️': ['sun', 'sunny', 'bright', 'weather'],
+    '🌙': ['moon', 'night', 'crescent'],
+    '⭐': ['star', 'favorite', 'best'],
+    '💖': ['heart', 'love', 'pink', 'sparkling'],
+    '💙': ['blue heart', 'love', 'blue'],
+    '💚': ['green heart', 'love', 'green'],
+    '🖤': ['black heart', 'love', 'black'],
+    '💔': ['broken heart', 'sad', 'breakup'],
+    '✅': ['check', 'done', 'complete', 'yes'],
+    '❌': ['x', 'no', 'wrong', 'cancel'],
+    '⚠️': ['warning', 'caution', 'alert'],
+    '📱': ['phone', 'mobile', 'iphone', 'smartphone'],
+    '💻': ['laptop', 'computer', 'pc', 'mac'],
+    '📧': ['email', 'mail', 'message'],
+    '🏠': ['home', 'house', 'building'],
+    '🚗': ['car', 'vehicle', 'drive', 'auto'],
+    '✈️': ['plane', 'airplane', 'fly', 'travel'],
+    '🚂': ['train', 'locomotive', 'railway'],
+    '🎮': ['game', 'gaming', 'controller', 'video game'],
+    '🎵': ['music', 'note', 'sound', 'song'],
+    '📚': ['books', 'library', 'study', 'read'],
+    '⚽': ['soccer', 'football', 'ball', 'sport'],
+    '🏀': ['basketball', 'ball', 'sport', 'hoop'],
+    '🎾': ['tennis', 'ball', 'sport', 'racket'],
+    '🏃': ['run', 'running', 'exercise', 'jog'],
+    '🚶': ['walk', 'walking', 'person'],
+    '💰': ['money', 'bag', 'dollar', 'cash'],
+    '💵': ['dollar', 'money', 'bill', 'cash'],
+    '📈': ['chart', 'graph', 'up', 'growth'],
+    '📉': ['chart', 'graph', 'down', 'decline'],
+    '🔔': ['bell', 'notification', 'alert', 'ring'],
+    '🔕': ['mute', 'silent', 'no bell'],
+    '💡': ['idea', 'light', 'bulb', 'bright'],
+    '🔍': ['search', 'magnify', 'find', 'zoom'],
+    '🗝️': ['key', 'lock', 'password', 'secure'],
+    '🔒': ['lock', 'locked', 'secure', 'private'],
+    '🔓': ['unlock', 'unlocked', 'open'],
+    '📍': ['pin', 'location', 'map', 'place'],
+    '🌍': ['earth', 'world', 'globe', 'planet'],
+    '🌈': ['rainbow', 'colors', 'pride', 'colorful'],
+    '☁️': ['cloud', 'weather', 'sky'],
+    '⛈️': ['storm', 'thunder', 'lightning', 'weather'],
+    '❄️': ['snow', 'snowflake', 'cold', 'winter'],
+    '🌊': ['wave', 'ocean', 'sea', 'water'],
+    '🍀': ['clover', 'luck', 'lucky', 'four leaf'],
+    '🌸': ['flower', 'cherry', 'blossom', 'spring'],
+    '🌺': ['flower', 'hibiscus', 'tropical'],
+    '🌻': ['sunflower', 'flower', 'yellow'],
+    '🐶': ['dog', 'puppy', 'pet', 'animal'],
+    '🐱': ['cat', 'kitten', 'pet', 'animal'],
+    '🐭': ['mouse', 'animal', 'rodent'],
+    '🐹': ['hamster', 'pet', 'animal'],
+    '🐰': ['rabbit', 'bunny', 'animal', 'easter'],
+    '🦊': ['fox', 'animal'],
+    '🐻': ['bear', 'animal', 'teddy'],
+    '🐼': ['panda', 'animal', 'bear'],
+    '🐨': ['koala', 'animal', 'australia'],
+    '🐯': ['tiger', 'animal', 'cat'],
+    '🦁': ['lion', 'animal', 'king'],
+    '🐮': ['cow', 'animal', 'farm'],
+    '🐷': ['pig', 'animal', 'farm'],
+    '🐸': ['frog', 'animal', 'toad'],
+    '🐵': ['monkey', 'animal', 'ape'],
+    '🐔': ['chicken', 'animal', 'bird'],
+    '🐧': ['penguin', 'animal', 'bird'],
+    '🐦': ['bird', 'animal', 'tweet'],
+    '🦆': ['duck', 'animal', 'bird'],
+    '🦅': ['eagle', 'bird', 'america'],
+    '🦉': ['owl', 'bird', 'night'],
+    '🦇': ['bat', 'animal', 'vampire'],
+    '🐺': ['wolf', 'animal', 'howl'],
+    '🐴': ['horse', 'animal', 'ride'],
+    '🦄': ['unicorn', 'magical', 'fantasy'],
+    '🐝': ['bee', 'insect', 'honey'],
+    '🦋': ['butterfly', 'insect', 'beautiful'],
+    '🐌': ['snail', 'slow', 'shell'],
+    '🐞': ['ladybug', 'insect', 'bug'],
+    '🐜': ['ant', 'insect', 'bug'],
+    '🦗': ['cricket', 'insect', 'bug'],
+    '🕷️': ['spider', 'insect', 'web'],
+    '🦂': ['scorpion', 'insect', 'sting'],
+    '🐢': ['turtle', 'animal', 'slow'],
+    '🐍': ['snake', 'animal', 'reptile'],
+    '🦎': ['lizard', 'animal', 'reptile'],
+    '🐙': ['octopus', 'animal', 'sea'],
+    '🦑': ['squid', 'animal', 'sea'],
+    '🦐': ['shrimp', 'animal', 'sea', 'food'],
+    '🦞': ['lobster', 'animal', 'sea', 'food'],
+    '🦀': ['crab', 'animal', 'sea', 'food'],
+    '🐡': ['blowfish', 'fish', 'sea'],
+    '🐠': ['fish', 'tropical', 'sea'],
+    '🐟': ['fish', 'sea', 'food'],
+    '🐬': ['dolphin', 'animal', 'sea'],
+    '🐳': ['whale', 'animal', 'sea'],
+    '🐋': ['whale', 'animal', 'sea', 'blue'],
+    '🦈': ['shark', 'animal', 'sea', 'danger'],
+    '🐊': ['crocodile', 'alligator', 'animal'],
+    '🐅': ['tiger', 'animal', 'stripes'],
+    '🐆': ['leopard', 'animal', 'spots'],
+    '🦓': ['zebra', 'animal', 'stripes'],
+    '🦍': ['gorilla', 'animal', 'ape'],
+    '🐘': ['elephant', 'animal', 'trunk'],
+    '🦏': ['rhino', 'rhinoceros', 'animal'],
+    '🦛': ['hippo', 'hippopotamus', 'animal'],
+    '🐪': ['camel', 'animal', 'desert'],
+    '🦒': ['giraffe', 'animal', 'tall'],
+    '🦘': ['kangaroo', 'animal', 'australia'],
+    '🐃': ['buffalo', 'animal', 'ox'],
+    '🐂': ['ox', 'animal', 'bull'],
+    '🐄': ['cow', 'animal', 'milk'],
+    '🐎': ['horse', 'racing', 'animal'],
+    '🐖': ['pig', 'animal', 'pork'],
+    '🐏': ['ram', 'sheep', 'animal'],
+    '🐑': ['sheep', 'animal', 'wool'],
+    '🦙': ['llama', 'animal', 'alpaca'],
+    '🐐': ['goat', 'animal'],
+    '🦌': ['deer', 'animal', 'bambi'],
+    '🐕': ['dog', 'animal', 'pet'],
+    '🐩': ['poodle', 'dog', 'pet'],
+    '🐈': ['cat', 'animal', 'pet'],
+    '🐓': ['rooster', 'chicken', 'bird'],
+    '🦃': ['turkey', 'bird', 'thanksgiving'],
+    '🦚': ['peacock', 'bird', 'beautiful'],
+    '🦜': ['parrot', 'bird', 'talk'],
+    '🦢': ['swan', 'bird', 'graceful'],
+    '🦩': ['flamingo', 'bird', 'pink'],
+    '🕊️': ['dove', 'bird', 'peace'],
+    '🐇': ['rabbit', 'bunny', 'hop'],
+    '🦝': ['raccoon', 'animal', 'trash'],
+    '🦨': ['skunk', 'animal', 'smell'],
+    '🦡': ['badger', 'animal'],
+    '🦦': ['otter', 'animal', 'water'],
+    '🦥': ['sloth', 'animal', 'slow'],
+    '🐁': ['mouse', 'rodent', 'small'],
+    '🐀': ['rat', 'rodent', 'animal'],
+    '🐿️': ['chipmunk', 'squirrel', 'animal'],
+    '🦔': ['hedgehog', 'animal', 'spiky']
+};
+
+// Build complete emoji list from keywords
+const allEmojis = Object.keys(emojiKeywords);
 
 // Emoji data
 const emojiData = {
@@ -810,16 +1141,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show emoji picker
     emojiTrigger.addEventListener('click', (e) => {
         e.stopPropagation();
-        emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
+        const wasHidden = emojiPicker.style.display === 'none';
+        emojiPicker.style.display = wasHidden ? 'block' : 'none';
         clearPicker.style.display = 'none';
         
-        // Position picker
-        const rect = emojiTrigger.getBoundingClientRect();
-        emojiPicker.style.top = rect.bottom + 'px';
-        emojiPicker.style.left = rect.left + 'px';
-        
-        // Load frequent emojis by default
-        loadEmojiCategory('frequent');
+        if (wasHidden) {
+            // Position picker
+            const rect = emojiTrigger.getBoundingClientRect();
+            emojiPicker.style.top = rect.bottom + 'px';
+            emojiPicker.style.left = rect.left + 'px';
+            
+            // Clear search and show categories
+            const emojiSearch = document.getElementById('emoji-search');
+            if (emojiSearch) {
+                emojiSearch.value = '';
+                document.getElementById('emoji-categories').classList.remove('hidden');
+            }
+            
+            // Load frequent emojis by default
+            loadEmojiCategory('frequent');
+            
+            // Focus search for easy typing
+            setTimeout(() => {
+                if (emojiSearch) emojiSearch.focus();
+            }, 50);
+        }
     });
     
     // Load emoji category
@@ -972,36 +1318,85 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Emoji search
+    // Search emoji function
+    const searchEmojis = (query) => {
+        if (!query) {
+            document.getElementById('emoji-categories').classList.remove('hidden');
+            loadEmojiCategory('frequent');
+            return;
+        }
+        
+        // Hide categories when searching
+        document.getElementById('emoji-categories').classList.add('hidden');
+        
+        const lowerQuery = query.toLowerCase();
+        const results = [];
+        
+        // Search through emoji keywords
+        for (const [emoji, keywords] of Object.entries(emojiKeywords)) {
+            // Check if emoji itself matches
+            if (emoji.includes(query)) {
+                results.push(emoji);
+                continue;
+            }
+            
+            // Check keywords
+            for (const keyword of keywords) {
+                if (keyword.includes(lowerQuery)) {
+                    results.push(emoji);
+                    break;
+                }
+            }
+        }
+        
+        // Also add any emojis from all categories that aren't in keywords
+        const allCategoryEmojis = Object.values(emojiData).flat();
+        for (const emoji of allCategoryEmojis) {
+            if (!emojiKeywords[emoji] && !results.includes(emoji)) {
+                // For emojis without keywords, just do a basic include check
+                if (emoji.includes(query)) {
+                    results.push(emoji);
+                }
+            }
+        }
+        
+        // Remove duplicates and limit results
+        const uniqueResults = [...new Set(results)].slice(0, 100);
+        
+        // Display results
+        if (uniqueResults.length > 0) {
+            emojiGrid.innerHTML = uniqueResults.map(emoji => 
+                `<button type="button" class="emoji-option" data-emoji="${emoji}">${emoji}</button>`
+            ).join('');
+        } else {
+            emojiGrid.innerHTML = '<div style="text-align: center; color: var(--text-tertiary); padding: 2rem;">No emojis found</div>';
+        }
+        
+        // Add click handlers
+        emojiGrid.querySelectorAll('.emoji-option').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const emoji = e.target.getAttribute('data-emoji');
+                selectedEmoji.textContent = emoji;
+                statusInput.value = emoji;
+                emojiPicker.style.display = 'none';
+                // Clear search when emoji is selected
+                document.getElementById('emoji-search').value = '';
+            });
+        });
+    };
+    
+    // Emoji search input handler
     const emojiSearch = document.getElementById('emoji-search');
     if (emojiSearch) {
         emojiSearch.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            if (!query) {
+            searchEmojis(e.target.value);
+        });
+        
+        // Focus search when picker opens
+        emojiSearch.addEventListener('focus', () => {
+            if (!emojiSearch.value) {
                 loadEmojiCategory('frequent');
-                return;
             }
-            
-            // Search all emojis
-            const allEmojis = Object.values(emojiData).flat();
-            const filtered = allEmojis.filter(emoji => {
-                // This is a simple filter - in production you'd want emoji names/keywords
-                return emoji.includes(query);
-            });
-            
-            emojiGrid.innerHTML = filtered.slice(0, 50).map(emoji => 
-                `<button type="button" class="emoji-option" data-emoji="${emoji}">${emoji}</button>`
-            ).join('');
-            
-            // Add click handlers
-            emojiGrid.querySelectorAll('.emoji-option').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const emoji = e.target.getAttribute('data-emoji');
-                    selectedEmoji.textContent = emoji;
-                    statusInput.value = emoji;
-                    emojiPicker.style.display = 'none';
-                });
-            });
         });
     }
     

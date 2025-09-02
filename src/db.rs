@@ -4,7 +4,7 @@ use async_sqlite::{
     rusqlite::{Error, Row},
 };
 use atrium_api::types::string::Did;
-use chrono::{DateTime, Datelike, Utc};
+use chrono::{DateTime, Utc};
 use rusqlite::types::Type;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, sync::Arc};
@@ -113,35 +113,12 @@ impl StatusFromDb {
         })
     }
 
-    /// Helper for the UI to see if started_at date is today or not
-    pub fn is_today(&self) -> bool {
-        let now = Utc::now();
-
-        self.started_at.day() == now.day()
-            && self.started_at.month() == now.month()
-            && self.started_at.year() == now.year()
-    }
-
     /// Check if status is expired
     pub fn is_expired(&self) -> bool {
         if let Some(expires_at) = self.expires_at {
             Utc::now() > expires_at
         } else {
             false
-        }
-    }
-
-    /// Format started_at time for display
-    pub fn format_started_at(&self, format: &str) -> String {
-        self.started_at.format(format).to_string()
-    }
-
-    /// Format expires_at time for display
-    pub fn format_expires_at(&self, format: &str) -> String {
-        if let Some(expires_at) = self.expires_at {
-            expires_at.format(format).to_string()
-        } else {
-            String::new()
         }
     }
 

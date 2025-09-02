@@ -490,6 +490,70 @@ async fn user_status_page(
     Ok(web::Html::new(html))
 }
 
+/// JSON API for the owner's status (top-level endpoint)
+#[get("/json")]
+async fn owner_status_json(
+    db_pool: web::Data<Arc<Pool>>,
+    _handle_resolver: web::Data<HandleResolver>,
+) -> Result<impl Responder> {
+    // Default owner of the domain
+    const OWNER_HANDLE: &str = "zzstoatzz.io";
+    
+    // Resolve handle to DID using ATProto handle resolution
+    let atproto_handle_resolver = AtprotoHandleResolver::new(AtprotoHandleResolverConfig {
+        dns_txt_resolver: HickoryDnsTxtResolver::default(),
+        http_client: Arc::new(DefaultHttpClient::default()),
+    });
+
+    let did = match atproto_handle_resolver
+        .resolve(&OWNER_HANDLE.parse().expect("failed to parse handle"))
+        .await
+    {
+        Ok(d) => Some(d.to_string()),
+        Err(e) => {
+            log::error!("Failed to resolve handle {}: {}", OWNER_HANDLE, e);
+            None
+        }
+    };
+
+    let current_status = if let Some(did) = did {
+        let did = Did::new(did).expect("failed to parse did");
+        StatusFromDb::my_status(&db_pool, &did)
+            .await
+            .unwrap_or(None)
+            .and_then(|s| {
+                // Check if status is expired
+                if let Some(expires_at) = s.expires_at {
+                    if chrono::Utc::now() > expires_at {
+                        return None; // Status expired
+                    }
+                }
+                Some(s)
+            })
+    } else {
+        None
+    };
+
+    let response = if let Some(status_data) = current_status {
+        serde_json::json!({
+            "handle": OWNER_HANDLE,
+            "status": "known",
+            "emoji": status_data.status,
+            "text": status_data.text,
+            "since": status_data.started_at.to_rfc3339(),
+            "expires": status_data.expires_at.map(|e| e.to_rfc3339()),
+        })
+    } else {
+        serde_json::json!({
+            "handle": OWNER_HANDLE,
+            "status": "unknown",
+            "message": "No current status is known"
+        })
+    };
+
+    Ok(web::Json(response))
+}
+
 /// JSON API for a specific user's status
 #[get("/@{handle}/json")]
 async fn user_status_json(
@@ -1126,6 +1190,7 @@ async fn main() -> std::io::Result<()> {
             .service(home)
             .service(feed)
             .service(status_json)
+            .service(owner_status_json)
             .service(user_status_page)
             .service(user_status_json)
             .service(status)
