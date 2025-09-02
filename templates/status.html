@@ -170,7 +170,15 @@
             {% for status in history %}
             {% if loop.index0 < 5 %}
             <div class="history-item">
-                <span class="history-emoji">{{ status.status }}</span>
+                <span class="history-emoji">
+                    {% if status.status.starts_with("custom:") %}
+                        {% let emoji_name = status.status.strip_prefix("custom:").unwrap() %}
+                        <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" class="custom-emoji-display"
+                             onerror="this.onerror=null; this.src='/emojis/{{emoji_name}}.gif';">
+                    {% else %}
+                        {{ status.status }}
+                    {% endif %}
+                </span>
                 <div class="history-content">
                     {% if status.text.is_some() %}
                     <span class="history-text">{{ status.text.as_ref().unwrap() }}</span>
