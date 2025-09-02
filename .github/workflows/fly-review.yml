@@ -33,7 +33,10 @@ jobs:
         uses: superfly/fly-pr-review-apps@1.2.1
         with:
           name: zzstoatzz-status-pr-${{ github.event.number }}
-          config: fly.toml
+          config: fly.review.toml
           # Use smaller resources for review apps
           vmsize: shared-cpu-1x
           memory: 256
+          # Set PUBLIC_URL dynamically for OAuth redirects
+          secrets: |
+            PUBLIC_URL=https://zzstoatzz-status-pr-${{ github.event.number }}.fly.dev
