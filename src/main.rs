@@ -43,6 +43,7 @@ use templates::{ErrorTemplate, Profile};
 
 mod db;
 mod ingester;
+#[allow(dead_code)]
 mod lexicons;
 mod resolver;
 mod storage;
