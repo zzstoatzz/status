@@ -48,6 +48,20 @@ pub async fn create_tables_in_database(pool: &Pool) -> Result<(), async_sqlite::
             [],
         )
         .unwrap();
+
+        // custom_emojis - site-wide custom emojis available to all users
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS custom_emojis (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            filename TEXT NOT NULL,
+            alt_text TEXT,
+            category TEXT DEFAULT 'custom',
+            addedAt INTEGER NOT NULL
+        )",
+            [],
+        )
+        .unwrap();
         Ok(())
     })
     .await?;
@@ -446,6 +460,85 @@ impl AuthState {
         pool.conn(move |conn| {
             let mut stmt = conn.prepare("DELETE FROM auth_state")?;
             stmt.execute([])
+        })
+        .await?;
+        Ok(())
+    }
+}
+
+/// CustomEmoji table datatype - site-wide custom emojis
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CustomEmoji {
+    pub id: i64,
+    pub name: String,
+    pub filename: String,
+    pub alt_text: Option<String>,
+    pub category: String,
+    pub added_at: DateTime<Utc>,
+}
+
+impl CustomEmoji {
+    /// Helper to map from [Row] to [CustomEmoji]
+    fn map_from_row(row: &Row) -> Result<Self, Error> {
+        Ok(Self {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            filename: row.get(2)?,
+            alt_text: row.get(3)?,
+            category: row.get(4)?,
+            added_at: {
+                let timestamp: i64 = row.get(5)?;
+                DateTime::from_timestamp(timestamp, 0).ok_or_else(|| {
+                    Error::InvalidColumnType(5, "Invalid timestamp".parse().unwrap(), Type::Text)
+                })?
+            },
+        })
+    }
+
+    /// Load all custom emojis
+    pub async fn load_all(pool: &Pool) -> Result<Vec<Self>, async_sqlite::Error> {
+        pool.conn(move |conn| {
+            let mut stmt = conn.prepare("SELECT * FROM custom_emojis ORDER BY category, name")?;
+            let emoji_iter = stmt.query_map([], |row| Self::map_from_row(row))?;
+            let mut emojis = vec![];
+            for emoji in emoji_iter {
+                emojis.push(emoji?);
+            }
+            Ok(emojis)
+        })
+        .await
+    }
+
+    /// Add a new custom emoji (admin only)
+    pub async fn add(
+        pool: &Pool,
+        name: String,
+        filename: String,
+        alt_text: Option<String>,
+        category: Option<String>,
+    ) -> Result<(), async_sqlite::Error> {
+        let now = Utc::now();
+        pool.conn(move |conn| {
+            conn.execute(
+                "INSERT INTO custom_emojis (name, filename, alt_text, category, addedAt) VALUES (?1, ?2, ?3, ?4, ?5)",
+                rusqlite::params![
+                    &name,
+                    &filename,
+                    &alt_text,
+                    &category.unwrap_or_else(|| "custom".to_string()),
+                    &now.timestamp(),
+                ],
+            )
+        })
+        .await?;
+        Ok(())
+    }
+
+    /// Delete a custom emoji by name
+    pub async fn delete_by_name(pool: &Pool, name: String) -> Result<(), async_sqlite::Error> {
+        pool.conn(move |conn| {
+            let mut stmt = conn.prepare("DELETE FROM custom_emojis WHERE name = ?1")?;
+            stmt.execute([&name])
         })
         .await?;
         Ok(())

@@ -1,5 +1,5 @@
 use crate::{
-    db::{StatusFromDb, create_tables_in_database},
+    db::{StatusFromDb, CustomEmoji, create_tables_in_database},
     ingester::start_ingester,
     lexicons::record::KnownRecord,
     storage::{SqliteSessionStore, SqliteStateStore},
@@ -550,6 +550,21 @@ async fn owner_status_json(
     };
 
     Ok(web::Json(response))
+}
+
+/// Get all custom emojis available on the site
+#[get("/api/custom-emojis")]
+async fn get_custom_emojis(
+    db_pool: web::Data<Arc<Pool>>,
+) -> Result<impl Responder> {
+    let emojis = CustomEmoji::load_all(&db_pool)
+        .await
+        .unwrap_or_else(|e| {
+            log::error!("Failed to load custom emojis: {}", e);
+            vec![]
+        });
+    
+    Ok(HttpResponse::Ok().json(emojis))
 }
 
 /// JSON API for a specific user's status
@@ -1285,8 +1300,8 @@ async fn main() -> std::io::Result<()> {
                     .build(),
             )
             .service(Files::new("/css", "public/css").show_files_listing())
-            .service(Files::new("/favicon.svg", "static/favicon.svg"))
-            .service(Files::new("/favicon.png", "static/favicon.png"))
+            .service(Files::new("/static", "static").show_files_listing())
+            .service(Files::new("/emojis", "static/emojis").show_files_listing())
             .service(client_metadata)
             .service(oauth_callback)
             .service(login)
@@ -1296,6 +1311,7 @@ async fn main() -> std::io::Result<()> {
             .service(feed)
             .service(status_json)
             .service(owner_status_json)
+            .service(get_custom_emojis)
             .service(user_status_page)
             .service(user_status_json)
             .service(status)

@@ -118,6 +118,7 @@
             </div>
             <div class="emoji-categories" id="emoji-categories">
                 <button class="category-btn active" data-category="frequent">Frequent</button>
+                <button class="category-btn" data-category="custom">Custom</button>
                 <button class="category-btn" data-category="people">People</button>
                 <button class="category-btn" data-category="nature">Nature</button>
                 <button class="category-btn" data-category="food">Food</button>
@@ -557,6 +558,13 @@ body {
 
 .emoji-option:hover {
     background: var(--bg-tertiary);
+}
+
+/* Custom emoji styles */
+.emoji-option.custom-emoji img {
+    width: 1.5rem;
+    height: 1.5rem;
+    object-fit: contain;
 }
 
 /* Clear Picker */
@@ -1172,22 +1180,67 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // Store custom emojis
+    let customEmojis = [];
+    
+    // Load custom emojis from API
+    const loadCustomEmojis = async () => {
+        try {
+            const response = await fetch('/api/custom-emojis');
+            customEmojis = await response.json();
+        } catch (e) {
+            console.error('Failed to load custom emojis:', e);
+        }
+    };
+    
+    // Load custom emojis on page load
+    loadCustomEmojis();
+    
     // Load emoji category
-    const loadEmojiCategory = (category) => {
-        const emojis = emojiData[category] || [];
-        emojiGrid.innerHTML = emojis.map(emoji => 
-            `<button type="button" class="emoji-option" data-emoji="${emoji}">${emoji}</button>`
-        ).join('');
-        
-        // Add click handlers
-        emojiGrid.querySelectorAll('.emoji-option').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const emoji = e.target.getAttribute('data-emoji');
-                selectedEmoji.textContent = emoji;
-                statusInput.value = emoji;
-                emojiPicker.style.display = 'none';
+    const loadEmojiCategory = async (category) => {
+        if (category === 'custom') {
+            // Load custom image emojis
+            if (customEmojis.length === 0) {
+                await loadCustomEmojis();
+            }
+            
+            emojiGrid.innerHTML = customEmojis.map(emoji => 
+                `<button type="button" class="emoji-option custom-emoji" data-emoji="custom:${emoji.name}" data-name="${emoji.name}">
+                    <img src="/emojis/${emoji.filename}" alt="${emoji.alt_text || emoji.name}" title="${emoji.name}">
+                </button>`
+            ).join('');
+            
+            // Add click handlers for custom emojis
+            emojiGrid.querySelectorAll('.custom-emoji').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const emojiName = btn.getAttribute('data-name');
+                    const emojiValue = btn.getAttribute('data-emoji');
+                    const img = btn.querySelector('img');
+                    
+                    // Display the image in the selected emoji area
+                    selectedEmoji.innerHTML = `<img src="${img.src}" alt="${img.alt}" style="width: 1.5em; height: 1.5em; vertical-align: middle;">`;
+                    statusInput.value = emojiValue;
+                    emojiPicker.style.display = 'none';
+                });
             });
-        });
+        } else {
+            // Load standard Unicode emojis
+            const emojis = emojiData[category] || [];
+            emojiGrid.innerHTML = emojis.map(emoji => 
+                `<button type="button" class="emoji-option" data-emoji="${emoji}">${emoji}</button>`
+            ).join('');
+            
+            // Add click handlers for standard emojis
+            emojiGrid.querySelectorAll('.emoji-option').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const emoji = e.target.getAttribute('data-emoji');
+                    selectedEmoji.textContent = emoji;
+                    statusInput.value = emoji;
+                    emojiPicker.style.display = 'none';
+                });
+            });
+        }
         
         // Update active category
         document.querySelectorAll('.category-btn').forEach(btn => {
