@@ -791,6 +791,12 @@ struct StatusForm {
     expires_in: Option<String>, // e.g., "1h", "30m", "1d", etc.
 }
 
+/// The post body for deleting a specific status
+#[derive(Serialize, Deserialize)]
+struct DeleteRequest {
+    uri: String,
+}
+
 /// Parse duration string like "1h", "30m", "1d" into chrono::Duration
 fn parse_duration(duration_str: &str) -> Option<chrono::Duration> {
     if duration_str.is_empty() {
@@ -905,6 +911,105 @@ async fn clear_status(
                 .see_other()
                 .respond_to(&request)
                 .map_into_boxed_body()
+        }
+    }
+}
+
+/// Delete a specific status by URI (JSON endpoint)
+#[post("/status/delete")]
+async fn delete_status(
+    session: Session,
+    oauth_client: web::Data<OAuthClientType>,
+    db_pool: web::Data<Arc<Pool>>,
+    req: web::Json<DeleteRequest>,
+) -> HttpResponse {
+    // Check if the user is logged in
+    match session.get::<String>("did").unwrap_or(None) {
+        Some(did_string) => {
+            let did = Did::new(did_string.clone()).expect("failed to parse did");
+            
+            // Parse the URI to verify it belongs to this user
+            // URI format: at://did:plc:xxx/io.zzstoatzz.status.record/rkey
+            let uri_parts: Vec<&str> = req.uri.split('/').collect();
+            if uri_parts.len() < 5 {
+                return HttpResponse::BadRequest().json(serde_json::json!({
+                    "error": "Invalid status URI format"
+                }));
+            }
+            
+            // Extract DID from URI (at://did:plc:xxx/...)
+            let uri_did_part = uri_parts[2];
+            if uri_did_part != did_string {
+                return HttpResponse::Forbidden().json(serde_json::json!({
+                    "error": "You can only delete your own statuses"
+                }));
+            }
+            
+            // Extract record key
+            if let Some(rkey) = uri_parts.last() {
+                // Get OAuth session
+                match oauth_client.restore(&did).await {
+                    Ok(session) => {
+                        let agent = Agent::new(session);
+                        
+                        // Delete the record from ATProto
+                        let delete_request =
+                            atrium_api::com::atproto::repo::delete_record::InputData {
+                                collection: atrium_api::types::string::Nsid::new(
+                                    "io.zzstoatzz.status.record".to_string(),
+                                )
+                                .expect("valid nsid"),
+                                repo: did.clone().into(),
+                                rkey: atrium_api::types::string::RecordKey::new(
+                                    rkey.to_string(),
+                                )
+                                .expect("valid rkey"),
+                                swap_commit: None,
+                                swap_record: None,
+                            };
+                        
+                        match agent
+                            .api
+                            .com
+                            .atproto
+                            .repo
+                            .delete_record(delete_request.into())
+                            .await
+                        {
+                            Ok(_) => {
+                                // Also remove from local database
+                                let _ = StatusFromDb::delete_by_uri(&db_pool, req.uri.clone()).await;
+                                
+                                HttpResponse::Ok().json(serde_json::json!({
+                                    "success": true
+                                }))
+                            }
+                            Err(e) => {
+                                log::error!("Failed to delete status from ATProto: {e}");
+                                HttpResponse::InternalServerError().json(serde_json::json!({
+                                    "error": "Failed to delete status"
+                                }))
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Failed to restore OAuth session: {e}");
+                        HttpResponse::InternalServerError().json(serde_json::json!({
+                            "error": "Session error"
+                        }))
+                    }
+                }
+            } else {
+                HttpResponse::BadRequest().json(serde_json::json!({
+                    "error": "Invalid status URI"
+                }))
+            }
+        }
+        None => {
+            // Not logged in
+            HttpResponse::Unauthorized().json(serde_json::json!({
+                "error": "Not authenticated"
+            }))
         }
     }
 }
@@ -1195,6 +1300,7 @@ async fn main() -> std::io::Result<()> {
             .service(user_status_json)
             .service(status)
             .service(clear_status)
+            .service(delete_status)
     })
     .bind((host.as_str(), port))?
     .run()

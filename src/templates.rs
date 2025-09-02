@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Template)]
 #[template(path = "home.html")]
 pub struct HomeTemplate<'a> {
+    #[allow(dead_code)]
     pub title: &'a str,
     pub status_options: &'a [&'a str],
     pub profile: Option<Profile>,
@@ -23,6 +24,7 @@ pub struct Profile {
 #[derive(Template)]
 #[template(path = "login.html")]
 pub struct LoginTemplate<'a> {
+    #[allow(dead_code)]
     pub title: &'a str,
     pub error: Option<&'a str>,
 }
@@ -30,6 +32,7 @@ pub struct LoginTemplate<'a> {
 #[derive(Template)]
 #[template(path = "error.html")]
 pub struct ErrorTemplate<'a> {
+    #[allow(dead_code)]
     pub title: &'a str,
     pub error: &'a str,
 }
@@ -37,8 +40,10 @@ pub struct ErrorTemplate<'a> {
 #[derive(Template)]
 #[template(path = "status.html")]
 pub struct StatusTemplate<'a> {
+    #[allow(dead_code)]
     pub title: &'a str,
     pub handle: String,
+    #[allow(dead_code)]
     pub status_options: &'a [&'a str],
     pub current_status: Option<StatusFromDb>,
     pub history: Vec<StatusFromDb>,
@@ -48,6 +53,7 @@ pub struct StatusTemplate<'a> {
 #[derive(Template)]
 #[template(path = "feed.html")]
 pub struct FeedTemplate<'a> {
+    #[allow(dead_code)]
     pub title: &'a str,
     pub profile: Option<Profile>,
     pub statuses: Vec<StatusFromDb>,

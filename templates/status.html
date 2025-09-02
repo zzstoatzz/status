@@ -105,12 +105,6 @@
                     <option value="1w">1 week</option>
                 </select>
             </form>
-            
-            {% if let Some(current) = current_status %}
-            <form action="/status/clear" method="post" class="clear-form">
-                <button type="submit" class="clear-status-btn">Clear status</button>
-            </form>
-            {% endif %}
         </div>
 
         <!-- Emoji Picker (hidden by default) -->
@@ -174,6 +168,14 @@
                     {% endif %}
                     <span class="history-time local-time" data-timestamp="{{ status.started_at.to_rfc3339() }}" data-format="short"></span>
                 </div>
+                {% if is_owner %}
+                <button type="button" class="history-delete" data-uri="{{ status.uri }}" title="Delete this status">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+                {% endif %}
             </div>
             {% endif %}
             {% endfor %}
@@ -465,25 +467,6 @@ body {
     cursor: not-allowed;
 }
 
-.clear-form {
-    margin-top: 0.5rem;
-    text-align: center;
-}
-
-.clear-status-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-tertiary);
-    font-size: 0.875rem;
-    cursor: pointer;
-    padding: 0.5rem;
-    transition: color 0.2s;
-}
-
-.clear-status-btn:hover {
-    color: var(--danger);
-}
-
 /* Emoji Picker */
 .emoji-picker {
     position: absolute;
@@ -687,6 +670,7 @@ body {
     align-items: center;
     gap: 0.75rem;
     padding: 0.5rem 0;
+    position: relative;
 }
 
 .history-emoji {
@@ -712,6 +696,26 @@ body {
 .history-time {
     color: var(--text-tertiary);
     font-size: 0.75rem;
+}
+
+.history-delete {
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: var(--radius-sm);
+    opacity: 0;
+    transition: all 0.2s;
+}
+
+.history-item:hover .history-delete {
+    opacity: 1;
+}
+
+.history-delete:hover {
+    background: var(--bg-tertiary);
+    color: var(--danger);
 }
 
 /* Nav Links */
@@ -1432,6 +1436,44 @@ document.addEventListener('DOMContentLoaded', () => {
     checkForChanges();
     
     {% endif %}
+    
+    // Handle delete buttons for history items
+    document.querySelectorAll('.history-delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const uri = btn.getAttribute('data-uri');
+            
+            if (confirm('Delete this status? This cannot be undone.')) {
+                try {
+                    const response = await fetch('/status/delete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ uri })
+                    });
+                    
+                    if (response.ok) {
+                        // Remove the history item from the DOM
+                        btn.closest('.history-item').remove();
+                        
+                        // If no more history items, remove the entire history section
+                        const historyItems = document.querySelectorAll('.history-item');
+                        if (historyItems.length === 0) {
+                            const historySection = document.querySelector('.history');
+                            if (historySection) {
+                                historySection.remove();
+                            }
+                        }
+                    } else {
+                        alert('Failed to delete status');
+                    }
+                } catch (error) {
+                    console.error('Error deleting status:', error);
+                    alert('Failed to delete status');
+                }
+            }
+        });
+    });
 });
 </script>
 {%endblock content%}
