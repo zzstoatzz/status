@@ -1285,6 +1285,8 @@ async fn main() -> std::io::Result<()> {
                     .build(),
             )
             .service(Files::new("/css", "public/css").show_files_listing())
+            .service(Files::new("/favicon.svg", "static/favicon.svg"))
+            .service(Files::new("/favicon.png", "static/favicon.png"))
             .service(client_metadata)
             .service(oauth_callback)
             .service(login)
