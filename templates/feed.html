@@ -191,16 +191,22 @@ body {
     background: var(--bg-tertiary);
 }
 
+.theme-toggle svg {
+    stroke: var(--text-secondary);
+}
+
 .sun-icon, .moon-icon {
     display: none;
 }
 
 [data-theme="light"] .sun-icon {
     display: block;
+    stroke: #f39c12;
 }
 
 [data-theme="dark"] .moon-icon {
     display: block;
+    stroke: #8e44ad;
 }
 
 /* Session Card */

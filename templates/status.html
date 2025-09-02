@@ -74,7 +74,19 @@
             <form action="/status" method="post" id="status-form">
                 <div class="input-group">
                     <button type="button" class="emoji-trigger" id="emoji-trigger">
-                        <span id="selected-emoji">{% if let Some(current) = current_status.as_ref() %}{{ current.status }}{% else %}😊{% endif %}</span>
+                        <span id="selected-emoji">
+                            {% if let Some(current) = current_status.as_ref() %}
+                                {% if current.status.starts_with("custom:") %}
+                                    {% let emoji_name = current.status.strip_prefix("custom:").unwrap() %}
+                                    <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" 
+                                         onerror="this.onerror=null; this.src='/emojis/{{emoji_name}}.gif';">
+                                {% else %}
+                                    {{ current.status }}
+                                {% endif %}
+                            {% else %}
+                                😊
+                            {% endif %}
+                        </span>
                     </button>
                     <input type="hidden" name="status" id="status-input" value="{% if let Some(current) = current_status.as_ref() %}{{ current.status }}{% else %}😊{% endif %}" required>
                     
@@ -314,6 +326,10 @@ body {
     position: relative;
 }
 
+.theme-toggle svg {
+    stroke: var(--text-secondary);
+}
+
 .theme-indicator {
     position: absolute;
     top: calc(100% + 0.5rem);
@@ -341,10 +357,12 @@ body {
 
 [data-theme="light"] .sun-icon {
     display: block;
+    stroke: #f39c12;
 }
 
 [data-theme="dark"] .moon-icon {
     display: block;
+    stroke: #8e44ad;
 }
 
 /* Status Display */
@@ -428,6 +446,19 @@ body {
     padding: 0.25rem;
     border-radius: var(--radius-sm);
     transition: background 0.2s;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    overflow: hidden;
+}
+
+.emoji-trigger img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
 }
 
 .emoji-trigger:hover {
