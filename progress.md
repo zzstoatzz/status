@@ -30,6 +30,21 @@
 - OAuth works but requires broad permissions (AT Protocol limitation)
 - All core features operational
 
+## Today's Progress (Sept 1, 2025)
+- Forked from Bailey's emoji-only statusphere
+- Created custom lexicon with text + expiration support
+- Added multi-user OAuth authentication
+- Implemented emoji picker with keyword search
+- Fixed mobile responsiveness
+- Added status expiration (30min to 1 week)
+- Set up CI/CD with GitHub Actions
+- Renamed repo to "status"
+- Improved delete UX (removed confusing clear button)
+- Made feed handles visually distinct
+- Updated link previews to be lowercase and include actual status
+- Cleaned up dead code from original fork
+- Posted thread about the launch
+
 ## Next Steps 📋
 
 ### Immediate

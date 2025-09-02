@@ -16,6 +16,8 @@ COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY templates ./templates
 COPY lexicons ./lexicons
+COPY static ./static
+COPY public ./public
 
 # Build for release
 RUN cargo build --release
@@ -37,6 +39,9 @@ COPY --from=builder /app/target/release/nate-status /app/nate-status
 # Copy templates and lexicons
 COPY templates ./templates
 COPY lexicons ./lexicons
+# Copy static files and CSS
+COPY static ./static
+COPY public ./public
 
 # Create directory for SQLite database
 RUN mkdir -p /data
