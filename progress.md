@@ -45,6 +45,40 @@
 - Cleaned up dead code from original fork
 - Posted thread about the launch
 
+## Progress Update (Sept 2, 2025)
+
+### Major Features Added
+- **Custom Emoji Support**: Integrated 1600+ animated emojis from bufo.zone
+  - Scraped and stored in `/static/emojis/`
+  - Searchable in emoji picker
+  - Supports GIF animation
+  - No database needed - served directly from filesystem
+- **Infinite Scrolling**: Global feed now loads forever
+  - Added `/api/feed` endpoint with pagination
+  - Smooth loading with "beginning of time" indicator
+  - Handles large datasets efficiently
+- **Theme Consistency**: Added theme toggle indicator across all pages
+- **Performance Optimization**: Added database indexes on critical columns
+  - `idx_status_startedAt` for feed queries
+  - `idx_status_authorDid_startedAt` for user queries
+
+### Bug Fixes
+- Fixed favicon not loading in production
+- Fixed custom emoji layout issues in picker
+- Fixed theme toggle icons being invisible
+- Removed unused CSS file and public directory
+- Suppressed dead_code warning for auto-generated lexicons
+
+### Code Quality Improvements
+- Created 5 GitHub issues for technical debt:
+  - ✅ #1: Database indexes (COMPLETED)
+  - #2: Excessive unwrap() usage (57 instances)
+  - #3: Duplicated handle resolution code
+  - #4: Hardcoded configuration values
+  - #5: No rate limiting on API endpoints
+- Cleaned up unused `public/css` directory
+- Removed hardcoded OWNER_DID references
+
 ## Next Steps 📋
 
 ### Immediate
