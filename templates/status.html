@@ -598,8 +598,9 @@ body {
 
 .emoji-grid {
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
+    grid-template-columns: repeat(auto-fill, 2rem);
     gap: 0.25rem;
+    justify-content: start;
 }
 
 .emoji-option {
@@ -610,6 +611,11 @@ body {
     cursor: pointer;
     border-radius: var(--radius-sm);
     transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
 }
 
 .emoji-option:hover {
@@ -617,9 +623,13 @@ body {
 }
 
 /* Custom emoji styles */
+.emoji-option.custom-emoji {
+    padding: 0.125rem;
+}
+
 .emoji-option.custom-emoji img {
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 1.75rem;
+    height: 1.75rem;
     object-fit: contain;
 }
 
