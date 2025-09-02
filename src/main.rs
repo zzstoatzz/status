@@ -1,5 +1,5 @@
 use crate::{
-    db::{StatusFromDb, CustomEmoji, create_tables_in_database},
+    db::{StatusFromDb, create_tables_in_database},
     ingester::start_ingester,
     lexicons::record::KnownRecord,
     storage::{SqliteSessionStore, SqliteStateStore},
@@ -554,15 +554,37 @@ async fn owner_status_json(
 
 /// Get all custom emojis available on the site
 #[get("/api/custom-emojis")]
-async fn get_custom_emojis(
-    db_pool: web::Data<Arc<Pool>>,
-) -> Result<impl Responder> {
-    let emojis = CustomEmoji::load_all(&db_pool)
-        .await
-        .unwrap_or_else(|e| {
-            log::error!("Failed to load custom emojis: {}", e);
-            vec![]
-        });
+async fn get_custom_emojis() -> Result<impl Responder> {
+    use std::fs;
+    
+    #[derive(Serialize)]
+    struct SimpleEmoji {
+        name: String,
+        filename: String,
+    }
+    
+    let emojis_dir = "static/emojis";
+    let mut emojis = Vec::new();
+    
+    if let Ok(entries) = fs::read_dir(emojis_dir) {
+        for entry in entries.flatten() {
+            if let Some(filename) = entry.file_name().to_str() {
+                // Only include image files
+                if filename.ends_with(".png") || filename.ends_with(".gif") || 
+                   filename.ends_with(".jpg") || filename.ends_with(".webp") {
+                    // Remove file extension to get name
+                    let name = filename.rsplit_once('.').map(|(name, _)| name).unwrap_or(filename).to_string();
+                    emojis.push(SimpleEmoji {
+                        name: name.clone(),
+                        filename: filename.to_string(),
+                    });
+                }
+            }
+        }
+    }
+    
+    // Sort by name
+    emojis.sort_by(|a, b| a.name.cmp(&b.name));
     
     Ok(HttpResponse::Ok().json(emojis))
 }

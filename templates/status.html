@@ -39,7 +39,15 @@
         <div class="status-display">
             {% if let Some(current) = current_status %}
             <div class="current-status">
-                <span class="status-emoji">{{ current.status }}</span>
+                <span class="status-emoji">
+                    {% if current.status.starts_with("custom:") %}
+                        {% let emoji_name = current.status.strip_prefix("custom:").unwrap() %}
+                        <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" class="custom-emoji-display"
+                             onerror="this.onerror=null; this.src='/emojis/{{emoji_name}}.gif';">
+                    {% else %}
+                        {{ current.status }}
+                    {% endif %}
+                </span>
                 <div class="status-content">
                     {% if current.text.is_some() %}
                     <p class="status-text">{{ current.text.as_ref().unwrap() }}</p>
@@ -351,6 +359,15 @@ body {
 .status-emoji {
     font-size: 3.5rem;
     line-height: 1;
+}
+
+.custom-emoji-display {
+    width: 3.5rem;
+    height: 3.5rem;
+    object-fit: contain;
+    vertical-align: middle;
+    /* Ensure GIFs animate */
+    image-rendering: auto;
 }
 
 .status-content {
@@ -1206,7 +1223,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             emojiGrid.innerHTML = customEmojis.map(emoji => 
                 `<button type="button" class="emoji-option custom-emoji" data-emoji="custom:${emoji.name}" data-name="${emoji.name}">
-                    <img src="/emojis/${emoji.filename}" alt="${emoji.alt_text || emoji.name}" title="${emoji.name}">
+                    <img src="/emojis/${emoji.filename}" alt="${emoji.name}" title="${emoji.name}">
                 </button>`
             ).join('');
             

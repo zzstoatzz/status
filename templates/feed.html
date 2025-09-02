@@ -54,7 +54,15 @@
             <div class="status-list">
                 {% for status in statuses %}
                 <div class="status-item">
-                    <span class="status-emoji">{{status.status}}</span>
+                    <span class="status-emoji">
+                        {% if status.status.starts_with("custom:") %}
+                            {% let emoji_name = status.status.strip_prefix("custom:").unwrap() %}
+                            <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" class="custom-emoji-display"
+                                 onerror="this.onerror=null; this.src='/emojis/{{emoji_name}}.gif';">
+                        {% else %}
+                            {{status.status}}
+                        {% endif %}
+                    </span>
                     <div class="status-content">
                         <div class="status-main">
                             <a class="status-author" href="/{{status.author_display_name()}}">{{status.author_display_name()}}</a>
@@ -294,6 +302,15 @@ body {
 .status-emoji {
     font-size: 2rem;
     line-height: 1;
+}
+
+.custom-emoji-display {
+    width: 2rem;
+    height: 2rem;
+    object-fit: contain;
+    vertical-align: middle;
+    /* Ensure GIFs animate */
+    image-rendering: auto;
 }
 
 .status-content {
