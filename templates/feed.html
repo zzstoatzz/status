@@ -21,6 +21,7 @@
                 <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                 </svg>
+                <span class="theme-indicator" id="theme-indicator"></span>
             </button>
         </header>
 
@@ -176,6 +177,7 @@ body {
 }
 
 .theme-toggle {
+    position: relative;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
@@ -207,6 +209,27 @@ body {
 [data-theme="dark"] .moon-icon {
     display: block;
     stroke: #8e44ad;
+}
+
+.theme-indicator {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 1000;
+}
+
+.theme-indicator.visible {
+    opacity: 1;
 }
 
 /* Session Card */
@@ -436,6 +459,16 @@ const toggleTheme = () => {
         document.body.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
     } else {
         document.body.setAttribute('data-theme', next);
+    }
+    
+    // Show theme indicator
+    const indicator = document.getElementById('theme-indicator');
+    if (indicator) {
+        indicator.textContent = next;
+        indicator.classList.add('visible');
+        setTimeout(() => {
+            indicator.classList.remove('visible');
+        }, 1500);
     }
 };
 

@@ -1444,6 +1444,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const lowerQuery = query.toLowerCase();
         const results = [];
+        const customResults = [];
         
         // Search through emoji keywords
         for (const [emoji, keywords] of Object.entries(emojiKeywords)) {
@@ -1473,24 +1474,58 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // Remove duplicates and limit results
-        const uniqueResults = [...new Set(results)].slice(0, 100);
+        // Search through custom emojis by name
+        for (const customEmoji of customEmojis) {
+            if (customEmoji.name.toLowerCase().includes(lowerQuery)) {
+                customResults.push(customEmoji);
+            }
+        }
         
-        // Display results
+        // Remove duplicates and limit results
+        const uniqueResults = [...new Set(results)].slice(0, 50);
+        const uniqueCustomResults = customResults.slice(0, 50);
+        
+        // Display results - combine regular and custom emojis
+        let resultsHtml = '';
+        
+        // Add custom emoji results first
+        if (uniqueCustomResults.length > 0) {
+            resultsHtml += uniqueCustomResults.map(emoji => 
+                `<button type="button" class="emoji-option custom-emoji" data-emoji="custom:${emoji.name}" data-name="${emoji.name}">
+                    <img src="/emojis/${emoji.filename}" alt="${emoji.name}" title="${emoji.name}">
+                </button>`
+            ).join('');
+        }
+        
+        // Add regular emoji results
         if (uniqueResults.length > 0) {
-            emojiGrid.innerHTML = uniqueResults.map(emoji => 
+            resultsHtml += uniqueResults.map(emoji => 
                 `<button type="button" class="emoji-option" data-emoji="${emoji}">${emoji}</button>`
             ).join('');
+        }
+        
+        if (resultsHtml) {
+            emojiGrid.innerHTML = resultsHtml;
         } else {
             emojiGrid.innerHTML = '<div style="text-align: center; color: var(--text-tertiary); padding: 2rem;">No emojis found</div>';
         }
         
-        // Add click handlers
+        // Add click handlers for both regular and custom emojis
         emojiGrid.querySelectorAll('.emoji-option').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const emoji = e.target.getAttribute('data-emoji');
-                selectedEmoji.textContent = emoji;
-                statusInput.value = emoji;
+                e.preventDefault();
+                const emojiValue = btn.getAttribute('data-emoji');
+                
+                if (btn.classList.contains('custom-emoji')) {
+                    // Handle custom emoji
+                    const img = btn.querySelector('img');
+                    selectedEmoji.innerHTML = `<img src="${img.src}" alt="${img.alt}" style="width: 1.5em; height: 1.5em; vertical-align: middle;">`;
+                } else {
+                    // Handle regular emoji
+                    selectedEmoji.textContent = emojiValue;
+                }
+                
+                statusInput.value = emojiValue;
                 emojiPicker.style.display = 'none';
                 // Clear search when emoji is selected
                 document.getElementById('emoji-search').value = '';

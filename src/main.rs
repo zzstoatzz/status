@@ -1322,7 +1322,6 @@ async fn main() -> std::io::Result<()> {
                     )
                     .build(),
             )
-            .service(Files::new("/css", "public/css").show_files_listing())
             .service(Files::new("/static", "static").show_files_listing())
             .service(Files::new("/emojis", "static/emojis").show_files_listing())
             .service(client_metadata)
