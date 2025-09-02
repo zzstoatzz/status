@@ -98,11 +98,55 @@
 - SmokeSignal event integration
 - Location-based discovery
 
+## Progress Update (Sept 2, 2025 - Evening)
+
+### Testing Infrastructure & Resilience
+- **Test Framework Setup**: Established comprehensive testing with `just test` command
+  - 9 tests covering rate limiting, error handling, and API endpoints
+  - All tests passing
+- **Rate Limiting**: Implemented token bucket algorithm
+  - 30 requests per minute per IP address on `/status` endpoint
+  - Prevents spam and abuse
+  - Closes GitHub issue #5
+- **Error Handling**: Centralized error handling with `AppError` enum
+  - Consistent error responses across the application
+  - Better debugging and user feedback
+
+### Admin Moderation System
+- **Soft Hide Capability**: Added ability to hide inappropriate content
+  - Posts remain in database but excluded from global feed
+  - Admin DID hardcoded: `did:plc:xbtmt2zjwlrfegqvch7fboei` (zzstoatzz.io)
+  - `/admin/hide-status` endpoint for toggling visibility
+  - Hide button in UI visible only to admin
+  - Confirmation dialog before hiding
+
+### UI Improvements
+- **Fixed Emoji Alignment**: Resolved custom emoji sizing issues in status history
+  - Standardized container dimensions (1.5rem x 1.5rem for history items)
+  - Consistent layout regardless of emoji type
+
+### DevOps & CI/CD
+- **Review Apps**: Set up automatic preview deployments for PRs
+  - Uses GitHub Actions with `superfly/fly-pr-review-apps@1.2.1`
+  - Deploys to `pr-<number>-zzstoatzz-status.fly.dev`
+  - Smaller resources for review apps (256MB RAM)
+  - Updated FLY_API_TOKEN to org-level token for app creation
+
+### Code Quality
+- **Refactoring**: Cleaned up parameter passing
+  - Replaced verbose `&dyn rusqlite::ToSql` with `rusqlite::params!` macro
+  - More idiomatic Rust code
+
 ## Technical Debt
+- ✅ ~~No rate limiting on API endpoints~~ (RESOLVED with issue #5)
 - OAuth scopes too broad (waiting on AT Protocol)
 - Session persistence needed
 - Location feature architecture planned but not implemented
+- #2: Excessive unwrap() usage (57 instances)
+- #3: Duplicated handle resolution code
+- #4: Hardcoded configuration values
 
 ## Resources
 - OAuth research: `/tmp/atproto-oauth-research/`
 - Location proposal: `/tmp/atproto-oauth-research/location_integration_proposal.md`
+- PR #7: Testing, rate limiting, and moderation features
