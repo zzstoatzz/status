@@ -1,7 +1,9 @@
 [package]
-name = "rusty_statusphere_example_app"
+name = "nate-status"
 version = "0.1.0"
 edition = "2024"
+# Based on Bailey Townsend's Rusty Statusphere example app
+# https://github.com/fatfingers23/rusty_statusphere_example_app
 
 [dependencies]
 actix-files = "0.6.6"

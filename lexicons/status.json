@@ -1,21 +1,37 @@
 {
   "lexicon": 1,
-  "id": "xyz.statusphere.status",
+  "id": "io.zzstoatzz.status.record",
   "defs": {
     "main": {
       "type": "record",
       "key": "tid",
       "record": {
         "type": "object",
-        "required": ["status", "createdAt"],
+        "required": ["emoji", "createdAt"],
         "properties": {
-          "status": {
+          "emoji": {
             "type": "string",
+            "description": "Status emoji",
             "minLength": 1,
             "maxGraphemes": 1,
             "maxLength": 32
           },
-          "createdAt": { "type": "string", "format": "datetime" }
+          "text": {
+            "type": "string",
+            "description": "Optional status text description",
+            "maxLength": 256,
+            "maxGraphemes": 256
+          },
+          "expires": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Optional expiration timestamp for this status"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When this status was created"
+          }
         }
       }
     }

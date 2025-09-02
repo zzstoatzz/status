@@ -2258,6 +2258,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "nate-status"
+version = "0.1.0"
+dependencies = [
+ "actix-files",
+ "actix-session",
+ "actix-web",
+ "anyhow",
+ "askama",
+ "async-sqlite",
+ "async-trait",
+ "atrium-api",
+ "atrium-common",
+ "atrium-identity",
+ "atrium-oauth",
+ "chrono",
+ "dotenv",
+ "env_logger",
+ "hickory-resolver",
+ "log",
+ "rocketman",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "native-tls"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2849,33 +2876,6 @@ name = "rustversion"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eded382c5f5f786b989652c49544c4877d9f015cc22e145a5ea8ea66c2921cd2"
-
-[[package]]
-name = "rusty_statusphere_example_app"
-version = "0.1.0"
-dependencies = [
- "actix-files",
- "actix-session",
- "actix-web",
- "anyhow",
- "askama",
- "async-sqlite",
- "async-trait",
- "atrium-api",
- "atrium-common",
- "atrium-identity",
- "atrium-oauth",
- "chrono",
- "dotenv",
- "env_logger",
- "hickory-resolver",
- "log",
- "rocketman",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
-]
 
 [[package]]
 name = "ryu"

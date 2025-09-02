@@ -2,9 +2,294 @@
 
 {% block content %}
 <div id="root">
-    <p>Error: <i>{{error}}</i></p>
-    <br>
-    <a href="/">Go Home</a>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>status.zzstoatzz.io</h1>
+            <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+                <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
+        </header>
+
+        <!-- Error Card -->
+        <div class="error-card">
+            <div class="error-header">
+                <span class="error-emoji">⚠️</span>
+                <h2>something went wrong</h2>
+            </div>
+            
+            <div class="error-content">
+                <p class="error-message">{{error}}</p>
+            </div>
+            
+            <div class="error-actions">
+                <a href="/" class="button button-primary">go home</a>
+                <a href="/feed" class="button button-secondary">view feed</a>
+            </div>
+        </div>
+    </div>
 </div>
 
+<style>
+:root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #ffffff;
+    --text-primary: #1a1a1a;
+    --text-secondary: #6c757d;
+    --text-tertiary: #adb5bd;
+    --border-color: #e9ecef;
+    --accent: #4a9eff;
+    --accent-hover: #3a8eee;
+    --danger: #dc3545;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+    --radius: 12px;
+    --radius-sm: 8px;
+}
+
+[data-theme="dark"] {
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #1a1a1a;
+    --bg-tertiary: #2a2a2a;
+    --text-primary: #ffffff;
+    --text-secondary: #adb5bd;
+    --text-tertiary: #6c757d;
+    --border-color: #2a2a2a;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Force all elements to use monospace font */
+input, button, select, textarea {
+    font-family: inherit;
+}
+
+body {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", "Source Code Pro", "SF Mono", "Monaco", "Inconsolata", "Consolas", monospace;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    transition: background 0.3s, color 0.3s;
+}
+
+#root {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.container {
+    width: 100%;
+    max-width: 500px;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.header h1 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.theme-toggle {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.theme-toggle:hover {
+    background: var(--bg-tertiary);
+}
+
+.sun-icon, .moon-icon {
+    display: none;
+}
+
+[data-theme="light"] .sun-icon {
+    display: block;
+}
+
+[data-theme="dark"] .moon-icon {
+    display: block;
+}
+
+/* Error Card */
+.error-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 2rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.error-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.error-emoji {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 1rem;
+}
+
+.error-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Error Content */
+.error-content {
+    background: rgba(220, 53, 69, 0.05);
+    border: 1px solid rgba(220, 53, 69, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    margin-bottom: 2rem;
+}
+
+.error-message {
+    color: var(--danger);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+/* Error Actions */
+.error-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+}
+
+/* Buttons */
+.button {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    font-family: inherit;
+    text-align: center;
+}
+
+.button-primary {
+    background: var(--accent);
+    color: white;
+}
+
+.button-primary:hover {
+    background: var(--accent-hover);
+}
+
+.button-secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.button-secondary:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--text-secondary);
+}
+
+/* Mobile adjustments */
+@media (max-width: 640px) {
+    #root {
+        padding: 1rem;
+    }
+    
+    .error-card {
+        padding: 1.5rem;
+    }
+    
+    .error-actions {
+        flex-direction: column;
+    }
+    
+    .button {
+        width: 100%;
+    }
+}
+</style>
+
+<script>
+// Theme management
+const initTheme = () => {
+    const saved = localStorage.getItem('theme');
+    const theme = saved || 'system';
+    
+    if (theme === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.body.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    } else {
+        document.body.setAttribute('data-theme', theme);
+    }
+};
+
+const toggleTheme = () => {
+    const saved = localStorage.getItem('theme') || 'system';
+    const themes = ['system', 'light', 'dark'];
+    const currentIndex = themes.indexOf(saved);
+    const next = themes[(currentIndex + 1) % themes.length];
+    
+    localStorage.setItem('theme', next);
+    
+    if (next === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.body.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    } else {
+        document.body.setAttribute('data-theme', next);
+    }
+};
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
+    
+    // Theme toggle
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+    }
+});
+</script>
 {%endblock content%}

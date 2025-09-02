@@ -19,9 +19,11 @@ pub async fn create_tables_in_database(pool: &Pool) -> Result<(), async_sqlite::
             "CREATE TABLE IF NOT EXISTS status (
             uri TEXT PRIMARY KEY,
             authorDid TEXT NOT NULL,
-            status TEXT NOT NULL,
-            createdAt INTEGER  NOT NULL,
-            indexedAt INTEGER  NOT NULL
+            emoji TEXT NOT NULL,
+            text TEXT,
+            startedAt INTEGER NOT NULL,
+            expiresAt INTEGER,
+            indexedAt INTEGER NOT NULL
         )",
             [],
         )
@@ -57,8 +59,10 @@ pub async fn create_tables_in_database(pool: &Pool) -> Result<(), async_sqlite::
 pub struct StatusFromDb {
     pub uri: String,
     pub author_did: String,
-    pub status: String,
-    pub created_at: DateTime<Utc>,
+    pub status: String, // Keep for backwards compat, but this is the emoji
+    pub text: Option<String>,
+    pub started_at: DateTime<Utc>,
+    pub expires_at: Option<DateTime<Utc>>,
     pub indexed_at: DateTime<Utc>,
     pub handle: Option<String>,
 }
@@ -72,7 +76,9 @@ impl StatusFromDb {
             uri,
             author_did,
             status,
-            created_at: now,
+            text: None,
+            started_at: now,
+            expires_at: None,
             indexed_at: now,
             handle: None,
         }
@@ -83,48 +89,78 @@ impl StatusFromDb {
         Ok(Self {
             uri: row.get(0)?,
             author_did: row.get(1)?,
-            status: row.get(2)?,
+            status: row.get(2)?, // emoji
+            text: row.get(3)?,
             //DateTimes are stored as INTEGERS then parsed into a DateTime<UTC>
-            created_at: {
-                let timestamp: i64 = row.get(3)?;
-                DateTime::from_timestamp(timestamp, 0).ok_or_else(|| {
-                    Error::InvalidColumnType(3, "Invalid timestamp".parse().unwrap(), Type::Text)
-                })?
-            },
-            //DateTimes are stored as INTEGERS then parsed into a DateTime<UTC>
-            indexed_at: {
+            started_at: {
                 let timestamp: i64 = row.get(4)?;
                 DateTime::from_timestamp(timestamp, 0).ok_or_else(|| {
                     Error::InvalidColumnType(4, "Invalid timestamp".parse().unwrap(), Type::Text)
+                })?
+            },
+            expires_at: {
+                let timestamp: Option<i64> = row.get(5)?;
+                timestamp.and_then(|ts| DateTime::from_timestamp(ts, 0))
+            },
+            //DateTimes are stored as INTEGERS then parsed into a DateTime<UTC>
+            indexed_at: {
+                let timestamp: i64 = row.get(6)?;
+                DateTime::from_timestamp(timestamp, 0).ok_or_else(|| {
+                    Error::InvalidColumnType(6, "Invalid timestamp".parse().unwrap(), Type::Text)
                 })?
             },
             handle: None,
         })
     }
 
-    /// Helper for the UI to see if indexed_at date is today or not
+    /// Helper for the UI to see if started_at date is today or not
     pub fn is_today(&self) -> bool {
         let now = Utc::now();
 
-        self.indexed_at.day() == now.day()
-            && self.indexed_at.month() == now.month()
-            && self.indexed_at.year() == now.year()
+        self.started_at.day() == now.day()
+            && self.started_at.month() == now.month()
+            && self.started_at.year() == now.year()
+    }
+
+    /// Check if status is expired
+    pub fn is_expired(&self) -> bool {
+        if let Some(expires_at) = self.expires_at {
+            Utc::now() > expires_at
+        } else {
+            false
+        }
+    }
+
+    /// Format started_at time for display
+    pub fn format_started_at(&self, format: &str) -> String {
+        self.started_at.format(format).to_string()
+    }
+
+    /// Format expires_at time for display
+    pub fn format_expires_at(&self, format: &str) -> String {
+        if let Some(expires_at) = self.expires_at {
+            expires_at.format(format).to_string()
+        } else {
+            String::new()
+        }
     }
 
     /// Saves the [StatusDb]
     pub async fn save(&self, pool: Data<Arc<Pool>>) -> Result<(), async_sqlite::Error> {
         let cloned_self = self.clone();
         pool.conn(move |conn| {
-            Ok(conn.execute(
-                "INSERT INTO status (uri, authorDid, status, createdAt, indexedAt) VALUES (?1, ?2, ?3, ?4, ?5)",
-                [
+            conn.execute(
+                "INSERT INTO status (uri, authorDid, emoji, text, startedAt, expiresAt, indexedAt) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                rusqlite::params![
                     &cloned_self.uri,
                     &cloned_self.author_did,
-                    &cloned_self.status,
-                    &cloned_self.created_at.timestamp().to_string(),
+                    &cloned_self.status,  // emoji value
+                    &cloned_self.text,
+                    &cloned_self.started_at.timestamp().to_string(),
+                    &cloned_self.expires_at.map(|e| e.timestamp().to_string()),
                     &cloned_self.indexed_at.timestamp().to_string(),
                 ],
-            )?)
+            )
         })
             .await?;
         Ok(())
@@ -140,18 +176,27 @@ impl StatusFromDb {
             match count > 0 {
                 true => {
                     let mut update_stmt =
-                        conn.prepare("UPDATE status SET status = ?2, indexedAt = ? WHERE uri = ?1")?;
-                    update_stmt.execute([&cloned_self.uri, &cloned_self.status, &cloned_self.indexed_at.timestamp().to_string()])?;
+                        conn.prepare("UPDATE status SET emoji = ?2, text = ?3, startedAt = ?4, expiresAt = ?5, indexedAt = ?6 WHERE uri = ?1")?;
+                    update_stmt.execute(rusqlite::params![
+                        &cloned_self.uri,
+                        &cloned_self.status,
+                        &cloned_self.text,
+                        &cloned_self.started_at.timestamp().to_string(),
+                        &cloned_self.expires_at.map(|e| e.timestamp().to_string()),
+                        &cloned_self.indexed_at.timestamp().to_string()
+                    ])?;
                     Ok(())
                 }
                 false => {
                     conn.execute(
-                        "INSERT INTO status (uri, authorDid, status, createdAt, indexedAt) VALUES (?1, ?2, ?3, ?4, ?5)",
-                        [
+                        "INSERT INTO status (uri, authorDid, emoji, text, startedAt, expiresAt, indexedAt) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                        rusqlite::params![
                             &cloned_self.uri,
                             &cloned_self.author_did,
-                            &cloned_self.status,
-                            &cloned_self.created_at.timestamp().to_string(),
+                            &cloned_self.status,  // emoji value
+                            &cloned_self.text,
+                            &cloned_self.started_at.timestamp().to_string(),
+                            &cloned_self.expires_at.map(|e| e.timestamp().to_string()),
                             &cloned_self.indexed_at.timestamp().to_string(),
                         ],
                     )?;
@@ -175,10 +220,10 @@ impl StatusFromDb {
     pub async fn load_latest_statuses(
         pool: &Data<Arc<Pool>>,
     ) -> Result<Vec<Self>, async_sqlite::Error> {
-        Ok(pool
+        pool
             .conn(move |conn| {
                 let mut stmt =
-                    conn.prepare("SELECT * FROM status ORDER BY indexedAt DESC LIMIT 10")?;
+                    conn.prepare("SELECT * FROM status ORDER BY startedAt DESC LIMIT 10")?;
                 let status_iter = stmt
                     .query_map([], |row| Ok(Self::map_from_row(row).unwrap()))
                     .unwrap();
@@ -189,20 +234,20 @@ impl StatusFromDb {
                 }
                 Ok(statuses)
             })
-            .await?)
+            .await
     }
 
     /// Loads the logged-in users current status
     pub async fn my_status(
         pool: &Data<Arc<Pool>>,
-        did: &str,
+        did: &Did,
     ) -> Result<Option<Self>, async_sqlite::Error> {
         let did = did.to_string();
         pool.conn(move |conn| {
             let mut stmt = conn.prepare(
-                "SELECT * FROM status WHERE authorDid = ?1 ORDER BY createdAt DESC LIMIT 1",
+                "SELECT * FROM status WHERE authorDid = ?1 ORDER BY startedAt DESC LIMIT 1",
             )?;
-            stmt.query_row([did.as_str()], |row| Self::map_from_row(row))
+            stmt.query_row([did.as_str()], Self::map_from_row)
                 .map(Some)
                 .or_else(|err| {
                     if err == rusqlite::Error::QueryReturnedNoRows {
@@ -211,6 +256,29 @@ impl StatusFromDb {
                         Err(err)
                     }
                 })
+        })
+        .await
+    }
+
+    /// Loads user's status history
+    pub async fn load_user_statuses(
+        pool: &Data<Arc<Pool>>,
+        did: &Did,
+        limit: usize,
+    ) -> Result<Vec<Self>, async_sqlite::Error> {
+        let did = did.to_string();
+        pool.conn(move |conn| {
+            let mut stmt = conn.prepare(
+                "SELECT * FROM status WHERE authorDid = ?1 ORDER BY startedAt DESC LIMIT ?2",
+            )?;
+            let status_iter = stmt.query_map([did.as_str(), &limit.to_string()], |row| {
+                Self::map_from_row(row)
+            })?;
+            let mut statuses = vec![];
+            for status in status_iter {
+                statuses.push(status?);
+            }
+            Ok(statuses)
         })
         .await
     }
@@ -256,7 +324,7 @@ impl AuthSession {
         let did = Did::new(did).unwrap();
         pool.conn(move |conn| {
             let mut stmt = conn.prepare("SELECT * FROM auth_session WHERE key = ?1")?;
-            stmt.query_row([did.as_str()], |row| Self::map_from_row(row))
+            stmt.query_row([did.as_str()], Self::map_from_row)
                 .map(Some)
                 .or_else(|err| {
                     if err == Error::QueryReturnedNoRows {
@@ -348,7 +416,7 @@ impl AuthState {
     pub async fn get_by_key(pool: &Pool, key: String) -> Result<Option<Self>, async_sqlite::Error> {
         pool.conn(move |conn| {
             let mut stmt = conn.prepare("SELECT * FROM auth_state WHERE key = ?1")?;
-            stmt.query_row([key.as_str()], |row| Self::map_from_row(row))
+            stmt.query_row([key.as_str()], Self::map_from_row)
                 .map(Some)
                 .or_else(|err| {
                     if err == Error::QueryReturnedNoRows {

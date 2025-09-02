@@ -33,3 +33,22 @@ pub struct ErrorTemplate<'a> {
     pub title: &'a str,
     pub error: &'a str,
 }
+
+#[derive(Template)]
+#[template(path = "status.html")]
+pub struct StatusTemplate<'a> {
+    pub title: &'a str,
+    pub handle: String,
+    pub status_options: &'a [&'a str],
+    pub current_status: Option<StatusFromDb>,
+    pub history: Vec<StatusFromDb>,
+    pub is_owner: bool,
+}
+
+#[derive(Template)]
+#[template(path = "feed.html")]
+pub struct FeedTemplate<'a> {
+    pub title: &'a str,
+    pub profile: Option<Profile>,
+    pub statuses: Vec<StatusFromDb>,
+}

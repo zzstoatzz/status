@@ -1,0 +1,11 @@
+target/
+.git/
+.gitignore
+*.db
+.env
+.cargo/
+Dockerfile
+.dockerignore
+fly.toml
+README.md
+.github/

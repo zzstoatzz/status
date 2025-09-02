@@ -1,10 +1,8 @@
 use crate::db::StatusFromDb;
 use crate::lexicons;
-use crate::lexicons::xyz::statusphere::Status;
 use anyhow::anyhow;
 use async_sqlite::Pool;
 use async_trait::async_trait;
-use atrium_api::types::Collection;
 use log::error;
 use rocketman::{
     connection::JetstreamConnection,
@@ -30,7 +28,7 @@ impl LexiconIngestor for StatusSphereIngester {
                 Operation::Create | Operation::Update => {
                     if let Some(record) = &commit.record {
                         let status_at_proto_record = serde_json::from_value::<
-                            lexicons::xyz::statusphere::status::RecordData,
+                            lexicons::io::zzstoatzz::status::record::RecordData,
                         >(record.clone())?;
 
                         if let Some(ref _cid) = commit.cid {
@@ -43,8 +41,16 @@ impl LexiconIngestor for StatusSphereIngester {
                             StatusFromDb {
                                 uri: record_uri,
                                 author_did: message.did.clone(),
-                                status: status_at_proto_record.status.clone(),
-                                created_at: created.to_utc(),
+                                status: status_at_proto_record.emoji.clone(),
+                                text: status_at_proto_record.text.clone(),
+                                expires_at: status_at_proto_record.expires.as_ref().map(|e| {
+                                    // Convert ATProto Datetime to chrono DateTime
+                                    chrono::DateTime::parse_from_rfc3339(e.as_str())
+                                        .ok()
+                                        .map(|dt| dt.with_timezone(&chrono::Utc))
+                                        .unwrap_or_else(chrono::Utc::now)
+                                }),
+                                started_at: created.to_utc(),
                                 indexed_at: right_now,
                                 handle: None,
                             }
@@ -70,7 +76,7 @@ pub async fn start_ingester(db_pool: Arc<Pool>) {
     let opts = JetstreamOptions::builder()
         // your EXACT nsids
         // Which in this case is xyz.statusphere.status
-        .wanted_collections(vec![Status::NSID.parse().unwrap()])
+        .wanted_collections(vec!["io.zzstoatzz.status.record".parse().unwrap()])
         .build();
     // create the jetstream connector
     let jetstream = JetstreamConnection::new(opts);
@@ -80,7 +86,7 @@ pub async fn start_ingester(db_pool: Arc<Pool>) {
     let mut ingesters: HashMap<String, Box<dyn LexiconIngestor + Send + Sync>> = HashMap::new();
     ingesters.insert(
         // your EXACT nsid
-        Status::NSID.parse().unwrap(),
+        "io.zzstoatzz.status.record".parse().unwrap(),
         Box::new(StatusSphereIngester { db_pool }),
     );
 

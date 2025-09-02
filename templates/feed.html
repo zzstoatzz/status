@@ -1,0 +1,495 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div id="root">
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>global feed</h1>
+            <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+                <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
+        </header>
+
+        <!-- Session Info -->
+        {% if let Some(Profile {did, display_name}) = profile %}
+        <div class="session-card">
+            <div class="session-info">
+                <span>logged in as <strong>{% if let Some(name) = display_name %}{{ name }}{% else %}{{ did }}{% endif %}</strong></span>
+                <div class="session-actions">
+                    <a href="/" class="button button-primary">your status</a>
+                    <form action="/logout" method="get" style="display: inline;">
+                        <button type="submit" class="button button-secondary">log out</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="session-card">
+            <div class="session-info">
+                <span>viewing public feed</span>
+                <a href="/login" class="button button-primary">log in to set status</a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Feed -->
+        <div class="feed-container">
+            <h2>recent updates</h2>
+            
+            {% if !statuses.is_empty() %}
+            <div class="status-list">
+                {% for status in statuses %}
+                <div class="status-item">
+                    <span class="status-emoji">{{status.status}}</span>
+                    <div class="status-content">
+                        <div class="status-main">
+                            <a class="status-author" href="/{{status.author_display_name()}}">{{status.author_display_name()}}</a>
+                            {% if status.text.is_some() %}
+                            <span class="status-text">{{ status.text.as_ref().unwrap() }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="status-meta">
+                            <span class="local-time" data-timestamp="{{ status.started_at.to_rfc3339() }}" data-format="relative"></span>
+                            {% if status.expires_at.is_some() %}
+                                {% if !status.is_expired() %}
+                                • <span class="local-time" data-timestamp="{{ status.expires_at.as_ref().unwrap().to_rfc3339() }}" data-prefix="expires"></span>
+                                {% else %}
+                                • expired
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <span class="empty-emoji">💭</span>
+                <p>no status updates yet</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Navigation -->
+        <nav class="nav-links">
+            <a href="/">← back to status</a>
+        </nav>
+    </div>
+</div>
+
+<style>
+:root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #ffffff;
+    --text-primary: #1a1a1a;
+    --text-secondary: #6c757d;
+    --text-tertiary: #adb5bd;
+    --border-color: #e9ecef;
+    --accent: #4a9eff;
+    --accent-hover: #3a8eee;
+    --danger: #dc3545;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+    --radius: 12px;
+    --radius-sm: 8px;
+}
+
+[data-theme="dark"] {
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #1a1a1a;
+    --bg-tertiary: #2a2a2a;
+    --text-primary: #ffffff;
+    --text-secondary: #adb5bd;
+    --text-tertiary: #6c757d;
+    --border-color: #2a2a2a;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Force all elements to use monospace font */
+input, button, select, textarea {
+    font-family: inherit;
+}
+
+body {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", "Source Code Pro", "SF Mono", "Monaco", "Inconsolata", "Consolas", monospace;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    transition: background 0.3s, color 0.3s;
+}
+
+#root {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.container {
+    width: 100%;
+    max-width: 700px;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.theme-toggle {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.theme-toggle:hover {
+    background: var(--bg-tertiary);
+}
+
+.sun-icon, .moon-icon {
+    display: none;
+}
+
+[data-theme="light"] .sun-icon {
+    display: block;
+}
+
+[data-theme="dark"] .moon-icon {
+    display: block;
+}
+
+/* Session Card */
+.session-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.session-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.session-info strong {
+    color: var(--text-primary);
+}
+
+.session-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Buttons */
+.button {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.button-primary {
+    background: var(--accent);
+    color: white;
+}
+
+.button-primary:hover {
+    background: var(--accent-hover);
+}
+
+.button-secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.button-secondary:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--text-secondary);
+}
+
+/* Feed Container */
+.feed-container {
+    margin: 2rem 0;
+}
+
+.feed-container h2 {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1.5rem;
+}
+
+/* Status List */
+.status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.status-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    transition: all 0.2s;
+}
+
+.status-item:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-sm);
+}
+
+.status-emoji {
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.status-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.status-main {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: baseline;
+}
+
+.status-author {
+    color: var(--text-primary);
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.status-author:hover {
+    color: var(--accent);
+}
+
+.status-text {
+    color: var(--text-primary);
+}
+
+.status-meta {
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+}
+
+.empty-emoji {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 1rem;
+}
+
+.empty-state p {
+    color: var(--text-tertiary);
+}
+
+/* Navigation */
+.nav-links {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.nav-links a {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: color 0.2s;
+}
+
+.nav-links a:hover {
+    color: var(--accent-hover);
+}
+
+/* Mobile adjustments */
+@media (max-width: 640px) {
+    #root {
+        padding: 1rem;
+    }
+    
+    .status-item {
+        padding: 0.75rem;
+    }
+    
+    .status-emoji {
+        font-size: 1.5rem;
+    }
+}
+</style>
+
+<script>
+// Theme management
+const initTheme = () => {
+    const saved = localStorage.getItem('theme');
+    const theme = saved || 'system';
+    
+    if (theme === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.body.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    } else {
+        document.body.setAttribute('data-theme', theme);
+    }
+};
+
+const toggleTheme = () => {
+    const saved = localStorage.getItem('theme') || 'system';
+    const themes = ['system', 'light', 'dark'];
+    const currentIndex = themes.indexOf(saved);
+    const next = themes[(currentIndex + 1) % themes.length];
+    
+    localStorage.setItem('theme', next);
+    
+    if (next === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.body.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    } else {
+        document.body.setAttribute('data-theme', next);
+    }
+};
+
+// Format local times
+const formatLocalTime = () => {
+    document.querySelectorAll('.local-time').forEach(el => {
+        const timestamp = el.getAttribute('data-timestamp');
+        const format = el.getAttribute('data-format');
+        const prefix = el.getAttribute('data-prefix');
+        
+        if (!timestamp) return;
+        
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+        
+        let text = '';
+        
+        if (format === 'relative') {
+            if (diffMins < 1) {
+                text = 'just now';
+            } else if (diffMins < 60) {
+                text = `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+            } else if (diffHours < 24) {
+                text = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+            } else if (diffDays < 7) {
+                text = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+            } else {
+                text = date.toLocaleDateString();
+            }
+        } else if (prefix === 'expires') {
+            const futureMs = date - now;
+            const futureMins = Math.floor(futureMs / 60000);
+            const futureHours = Math.floor(futureMs / 3600000);
+            const futureDays = Math.floor(futureMs / 86400000);
+            
+            if (futureMins < 1) {
+                text = 'expires soon';
+            } else if (futureMins < 60) {
+                text = `expires in ${futureMins} minute${futureMins !== 1 ? 's' : ''}`;
+            } else if (futureHours < 24) {
+                text = `expires in ${futureHours} hour${futureHours !== 1 ? 's' : ''}`;
+            } else {
+                text = `expires in ${futureDays} day${futureDays !== 1 ? 's' : ''}`;
+            }
+        } else {
+            // Default format
+            const options = { 
+                month: 'short', 
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            };
+            text = date.toLocaleString('en-US', options).toLowerCase();
+        }
+        
+        el.textContent = text;
+    });
+};
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
+    formatLocalTime();
+    
+    // Theme toggle
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+    }
+    
+    // Update times every minute
+    setInterval(formatLocalTime, 60000);
+});
+</script>
+{%endblock content%}

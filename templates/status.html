@@ -1,0 +1,1042 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div id="root">
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1><a href="https://bsky.app/profile/{{ handle }}" target="_blank" rel="noopener" class="handle-link">@{{ handle }}</a></h1>
+            {% if is_owner %}
+            <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+                <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
+            {% endif %}
+        </header>
+
+        <!-- Current Status Display -->
+        <div class="status-display">
+            {% if let Some(current) = current_status %}
+            <div class="current-status">
+                <span class="status-emoji">{{ current.status }}</span>
+                <div class="status-content">
+                    {% if current.text.is_some() %}
+                    <p class="status-text">{{ current.text.as_ref().unwrap() }}</p>
+                    {% endif %}
+                    <p class="status-meta">
+                        <span class="local-time" data-timestamp="{{ current.started_at.to_rfc3339() }}" data-prefix="since"></span>
+                        {% if current.expires_at.is_some() && !current.is_expired() %}
+                        • <span class="local-time" data-timestamp="{{ current.expires_at.as_ref().unwrap().to_rfc3339() }}" data-prefix="clears"></span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            {% else %}
+            <div class="no-status">
+                <span class="status-emoji">💭</span>
+                <p class="status-text">No status set</p>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if is_owner %}
+        <!-- Status Editor -->
+        <div class="status-editor">
+            <form action="/status" method="post" id="status-form">
+                <div class="input-group">
+                    <button type="button" class="emoji-trigger" id="emoji-trigger">
+                        <span id="selected-emoji">{% if let Some(current) = current_status.as_ref() %}{{ current.status }}{% else %}😊{% endif %}</span>
+                    </button>
+                    <input type="hidden" name="status" id="status-input" value="{% if let Some(current) = current_status.as_ref() %}{{ current.status }}{% else %}😊{% endif %}" required>
+                    
+                    <input 
+                        type="text" 
+                        name="text" 
+                        id="status-text"
+                        placeholder="What's your status?"
+                        maxlength="100"
+                        value=""
+                        autocomplete="off"
+                    >
+                    
+                    <div class="input-actions">
+                        <button type="button" class="clear-after-btn" id="clear-after-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <span id="clear-text">Don't clear</span>
+                        </button>
+                        
+                        <button type="submit" class="save-btn">Set</button>
+                    </div>
+                </div>
+                
+                <!-- Hidden expiration select -->
+                <select name="expires_in" id="expires_in" hidden>
+                    <option value="" selected>Never</option>
+                    <option value="30m">30 minutes</option>
+                    <option value="1h">1 hour</option>
+                    <option value="2h">2 hours</option>
+                    <option value="4h">4 hours</option>
+                    <option value="8h">8 hours</option>
+                    <option value="1d">1 day</option>
+                    <option value="1w">1 week</option>
+                </select>
+            </form>
+            
+            {% if let Some(current) = current_status %}
+            <form action="/status/clear" method="post" class="clear-form">
+                <button type="submit" class="clear-status-btn">Clear status</button>
+            </form>
+            {% endif %}
+        </div>
+
+        <!-- Emoji Picker (hidden by default) -->
+        <div class="emoji-picker" id="emoji-picker" style="display: none;">
+            <div class="emoji-categories">
+                <button class="category-btn active" data-category="frequent">Frequent</button>
+                <button class="category-btn" data-category="people">People</button>
+                <button class="category-btn" data-category="nature">Nature</button>
+                <button class="category-btn" data-category="food">Food</button>
+                <button class="category-btn" data-category="activity">Activity</button>
+                <button class="category-btn" data-category="travel">Travel</button>
+                <button class="category-btn" data-category="objects">Objects</button>
+                <button class="category-btn" data-category="symbols">Symbols</button>
+            </div>
+            <div class="emoji-grid" id="emoji-grid">
+                <!-- Will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Clear Time Picker (hidden by default) -->
+        <div class="clear-picker" id="clear-picker" style="display: none;">
+            <button class="clear-option active" data-value="">Don't clear</button>
+            <button class="clear-option" data-value="30m">30 minutes</button>
+            <button class="clear-option" data-value="1h">1 hour</button>
+            <button class="clear-option" data-value="2h">2 hours</button>
+            <button class="clear-option" data-value="4h">4 hours</button>
+            <button class="clear-option" data-value="8h">8 hours</button>
+            <button class="clear-option" data-value="1d">Today</button>
+            <button class="clear-option" data-value="1w">This week</button>
+            <button class="clear-option" data-value="custom">Custom...</button>
+            <div class="custom-datetime" id="custom-datetime" style="display: none;">
+                <input type="datetime-local" id="custom-datetime-input" />
+                <button type="button" class="custom-datetime-set" id="custom-datetime-set">Set</button>
+            </div>
+        </div>
+
+        <!-- Session Info -->
+        <div class="session-info">
+            <a href="/logout" class="logout-link">Log out</a>
+        </div>
+        {% endif %}
+
+        <!-- History -->
+        {% if !history.is_empty() %}
+        <div class="history">
+            <h3>Recent</h3>
+            {% for status in history %}
+            {% if loop.index0 < 5 %}
+            <div class="history-item">
+                <span class="history-emoji">{{ status.status }}</span>
+                <div class="history-content">
+                    {% if status.text.is_some() %}
+                    <span class="history-text">{{ status.text.as_ref().unwrap() }}</span>
+                    {% endif %}
+                    <span class="history-time local-time" data-timestamp="{{ status.started_at.to_rfc3339() }}" data-format="short"></span>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Links -->
+        <nav class="nav-links">
+            <a href="/feed">Global feed</a>
+            {% if !is_owner %}
+            <a href="/login">Set your status</a>
+            {% endif %}
+        </nav>
+    </div>
+</div>
+
+<style>
+:root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #ffffff;
+    --text-primary: #1a1a1a;
+    --text-secondary: #6c757d;
+    --text-tertiary: #adb5bd;
+    --border-color: #e9ecef;
+    --accent: #4a9eff;
+    --accent-hover: #3a8eee;
+    --danger: #dc3545;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+    --radius: 12px;
+    --radius-sm: 8px;
+}
+
+[data-theme="dark"] {
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #1a1a1a;
+    --bg-tertiary: #2a2a2a;
+    --text-primary: #ffffff;
+    --text-secondary: #adb5bd;
+    --text-tertiary: #6c757d;
+    --border-color: #2a2a2a;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Force all elements to use monospace font */
+input, button, select, textarea {
+    font-family: inherit;
+}
+
+body {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", "Source Code Pro", "SF Mono", "Monaco", "Inconsolata", "Consolas", monospace;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    transition: background 0.3s, color 0.3s;
+}
+
+#root {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.container {
+    width: 100%;
+    max-width: 600px;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.handle-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.handle-link:hover {
+    color: var(--accent);
+}
+
+.theme-toggle {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.theme-toggle:hover {
+    background: var(--bg-tertiary);
+}
+
+.sun-icon, .moon-icon {
+    display: none;
+}
+
+[data-theme="light"] .sun-icon {
+    display: block;
+}
+
+[data-theme="dark"] .moon-icon {
+    display: block;
+}
+
+/* Status Display */
+.status-display {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.current-status, .no-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.status-emoji {
+    font-size: 3.5rem;
+    line-height: 1;
+}
+
+.status-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.status-text {
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.no-status .status-text {
+    color: var(--text-tertiary);
+}
+
+.status-meta {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* Status Editor */
+.status-editor {
+    margin-bottom: 1.5rem;
+}
+
+.input-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 0.5rem;
+    transition: border-color 0.2s;
+}
+
+.input-group:focus-within {
+    border-color: var(--accent);
+}
+
+.emoji-trigger {
+    background: transparent;
+    border: none;
+    font-size: 1.75rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: var(--radius-sm);
+    transition: background 0.2s;
+}
+
+.emoji-trigger:hover {
+    background: var(--bg-tertiary);
+}
+
+#status-text {
+    flex: 1;
+    background: transparent;
+    border: none;
+    font-size: 1rem;
+    color: var(--text-primary);
+    outline: none;
+}
+
+#status-text::placeholder {
+    color: var(--text-tertiary);
+}
+
+.input-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.clear-after-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.clear-after-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--text-secondary);
+}
+
+.save-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.save-btn:hover {
+    background: var(--accent-hover);
+}
+
+.save-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.clear-form {
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+.clear-status-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    transition: color 0.2s;
+}
+
+.clear-status-btn:hover {
+    color: var(--danger);
+}
+
+/* Emoji Picker */
+.emoji-picker {
+    position: absolute;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1rem;
+    box-shadow: var(--shadow-md);
+    width: 320px;
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.emoji-categories {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 1rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+}
+
+.category-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    white-space: nowrap;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s;
+}
+
+.category-btn:hover {
+    background: var(--bg-tertiary);
+}
+
+.category-btn.active {
+    background: var(--accent);
+    color: white;
+}
+
+.emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 0.25rem;
+}
+
+.emoji-option {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    padding: 0.25rem;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background 0.2s;
+}
+
+.emoji-option:hover {
+    background: var(--bg-tertiary);
+}
+
+/* Clear Picker */
+.clear-picker {
+    position: absolute;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 0.75rem;
+    box-shadow: var(--shadow-md);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    min-width: 180px;
+}
+
+.clear-option {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    padding: 0.75rem 1.25rem;
+    text-align: left;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.clear-option:hover {
+    background: var(--bg-tertiary);
+}
+
+.clear-option.active {
+    background: var(--accent);
+    color: white;
+}
+
+/* Custom datetime input */
+.custom-datetime {
+    padding: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.custom-datetime input {
+    flex: 1;
+    padding: 0.5rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-family: inherit;
+}
+
+.custom-datetime-set {
+    padding: 0.5rem 1rem;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-family: inherit;
+}
+
+.custom-datetime-set:hover {
+    background: var(--accent-hover);
+}
+
+/* Session Info */
+.session-info {
+    text-align: center;
+    margin: 2rem 0;
+}
+
+.logout-link {
+    color: var(--text-tertiary);
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: color 0.2s;
+}
+
+.logout-link:hover {
+    color: var(--text-secondary);
+}
+
+/* History */
+.history {
+    margin: 2rem 0;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.history h3 {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+}
+
+.history-emoji {
+    font-size: 1.25rem;
+}
+
+.history-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.history-text {
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.history-time {
+    color: var(--text-tertiary);
+    font-size: 0.75rem;
+}
+
+/* Nav Links */
+.nav-links {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.nav-links a {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: color 0.2s;
+}
+
+.nav-links a:hover {
+    color: var(--accent-hover);
+}
+
+/* Mobile adjustments */
+@media (max-width: 640px) {
+    #root {
+        padding: 1rem;
+    }
+    
+    .status-emoji {
+        font-size: 3rem;
+    }
+    
+    .emoji-picker {
+        width: calc(100vw - 2rem);
+        left: 1rem;
+        right: 1rem;
+    }
+}
+</style>
+
+<script>
+// Theme management
+const initTheme = () => {
+    const saved = localStorage.getItem('theme');
+    const theme = saved || 'system';
+    
+    if (theme === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.body.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    } else {
+        document.body.setAttribute('data-theme', theme);
+    }
+};
+
+const toggleTheme = () => {
+    const saved = localStorage.getItem('theme') || 'system';
+    const themes = ['system', 'light', 'dark'];
+    const currentIndex = themes.indexOf(saved);
+    const next = themes[(currentIndex + 1) % themes.length];
+    
+    localStorage.setItem('theme', next);
+    
+    if (next === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.body.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    } else {
+        document.body.setAttribute('data-theme', next);
+    }
+};
+
+// Emoji data
+const emojiData = {
+    frequent: ['😊', '👍', '❤️', '😂', '🎉', '🔥', '✨', '💯', '🚀', '💪', '🙏', '👏'],
+    people: ['😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹', '👺', '👻', '👽', '👾', '🤖'],
+    nature: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐽', '🐸', '🐵', '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🕷️', '🕸️', '🦂', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒', '🦘', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🦙', '🐐', '🦌', '🐕', '🐩', '🦮', '🐈', '🐓', '🦃', '🦚', '🦜', '🦢', '🦩', '🕊️', '🐇', '🦝', '🦨', '🦡', '🦦', '🦥', '🐁', '🐀', '🐿️', '🦔'],
+    food: ['🍏', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌶️', '🫑', '🌽', '🥕', '🫒', '🧄', '🧅', '🥔', '🍠', '🥐', '🥯', '🍞', '🥖', '🥨', '🧀', '🥚', '🍳', '🧈', '🥞', '🧇', '🥓', '🥩', '🍗', '🍖', '🌭', '🍔', '🍟', '🍕', '🫓', '🥪', '🥙', '🧆', '🌮', '🌯', '🫔', '🥗', '🥘', '🫕', '🥫', '🍝', '🍜', '🍲', '🍛', '🍣', '🍱', '🥟', '🦪', '🍤', '🍙', '🍚', '🍘', '🍥', '🥠', '🥮', '🍢', '🍡', '🍧', '🍨', '🍦', '🥧', '🧁', '🍰', '🎂', '🍮', '🍭', '🍬', '🍫', '🍿', '🍩', '🍪', '🌰', '🥜', '🍯', '🥛', '🍼', '☕', '🫖', '🍵', '🧃', '🥤', '🧋', '🍶', '🍺', '🍻', '🥂', '🍷', '🥃', '🍸', '🍹', '🧉', '🍾', '🧊'],
+    activity: ['⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', '🥅', '⛳', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛼', '🛷', '⛸️', '🥌', '🎿', '⛷️', '🏂', '🪂', '🏋️', '🤼', '🤸', '🤺', '🤾', '🏌️', '🏇', '🧘', '🏄', '🏊', '🤽', '🚣', '🧗', '🚴', '🚵', '🎪', '🎭', '🎨', '🎬', '🎤', '🎧', '🎼', '🎹', '🥁', '🪘', '🎷', '🎺', '🪗', '🎸', '🪕', '🎻', '🎲', '♟️', '🎯', '🎳', '🎮', '🎰', '🧩'],
+    travel: ['🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🦯', '🦽', '🦼', '🛴', '🚲', '🛵', '🏍️', '🛺', '🚨', '🚔', '🚍', '🚘', '🚖', '🚡', '🚠', '🚟', '🚃', '🚋', '🚞', '🚝', '🚄', '🚅', '🚈', '🚂', '🚆', '🚇', '🚊', '🚉', '✈️', '🛫', '🛬', '🛩️', '💺', '🛰️', '🚀', '🛸', '🚁', '🛶', '⛵', '🚤', '🛥️', '🛳️', '⚓', '⛽', '🚧', '🚦', '🚥', '🚏', '🗺️', '🗿', '🗽', '🗼', '🏰', '🏯', '🏟️', '🎡', '🎢', '🎠', '⛲', '⛱️', '🏖️', '🏝️', '🏜️', '🌋', '⛰️', '🏔️', '🗻', '🏕️', '⛺', '🛖', '🏠', '🏡', '🏘️', '🏚️', '🏗️', '🏭', '🏢', '🏬', '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', '🏩', '💒', '🏛️', '⛪', '🕌', '🕍', '🛕', '🕋', '⛩️', '🛤️', '🛣️', '🗾', '🎑', '🏞️', '🌅', '🌄', '🌠', '🎇', '🎆', '🌇', '🌆', '🏙️', '🌃', '🌌', '🌉', '🌁'],
+    objects: ['⌚', '📱', '📲', '💻', '⌨️', '🖥️', '🖨️', '🖱️', '🖲️', '🕹️', '🗜️', '💽', '💾', '💿', '📀', '📼', '📷', '📸', '📹', '🎥', '📽️', '🎞️', '📞', '☎️', '📟', '📠', '📺', '📻', '🎙️', '🎚️', '🎛️', '🧭', '⏱️', '⏲️', '⏰', '🕰️', '⌛', '⏳', '📡', '🔋', '🔌', '💡', '🔦', '🕯️', '🪔', '🧯', '🛢️', '💸', '💵', '💴', '💶', '💷', '🪙', '💰', '💳', '💎', '⚖️', '🪜', '🧰', '🪛', '🔧', '🔨', '⚒️', '🛠️', '⛏️', '🪚', '🔩', '⚙️', '🪤', '🧱', '⛓️', '🧲', '🔫', '💣', '🧨', '🪓', '🔪', '🗡️', '⚔️', '🛡️', '🚬', '⚰️', '🪦', '⚱️', '🏺', '🔮', '📿', '🧿', '💈', '⚗️', '🔭', '🔬', '🕳️', '🩹', '🩺', '💊', '💉', '🩸', '🧬', '🦠', '🧫', '🧪', '🌡️', '🧹', '🪠', '🧺', '🧻', '🚽', '🚰', '🚿', '🛁', '🛀', '🧼', '🪥', '🪒', '🧽', '🪣', '🧴', '🛎️', '🔑', '🗝️', '🚪', '🪑', '🛋️', '🛏️', '🛌', '🧸', '🪆', '🖼️', '🪞', '🪟', '🛍️', '🛒', '🎁', '🎈', '🎏', '🎀', '🪄', '🪅', '🎊', '🎉', '🎎', '🏮', '🎐', '🧧', '✉️', '📩', '📨', '📧', '💌', '📥', '📤', '📦', '🏷️', '🪧', '📪', '📫', '📬', '📭', '📮', '📯', '📜', '📃', '📄', '📑', '🧾', '📊', '📈', '📉', '🗒️', '🗓️', '📆', '📅', '🗑️', '📇', '🗃️', '🗳️', '🗄️', '📋', '📁', '📂', '🗂️', '🗞️', '📰', '📓', '📔', '📒', '📕', '📗', '📘', '📙', '📚', '📖', '🔖', '🧷', '🔗', '📎', '🖇️', '📐', '📏', '🧮', '📌', '📍', '✂️', '🖊️', '🖋️', '✒️', '🖌️', '🖍️', '📝', '✏️', '🔍', '🔎', '🔏', '🔐', '🔒', '🔓'],
+    symbols: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉️', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓', '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', '📳', '🈶', '🈚', '🈸', '🈺', '🈷️', '✴️', '🆚', '💮', '🉐', '㊙️', '㊗️', '🈴', '🈵', '🈹', '🈲', '🅰️', '🅱️', '🆎', '🆑', '🅾️', '🆘', '❌', '⭕', '🛑', '⛔', '📛', '🚫', '💯', '💢', '♨️', '🚷', '🚯', '🚳', '🚱', '🔞', '📵', '🚭', '❗', '❕', '❓', '❔', '‼️', '⁉️', '🔅', '🔆', '〽️', '⚠️', '🚸', '🔱', '⚜️', '🔰', '♻️', '✅', '🈯', '💹', '❇️', '✳️', '❎', '🌐', '💠', 'Ⓜ️', '🌀', '💤', '🏧', '🚾', '♿', '🅿️', '🛗', '🈳', '🈂️', '🛂', '🛃', '🛄', '🛅', '🚹', '🚺', '🚼', '⚧️', '🚻', '🚮', '🎦', '📶', '🈁', '🔣', 'ℹ️', '🔤', '🔡', '🔠', '🆖', '🆗', '🆙', '🆒', '🆕', '🆓', '0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '🔢', '#️⃣', '*️⃣', '⏏️', '▶️', '⏸️', '⏯️', '⏹️', '⏺️', '⏭️', '⏮️', '⏩', '⏪', '⏫', '⏬', '◀️', '🔼', '🔽', '➡️', '⬅️', '⬆️', '⬇️', '↗️', '↘️', '↙️', '↖️', '↕️', '↔️', '↪️', '↩️', '⤴️', '⤵️', '🔀', '🔁', '🔂', '🔄', '🔃', '🎵', '🎶', '➕', '➖', '➗', '✖️', '♾️', '💲', '💱', '™️', '©️', '®️', '〰️', '➰', '➿', '🔚', '🔙', '🔛', '🔝', '🔜', '✔️', '☑️', '🔘', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🟤', '🔺', '🔻', '🔸', '🔹', '🔶', '🔷', '🔳', '🔲', '▪️', '▫️', '◾', '◽', '◼️', '◻️', '🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '⬛', '⬜', '🟫', '🔈', '🔇', '🔉', '🔊', '🔔', '🔕', '📣', '📢', '👁‍🗨', '💬', '💭', '🗯️', '♠️', '♣️', '♥️', '♦️', '🃏', '🎴', '🀄', '🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚', '🕛', '🕜', '🕝', '🕞', '🕟', '🕠', '🕡', '🕢', '🕣', '🕤', '🕥', '🕦', '🕧']
+};
+
+// Initialize on page load
+// Format local times
+const formatLocalTimes = () => {
+    document.querySelectorAll('.local-time').forEach(el => {
+        const timestamp = el.dataset.timestamp;
+        const prefix = el.dataset.prefix;
+        const format = el.dataset.format;
+        
+        if (timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const isToday = date.toDateString() === now.toDateString();
+            
+            let formatted;
+            if (format === 'short') {
+                // For history items
+                if (isToday) {
+                    formatted = date.toLocaleTimeString('en-US', { 
+                        hour: 'numeric', 
+                        minute: '2-digit',
+                        hour12: true 
+                    }).toLowerCase();
+                } else {
+                    formatted = date.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric' 
+                    });
+                }
+            } else {
+                // For current status
+                if (isToday) {
+                    formatted = date.toLocaleTimeString('en-US', { 
+                        hour: 'numeric', 
+                        minute: '2-digit',
+                        hour12: true 
+                    }).toLowerCase();
+                } else {
+                    formatted = date.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric' 
+                    }) + ', ' + date.toLocaleTimeString('en-US', { 
+                        hour: 'numeric', 
+                        minute: '2-digit',
+                        hour12: true 
+                    }).toLowerCase();
+                }
+                
+                if (prefix) {
+                    formatted = prefix + ' ' + formatted;
+                }
+            }
+            
+            el.textContent = formatted;
+        }
+    });
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
+    formatLocalTimes();
+    
+    // Theme toggle
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+    }
+    
+    // Only initialize interactive elements if user is owner
+    {% if is_owner %}
+    
+    // Emoji picker
+    const emojiTrigger = document.getElementById('emoji-trigger');
+    const emojiPicker = document.getElementById('emoji-picker');
+    const emojiGrid = document.getElementById('emoji-grid');
+    const selectedEmoji = document.getElementById('selected-emoji');
+    const statusInput = document.getElementById('status-input');
+    
+    // Clear time picker
+    const clearAfterBtn = document.getElementById('clear-after-btn');
+    const clearPicker = document.getElementById('clear-picker');
+    const clearText = document.getElementById('clear-text');
+    const expiresSelect = document.getElementById('expires_in');
+    
+    // Show emoji picker
+    emojiTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
+        clearPicker.style.display = 'none';
+        
+        // Position picker
+        const rect = emojiTrigger.getBoundingClientRect();
+        emojiPicker.style.top = rect.bottom + 'px';
+        emojiPicker.style.left = rect.left + 'px';
+        
+        // Load frequent emojis by default
+        loadEmojiCategory('frequent');
+    });
+    
+    // Load emoji category
+    const loadEmojiCategory = (category) => {
+        const emojis = emojiData[category] || [];
+        emojiGrid.innerHTML = emojis.map(emoji => 
+            `<button type="button" class="emoji-option" data-emoji="${emoji}">${emoji}</button>`
+        ).join('');
+        
+        // Add click handlers
+        emojiGrid.querySelectorAll('.emoji-option').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const emoji = e.target.getAttribute('data-emoji');
+                selectedEmoji.textContent = emoji;
+                statusInput.value = emoji;
+                emojiPicker.style.display = 'none';
+            });
+        });
+        
+        // Update active category
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-category') === category);
+        });
+    };
+    
+    // Category buttons
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            loadEmojiCategory(btn.getAttribute('data-category'));
+        });
+    });
+    
+    // Show clear picker
+    clearAfterBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        clearPicker.style.display = clearPicker.style.display === 'none' ? 'block' : 'none';
+        emojiPicker.style.display = 'none';
+        
+        // Position picker
+        const rect = clearAfterBtn.getBoundingClientRect();
+        clearPicker.style.top = rect.bottom + 'px';
+        clearPicker.style.left = rect.left + 'px';
+    });
+    
+    // Custom datetime elements
+    const customDatetime = document.getElementById('custom-datetime');
+    const customDatetimeInput = document.getElementById('custom-datetime-input');
+    const customDatetimeSet = document.getElementById('custom-datetime-set');
+    
+    // Set default value for custom datetime to 1 hour from now
+    const defaultCustomTime = new Date();
+    defaultCustomTime.setHours(defaultCustomTime.getHours() + 1);
+    customDatetimeInput.value = defaultCustomTime.toISOString().slice(0, 16);
+    
+    // Clear options
+    document.querySelectorAll('.clear-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const value = btn.getAttribute('data-value');
+            
+            if (value === 'custom') {
+                // Show custom datetime input
+                customDatetime.style.display = customDatetime.style.display === 'none' ? 'flex' : 'none';
+                // Update active state
+                document.querySelectorAll('.clear-option').forEach(opt => {
+                    opt.classList.toggle('active', opt === btn);
+                });
+            } else {
+                // Hide custom datetime input
+                customDatetime.style.display = 'none';
+                
+                expiresSelect.value = value;
+                
+                // Update button text
+                const labels = {
+                    '': "Don't clear",
+                    '30m': '30m',
+                    '1h': '1h',
+                    '2h': '2h',
+                    '4h': '4h',
+                    '8h': '8h',
+                    '1d': 'Today',
+                    '1w': 'This week'
+                };
+                clearText.textContent = labels[value] || value;
+                
+                // Update active state
+                document.querySelectorAll('.clear-option').forEach(opt => {
+                    opt.classList.toggle('active', opt === btn);
+                });
+                
+                clearPicker.style.display = 'none';
+            }
+        });
+    });
+    
+    // Handle custom datetime set
+    if (customDatetimeSet) {
+        customDatetimeSet.addEventListener('click', () => {
+            const selectedDate = new Date(customDatetimeInput.value);
+            const now = new Date();
+            
+            if (selectedDate <= now) {
+                alert('Please select a future time');
+                return;
+            }
+            
+            // Calculate duration from now
+            const diffMs = selectedDate - now;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            let durationStr;
+            if (diffMins < 60) {
+                durationStr = `${diffMins}m`;
+            } else if (diffHours < 24) {
+                durationStr = `${diffHours}h`;
+            } else if (diffDays < 7) {
+                durationStr = `${diffDays}d`;
+            } else {
+                durationStr = `${Math.floor(diffDays / 7)}w`;
+            }
+            
+            // Set the hidden select value
+            expiresSelect.value = durationStr;
+            
+            // Update button text to show the selected date/time
+            const dateStr = selectedDate.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            }).toLowerCase();
+            clearText.textContent = dateStr;
+            
+            // Hide the picker
+            clearPicker.style.display = 'none';
+            customDatetime.style.display = 'none';
+        });
+    }
+    
+    // Close pickers on outside click
+    document.addEventListener('click', (e) => {
+        if (!emojiPicker.contains(e.target) && e.target !== emojiTrigger) {
+            emojiPicker.style.display = 'none';
+        }
+        if (!clearPicker.contains(e.target) && e.target !== clearAfterBtn) {
+            clearPicker.style.display = 'none';
+        }
+    });
+    
+    // Emoji search
+    const emojiSearch = document.getElementById('emoji-search');
+    if (emojiSearch) {
+        emojiSearch.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            if (!query) {
+                loadEmojiCategory('frequent');
+                return;
+            }
+            
+            // Search all emojis
+            const allEmojis = Object.values(emojiData).flat();
+            const filtered = allEmojis.filter(emoji => {
+                // This is a simple filter - in production you'd want emoji names/keywords
+                return emoji.includes(query);
+            });
+            
+            emojiGrid.innerHTML = filtered.slice(0, 50).map(emoji => 
+                `<button type="button" class="emoji-option" data-emoji="${emoji}">${emoji}</button>`
+            ).join('');
+            
+            // Add click handlers
+            emojiGrid.querySelectorAll('.emoji-option').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const emoji = e.target.getAttribute('data-emoji');
+                    selectedEmoji.textContent = emoji;
+                    statusInput.value = emoji;
+                    emojiPicker.style.display = 'none';
+                });
+            });
+        });
+    }
+    
+    // Form validation
+    const form = document.getElementById('status-form');
+    const statusText = document.getElementById('status-text');
+    const saveBtn = form.querySelector('.save-btn');
+    
+    // Current status for comparison
+    const currentStatus = {
+        emoji: {% if let Some(current) = current_status.as_ref() %}"{{current.status}}"{% else %}null{% endif %},
+        text: {% if let Some(current) = current_status.as_ref() %}{% if current.text.is_some() %}"{{ current.text.as_ref().unwrap() }}"{% else %}""{% endif %}{% else %}""{% endif %}
+    };
+    
+    const checkForChanges = () => {
+        const newEmoji = statusInput.value;
+        const newText = statusText.value.trim();
+        
+        // Check if this is identical to current status
+        if (currentStatus.emoji === newEmoji && currentStatus.text === newText) {
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'No changes';
+        } else {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Set';
+        }
+    };
+    
+    statusText.addEventListener('input', checkForChanges);
+    statusInput.addEventListener('change', checkForChanges);
+    
+    // Initial check
+    checkForChanges();
+    
+    {% endif %}
+});
+</script>
+{%endblock content%}

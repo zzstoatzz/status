@@ -3,21 +3,21 @@
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(tag = "$type")]
 pub enum KnownRecord {
-    #[serde(rename = "xyz.statusphere.status")]
-    LexiconsXyzStatusphereStatus(Box<crate::lexicons::xyz::statusphere::status::Record>),
+    #[serde(rename = "io.zzstoatzz.status.record")]
+    LexiconsIoZzstoatzzStatusRecord(Box<crate::lexicons::io::zzstoatzz::status::record::Record>),
 }
-impl From<crate::lexicons::xyz::statusphere::status::Record> for KnownRecord {
-    fn from(record: crate::lexicons::xyz::statusphere::status::Record) -> Self {
-        KnownRecord::LexiconsXyzStatusphereStatus(Box::new(record))
+impl From<crate::lexicons::io::zzstoatzz::status::record::Record> for KnownRecord {
+    fn from(record: crate::lexicons::io::zzstoatzz::status::record::Record) -> Self {
+        KnownRecord::LexiconsIoZzstoatzzStatusRecord(Box::new(record))
     }
 }
-impl From<crate::lexicons::xyz::statusphere::status::RecordData> for KnownRecord {
-    fn from(record_data: crate::lexicons::xyz::statusphere::status::RecordData) -> Self {
-        KnownRecord::LexiconsXyzStatusphereStatus(Box::new(record_data.into()))
+impl From<crate::lexicons::io::zzstoatzz::status::record::RecordData> for KnownRecord {
+    fn from(record_data: crate::lexicons::io::zzstoatzz::status::record::RecordData) -> Self {
+        KnownRecord::LexiconsIoZzstoatzzStatusRecord(Box::new(record_data.into()))
     }
 }
-impl Into<atrium_api::types::Unknown> for KnownRecord {
-    fn into(self) -> atrium_api::types::Unknown {
-        atrium_api::types::TryIntoUnknown::try_into_unknown(&self).unwrap()
+impl From<KnownRecord> for atrium_api::types::Unknown {
+    fn from(val: KnownRecord) -> Self {
+        atrium_api::types::TryIntoUnknown::try_into_unknown(&val).unwrap()
     }
 }
