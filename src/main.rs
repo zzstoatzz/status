@@ -41,8 +41,6 @@ use std::{
 };
 use templates::{ErrorTemplate, Profile};
 
-extern crate dotenv;
-
 mod db;
 mod ingester;
 mod lexicons;

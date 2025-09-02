@@ -2,11 +2,11 @@
 
 {% block title %}@{{ handle }} - status.zzstoatzz.io{% endblock %}
 {% block og_url %}/@{{ handle }}{% endblock %}
-{% block og_title %}@{{ handle }}'s Status{% endblock %}
-{% block og_description %}{% if let Some(current) = current_status %}{{ current.status }} {% if current.text.is_some() %}{{ current.text.as_ref().unwrap() }}{% endif %}{% else %}No status set{% endif %}{% endblock %}
+{% block og_title %}@{{ handle }}'s status{% endblock %}
+{% block og_description %}{% if let Some(current) = current_status %}{{ current.status }} {% if current.text.is_some() %}{{ current.text.as_ref().unwrap() }}{% endif %}{% else %}no status currently set{% endif %}{% endblock %}
 {% block twitter_url %}/@{{ handle }}{% endblock %}
-{% block twitter_title %}@{{ handle }}'s Status{% endblock %}
-{% block twitter_description %}{% if let Some(current) = current_status %}{{ current.status }} {% if current.text.is_some() %}{{ current.text.as_ref().unwrap() }}{% endif %}{% else %}No status set{% endif %}{% endblock %}
+{% block twitter_title %}@{{ handle }}'s status{% endblock %}
+{% block twitter_description %}{% if let Some(current) = current_status %}{{ current.status }} {% if current.text.is_some() %}{{ current.text.as_ref().unwrap() }}{% endif %}{% else %}no status currently set{% endif %}{% endblock %}
 
 {% block content %}
 <div id="root">

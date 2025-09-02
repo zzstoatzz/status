@@ -74,15 +74,13 @@ pub struct StatusSphereIngester {
 pub async fn start_ingester(db_pool: Arc<Pool>) {
     // init the builder
     let opts = JetstreamOptions::builder()
-        // your EXACT nsids
-        // Which in this case is xyz.statusphere.status
+        // listen for our status record collection
         .wanted_collections(vec!["io.zzstoatzz.status.record".parse().unwrap()])
         .build();
     // create the jetstream connector
     let jetstream = JetstreamConnection::new(opts);
 
     // create your ingesters
-    // Which in this case is xyz.statusphere.status
     let mut ingesters: HashMap<String, Box<dyn LexiconIngestor + Send + Sync>> = HashMap::new();
     ingesters.insert(
         // your EXACT nsid

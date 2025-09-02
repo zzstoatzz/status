@@ -4,17 +4,6 @@ use crate::db::StatusFromDb;
 use askama::Template;
 use serde::{Deserialize, Serialize};
 
-#[derive(Template)]
-#[template(path = "home.html")]
-pub struct HomeTemplate<'a> {
-    #[allow(dead_code)]
-    pub title: &'a str,
-    pub status_options: &'a [&'a str],
-    pub profile: Option<Profile>,
-    pub statuses: Vec<StatusFromDb>,
-    pub my_status: Option<String>,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Profile {
     pub did: String,
