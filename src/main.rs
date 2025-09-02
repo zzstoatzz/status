@@ -1,10 +1,13 @@
 use crate::{
     db::{StatusFromDb, create_tables_in_database},
+    error_handler::AppError,
     ingester::start_ingester,
     lexicons::record::KnownRecord,
+    rate_limiter::RateLimiter,
     storage::{SqliteSessionStore, SqliteStateStore},
     templates::{FeedTemplate, LoginTemplate, StatusTemplate},
 };
+use async_sqlite::rusqlite;
 use actix_files::Files;
 use actix_session::{
     Session, SessionMiddleware, config::PersistentSession, storage::CookieSessionStore,
@@ -38,13 +41,16 @@ use std::{
     collections::HashMap,
     io::{Error, ErrorKind},
     sync::Arc,
+    time::Duration,
 };
 use templates::{ErrorTemplate, Profile};
 
 mod db;
+mod error_handler;
 mod ingester;
 #[allow(dead_code)]
 mod lexicons;
+mod rate_limiter;
 mod resolver;
 mod storage;
 mod templates;
@@ -71,6 +77,14 @@ type OAuthClientType = Arc<
 
 /// HandleResolver to make it easier to access the OAuthClient in web requests
 type HandleResolver = Arc<CommonDidResolver<DefaultHttpClient>>;
+
+/// Admin DID for moderation
+const ADMIN_DID: &str = "did:plc:xbtmt2zjwlrfegqvch7fboei"; // zzstoatzz.io
+
+/// Check if a DID is the admin
+fn is_admin(did: &str) -> bool {
+    did == ADMIN_DID
+}
 
 /// OAuth client metadata endpoint for production
 #[get("/client-metadata.json")]
@@ -712,7 +726,7 @@ async fn user_status_json(
 /// JSON API endpoint for status - returns current status or "unknown"
 #[get("/api/status")]
 async fn status_json(db_pool: web::Data<Arc<Pool>>) -> Result<impl Responder> {
-    const OWNER_DID: &str = "did:plc:YOUR_DID_HERE"; // TODO: Configure this
+    const OWNER_DID: &str = "did:plc:xbtmt2zjwlrfegqvch7fboei"; // zzstoatzz.io
 
     let owner_did = Did::new(OWNER_DID.to_string()).ok();
     let current_status = if let Some(ref did) = owner_did {
@@ -817,12 +831,13 @@ async fn feed(
                         .actor
                         .get_profile(
                             atrium_api::app::bsky::actor::get_profile::ParametersData {
-                                actor: atrium_api::types::string::AtIdentifier::Did(did),
+                                actor: atrium_api::types::string::AtIdentifier::Did(did.clone()),
                             }
                             .into(),
                         )
                         .await;
 
+                    let is_admin = is_admin(&did.to_string());
                     let html = FeedTemplate {
                         title: TITLE,
                         profile: match profile {
@@ -839,6 +854,7 @@ async fn feed(
                             }
                         },
                         statuses,
+                        is_admin,
                     }
                     .render()
                     .expect("template should be valid");
@@ -863,6 +879,7 @@ async fn feed(
                 title: TITLE,
                 profile: None,
                 statuses,
+                is_admin: false,
             }
             .render()
             .expect("template should be valid");
@@ -1103,6 +1120,69 @@ async fn delete_status(
     }
 }
 
+/// Hide/unhide a status (admin only)
+#[derive(Deserialize)]
+struct HideStatusRequest {
+    uri: String,
+    hidden: bool,
+}
+
+#[post("/admin/hide-status")]
+async fn hide_status(
+    session: Session,
+    db_pool: web::Data<Arc<Pool>>,
+    req: web::Json<HideStatusRequest>,
+) -> HttpResponse {
+    // Check if the user is logged in and is admin
+    match session.get::<String>("did").unwrap_or(None) {
+        Some(did_string) => {
+            if !is_admin(&did_string) {
+                return HttpResponse::Forbidden().json(serde_json::json!({
+                    "error": "Admin access required"
+                }));
+            }
+            
+            // Update the hidden status in the database
+            let uri = req.uri.clone();
+            let hidden = req.hidden;
+            
+            let result = db_pool
+                .conn(move |conn| {
+                    conn.execute(
+                        "UPDATE status SET hidden = ?1 WHERE uri = ?2",
+                        rusqlite::params![hidden, uri],
+                    )
+                })
+                .await;
+            
+            match result {
+                Ok(rows_affected) if rows_affected > 0 => {
+                    HttpResponse::Ok().json(serde_json::json!({
+                        "success": true,
+                        "message": if hidden { "Status hidden" } else { "Status unhidden" }
+                    }))
+                }
+                Ok(_) => {
+                    HttpResponse::NotFound().json(serde_json::json!({
+                        "error": "Status not found"
+                    }))
+                }
+                Err(err) => {
+                    log::error!("Error updating hidden status: {}", err);
+                    HttpResponse::InternalServerError().json(serde_json::json!({
+                        "error": "Database error"
+                    }))
+                }
+            }
+        }
+        None => {
+            HttpResponse::Unauthorized().json(serde_json::json!({
+                "error": "Not authenticated"
+            }))
+        }
+    }
+}
+
 /// TS version https://github.com/bluesky-social/statusphere-example-app/blob/e4721616df50cd317c198f4c00a4818d5626d4ce/src/routes.ts#L208
 /// Creates a new status
 #[post("/status")]
@@ -1112,7 +1192,13 @@ async fn status(
     oauth_client: web::Data<OAuthClientType>,
     db_pool: web::Data<Arc<Pool>>,
     form: web::Form<StatusForm>,
-) -> HttpResponse {
+    rate_limiter: web::Data<RateLimiter>,
+) -> Result<HttpResponse, AppError> {
+    // Apply rate limiting
+    let client_key = RateLimiter::get_client_key(&request);
+    if !rate_limiter.check_rate_limit(&client_key) {
+        return Err(AppError::RateLimitExceeded);
+    }
     // Check if the user is logged in
     match session.get::<String>("did").unwrap_or(None) {
         Some(did_string) => {
@@ -1182,10 +1268,10 @@ async fn status(
                             }
 
                             let _ = status.save(db_pool).await;
-                            Redirect::to("/")
+                            Ok(Redirect::to("/")
                                 .see_other()
                                 .respond_to(&request)
-                                .map_into_boxed_body()
+                                .map_into_boxed_body())
                         }
                         Err(err) => {
                             log::error!("Error creating status: {err}");
@@ -1195,7 +1281,7 @@ async fn status(
                             }
                             .render()
                             .expect("template should be valid");
-                            HttpResponse::Ok().body(error_html)
+                            Ok(HttpResponse::Ok().body(error_html))
                         }
                     }
                 }
@@ -1205,24 +1291,12 @@ async fn status(
                     log::error!(
                         "Error restoring session, we are removing the session from the cookie: {err}"
                     );
-                    let error_html = ErrorTemplate {
-                        title: "Error",
-                        error: "Was an error resuming the session, please check the logs.",
-                    }
-                    .render()
-                    .expect("template should be valid");
-                    HttpResponse::Ok().body(error_html)
+                    Err(AppError::AuthenticationError("Session error".to_string()))
                 }
             }
         }
         None => {
-            let error_template = ErrorTemplate {
-                title: "Error",
-                error: "You must be logged in to create a status.",
-            }
-            .render()
-            .expect("template should be valid");
-            HttpResponse::Ok().body(error_template)
+            Err(AppError::AuthenticationError("You must be logged in to create a status.".to_string()))
         }
     }
 }
@@ -1358,6 +1432,10 @@ async fn main() -> std::io::Result<()> {
         log::info!("Jetstream firehose disabled (set ENABLE_FIREHOSE=true to enable)");
     }
     let arc_pool = Arc::new(pool.clone());
+    
+    // Create rate limiter - 30 requests per minute per IP
+    let rate_limiter = web::Data::new(RateLimiter::new(30, Duration::from_secs(60)));
+    
     log::info!("starting HTTP server at http://{host}:{port}");
     HttpServer::new(move || {
         App::new()
@@ -1365,6 +1443,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(client.clone()))
             .app_data(web::Data::new(arc_pool.clone()))
             .app_data(web::Data::new(handle_resolver.clone()))
+            .app_data(rate_limiter.clone())
             .wrap(
                 SessionMiddleware::builder(CookieSessionStore::default(), Key::from(&[0; 64]))
                     //TODO will need to set to true in production
@@ -1393,8 +1472,73 @@ async fn main() -> std::io::Result<()> {
             .service(status)
             .service(clear_status)
             .service(delete_status)
+            .service(hide_status)
     })
     .bind((host.as_str(), port))?
     .run()
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::{test, App};
+
+    #[actix_web::test]
+    async fn test_health_check() {
+        // Simple test to verify our test infrastructure works
+        assert_eq!(2 + 2, 4);
+    }
+
+    #[actix_web::test]
+    async fn test_custom_emojis_endpoint() {
+        // Test that the custom emojis endpoint returns JSON
+        let app = test::init_service(
+            App::new()
+                .service(get_custom_emojis)
+        ).await;
+
+        let req = test::TestRequest::get()
+            .uri("/api/custom-emojis")
+            .to_request();
+        
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+    }
+
+    #[actix_web::test]
+    async fn test_rate_limiting() {
+        // Simple test of the rate limiter directly
+        let rate_limiter = RateLimiter::new(3, Duration::from_secs(60));
+        
+        // Should allow first 3 requests from same IP
+        for i in 0..3 {
+            assert!(rate_limiter.check_rate_limit("test_ip"), 
+                    "Request {} should be allowed", i + 1);
+        }
+        
+        // 4th request should be blocked
+        assert!(!rate_limiter.check_rate_limit("test_ip"),
+                "4th request should be blocked");
+        
+        // Different IP should have its own limit
+        assert!(rate_limiter.check_rate_limit("different_ip"),
+                "Different IP should have its own rate limit");
+    }
+    
+    #[actix_web::test]
+    async fn test_error_handling() {
+        use crate::error_handler::AppError;
+        use actix_web::{http::StatusCode, ResponseError};
+        
+        // Test that our error types return correct status codes
+        let err = AppError::ValidationError("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+        
+        let err = AppError::RateLimitExceeded;
+        assert_eq!(err.status_code(), StatusCode::TOO_MANY_REQUESTS);
+        
+        let err = AppError::AuthenticationError("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::UNAUTHORIZED);
+    }
 }

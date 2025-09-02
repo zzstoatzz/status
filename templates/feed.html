@@ -80,6 +80,9 @@
                                 • expired
                                 {% endif %}
                             {% endif %}
+                            {% if is_admin %}
+                            • <button class="hide-button" data-uri="{{ status.uri }}" style="color: var(--text-tertiary); background: none; border: none; cursor: pointer; text-decoration: underline;">hide</button>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -694,6 +697,43 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Update times every minute
     setInterval(formatLocalTime, 60000);
+    
+    // Admin hide button functionality
+    document.querySelectorAll('.hide-button').forEach(button => {
+        button.addEventListener('click', async (e) => {
+            const uri = e.target.dataset.uri;
+            if (!uri) return;
+            
+            if (!confirm('Hide this status from the global feed?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/admin/hide-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        uri: uri,
+                        hidden: true 
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // Remove the status from the feed
+                    e.target.closest('.status-item').style.display = 'none';
+                } else {
+                    alert(result.error || 'Failed to hide status');
+                }
+            } catch (error) {
+                console.error('Error hiding status:', error);
+                alert('Failed to hide status');
+            }
+        });
+    });
 });
 </script>
 {%endblock content%}

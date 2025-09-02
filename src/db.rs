@@ -66,6 +66,12 @@ pub async fn create_tables_in_database(pool: &Pool) -> Result<(), async_sqlite::
         )
         .unwrap();
         
+        // Add hidden column for moderation (won't error if already exists)
+        let _ = conn.execute(
+            "ALTER TABLE status ADD COLUMN hidden BOOLEAN DEFAULT FALSE",
+            [],
+        );
+        
         Ok(())
     })
     .await?;
@@ -218,7 +224,7 @@ impl StatusFromDb {
         pool
             .conn(move |conn| {
                 let mut stmt =
-                    conn.prepare("SELECT * FROM status ORDER BY startedAt DESC LIMIT 10")?;
+                    conn.prepare("SELECT * FROM status WHERE (hidden IS NULL OR hidden = FALSE) ORDER BY startedAt DESC LIMIT 10")?;
                 let status_iter = stmt
                     .query_map([], |row| Ok(Self::map_from_row(row).unwrap()))
                     .unwrap();
@@ -241,7 +247,7 @@ impl StatusFromDb {
         pool
             .conn(move |conn| {
                 let mut stmt = conn.prepare(
-                    "SELECT * FROM status ORDER BY startedAt DESC LIMIT ?1 OFFSET ?2"
+                    "SELECT * FROM status WHERE (hidden IS NULL OR hidden = FALSE) ORDER BY startedAt DESC LIMIT ?1 OFFSET ?2"
                 )?;
                 let status_iter = stmt
                     .query_map(rusqlite::params![limit, offset], |row| {

@@ -13,3 +13,6 @@ fmt:
 clean:
     cargo clean
     rm -f status.db
+
+test:
+    cargo test
