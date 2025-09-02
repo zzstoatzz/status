@@ -7,6 +7,7 @@ use crate::{
     storage::{SqliteSessionStore, SqliteStateStore},
     templates::{FeedTemplate, LoginTemplate, StatusTemplate},
 };
+use async_sqlite::rusqlite;
 use actix_files::Files;
 use actix_session::{
     Session, SessionMiddleware, config::PersistentSession, storage::CookieSessionStore,
@@ -76,6 +77,14 @@ type OAuthClientType = Arc<
 
 /// HandleResolver to make it easier to access the OAuthClient in web requests
 type HandleResolver = Arc<CommonDidResolver<DefaultHttpClient>>;
+
+/// Admin DID for moderation
+const ADMIN_DID: &str = "did:plc:xbtmt2zjwlrfegqvch7fboei"; // zzstoatzz.io
+
+/// Check if a DID is the admin
+fn is_admin(did: &str) -> bool {
+    did == ADMIN_DID
+}
 
 /// OAuth client metadata endpoint for production
 #[get("/client-metadata.json")]
@@ -717,7 +726,7 @@ async fn user_status_json(
 /// JSON API endpoint for status - returns current status or "unknown"
 #[get("/api/status")]
 async fn status_json(db_pool: web::Data<Arc<Pool>>) -> Result<impl Responder> {
-    const OWNER_DID: &str = "did:plc:YOUR_DID_HERE"; // TODO: Configure this
+    const OWNER_DID: &str = "did:plc:xbtmt2zjwlrfegqvch7fboei"; // zzstoatzz.io
 
     let owner_did = Did::new(OWNER_DID.to_string()).ok();
     let current_status = if let Some(ref did) = owner_did {
@@ -822,12 +831,13 @@ async fn feed(
                         .actor
                         .get_profile(
                             atrium_api::app::bsky::actor::get_profile::ParametersData {
-                                actor: atrium_api::types::string::AtIdentifier::Did(did),
+                                actor: atrium_api::types::string::AtIdentifier::Did(did.clone()),
                             }
                             .into(),
                         )
                         .await;
 
+                    let is_admin = is_admin(&did.to_string());
                     let html = FeedTemplate {
                         title: TITLE,
                         profile: match profile {
@@ -844,6 +854,7 @@ async fn feed(
                             }
                         },
                         statuses,
+                        is_admin,
                     }
                     .render()
                     .expect("template should be valid");
@@ -868,6 +879,7 @@ async fn feed(
                 title: TITLE,
                 profile: None,
                 statuses,
+                is_admin: false,
             }
             .render()
             .expect("template should be valid");
@@ -1101,6 +1113,69 @@ async fn delete_status(
         }
         None => {
             // Not logged in
+            HttpResponse::Unauthorized().json(serde_json::json!({
+                "error": "Not authenticated"
+            }))
+        }
+    }
+}
+
+/// Hide/unhide a status (admin only)
+#[derive(Deserialize)]
+struct HideStatusRequest {
+    uri: String,
+    hidden: bool,
+}
+
+#[post("/admin/hide-status")]
+async fn hide_status(
+    session: Session,
+    db_pool: web::Data<Arc<Pool>>,
+    req: web::Json<HideStatusRequest>,
+) -> HttpResponse {
+    // Check if the user is logged in and is admin
+    match session.get::<String>("did").unwrap_or(None) {
+        Some(did_string) => {
+            if !is_admin(&did_string) {
+                return HttpResponse::Forbidden().json(serde_json::json!({
+                    "error": "Admin access required"
+                }));
+            }
+            
+            // Update the hidden status in the database
+            let uri = req.uri.clone();
+            let hidden = req.hidden;
+            
+            let result = db_pool
+                .conn(move |conn| {
+                    conn.execute(
+                        "UPDATE status SET hidden = ?1 WHERE uri = ?2",
+                        [&hidden as &dyn rusqlite::ToSql, &uri as &dyn rusqlite::ToSql],
+                    )
+                })
+                .await;
+            
+            match result {
+                Ok(rows_affected) if rows_affected > 0 => {
+                    HttpResponse::Ok().json(serde_json::json!({
+                        "success": true,
+                        "message": if hidden { "Status hidden" } else { "Status unhidden" }
+                    }))
+                }
+                Ok(_) => {
+                    HttpResponse::NotFound().json(serde_json::json!({
+                        "error": "Status not found"
+                    }))
+                }
+                Err(err) => {
+                    log::error!("Error updating hidden status: {}", err);
+                    HttpResponse::InternalServerError().json(serde_json::json!({
+                        "error": "Database error"
+                    }))
+                }
+            }
+        }
+        None => {
             HttpResponse::Unauthorized().json(serde_json::json!({
                 "error": "Not authenticated"
             }))
@@ -1397,6 +1472,7 @@ async fn main() -> std::io::Result<()> {
             .service(status)
             .service(clear_status)
             .service(delete_status)
+            .service(hide_status)
     })
     .bind((host.as_str(), port))?
     .run()
