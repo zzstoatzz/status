@@ -228,8 +228,10 @@ const TimestampFormatter = {
                 el.style.cursor = 'help';
                 el.style.borderBottom = '1px dotted currentColor';
                 el.style.textDecoration = 'none';
-                el.style.display = 'inline';
+                el.style.display = 'inline-block';
                 el.style.lineHeight = '1.2';
+                el.style.alignSelf = 'flex-start';
+                el.style.width = 'auto';
             });
         };
         
