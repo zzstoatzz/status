@@ -1333,10 +1333,7 @@ async fn main() -> std::io::Result<()> {
         Ok(pool) => pool,
         Err(err) => {
             log::error!("Error creating the sqlite pool: {}", err);
-            return Err(Error::new(
-                std::io::ErrorKind::Other,
-                "sqlite pool could not be created.",
-            ));
+            return Err(Error::other("sqlite pool could not be created."));
         }
     };
 
