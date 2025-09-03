@@ -57,12 +57,20 @@
 
         <!-- Feed -->
         <div class="feed-container">
-            <h2>recent updates</h2>
+            <div class="feed-header">
+                <h2>recent updates</h2>
+                {% if let Some(Profile {did, display_name}) = profile %}
+                <label class="following-filter">
+                    <input type="checkbox" id="following-filter" />
+                    <span>following only</span>
+                </label>
+                {% endif %}
+            </div>
             
             {% if !statuses.is_empty() %}
             <div class="status-list">
                 {% for status in statuses %}
-                <div class="status-item">
+                <div class="status-item" data-did="{{ status.author_did }}">
                     <span class="status-emoji">
                         {% if status.status.starts_with("custom:") %}
                             {% let emoji_name = status.status.strip_prefix("custom:").unwrap() %}
@@ -353,13 +361,40 @@ body {
     margin: 2rem 0;
 }
 
-.feed-container h2 {
+.feed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.feed-header h2 {
     font-size: 1rem;
     font-weight: 500;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 1.5rem;
+    margin: 0;
+}
+
+.following-filter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    user-select: none;
+}
+
+.following-filter input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.following-filter:hover {
+    color: var(--accent);
 }
 
 /* Status List */
@@ -549,10 +584,50 @@ const toggleTheme = () => {
 
 // Timestamp formatting is handled by /static/timestamps.js
 
+// Fetch user's following list
+const fetchFollowing = async () => {
+    try {
+        const response = await fetch('/api/following');
+        if (!response.ok) {
+            console.error('Failed to fetch following list');
+            return null;
+        }
+        const data = await response.json();
+        return data.follows;
+    } catch (error) {
+        console.error('Error fetching following:', error);
+        return null;
+    }
+};
+
+// Apply following filter to existing statuses
+const applyFollowingFilter = (active) => {
+    const statusItems = document.querySelectorAll('.status-item');
+    
+    statusItems.forEach(item => {
+        if (!active || !followingDids) {
+            // Show all if filter is off or we don't have following data
+            item.style.display = '';
+        } else {
+            const authorDid = item.getAttribute('data-did');
+            // Check if this author is in our following list
+            if (followingDids.includes(authorDid)) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        }
+    });
+};
+
 // Infinite scroll variables
 let isLoading = false;
 let offset = {% if !statuses.is_empty() %}{{ statuses.len() }}{% else %}0{% endif %};
 let hasMore = true;
+
+// Following filter variables
+let followingDids = null;
+let filterActive = false;
 
 // Load more statuses
 const loadMoreStatuses = async () => {
@@ -579,6 +654,7 @@ const loadMoreStatuses = async () => {
         newStatuses.forEach(status => {
             const statusItem = document.createElement('div');
             statusItem.className = 'status-item';
+            statusItem.setAttribute('data-did', status.author_did);
             
             let emojiHtml = '';
             if (status.status.startsWith('custom:')) {
@@ -624,6 +700,11 @@ const loadMoreStatuses = async () => {
             TimestampFormatter.initialize();
         }
         
+        // Apply filter to newly added items if active
+        if (filterActive && followingDids) {
+            applyFollowingFilter(true);
+        }
+        
         offset += newStatuses.length;
         loadingIndicator.style.display = 'none';
     } catch (error) {
@@ -655,6 +736,64 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeToggle = document.getElementById('theme-toggle');
     if (themeToggle) {
         themeToggle.addEventListener('click', toggleTheme);
+    }
+    
+    // Following filter
+    const followingFilter = document.getElementById('following-filter');
+    if (followingFilter) {
+        // Restore preference from localStorage
+        const savedPreference = localStorage.getItem('followingFilterActive');
+        if (savedPreference === 'true') {
+            followingFilter.checked = true;
+            filterActive = true;
+            
+            // Fetch following list and apply filter
+            fetchFollowing().then(follows => {
+                if (follows) {
+                    followingDids = follows;
+                    // Cache the following list with timestamp
+                    localStorage.setItem('followingDids', JSON.stringify(follows));
+                    localStorage.setItem('followingDidsTimestamp', Date.now().toString());
+                    applyFollowingFilter(true);
+                }
+            });
+        }
+        
+        followingFilter.addEventListener('change', async (e) => {
+            filterActive = e.target.checked;
+            localStorage.setItem('followingFilterActive', filterActive.toString());
+            
+            if (filterActive) {
+                // Check if we have cached following list (valid for 1 hour)
+                const cachedFollows = localStorage.getItem('followingDids');
+                const cacheTimestamp = localStorage.getItem('followingDidsTimestamp');
+                const oneHour = 60 * 60 * 1000;
+                
+                if (cachedFollows && cacheTimestamp && 
+                    (Date.now() - parseInt(cacheTimestamp)) < oneHour) {
+                    // Use cached data
+                    followingDids = JSON.parse(cachedFollows);
+                } else {
+                    // Fetch fresh data
+                    const follows = await fetchFollowing();
+                    if (follows) {
+                        followingDids = follows;
+                        // Cache the following list
+                        localStorage.setItem('followingDids', JSON.stringify(follows));
+                        localStorage.setItem('followingDidsTimestamp', Date.now().toString());
+                    } else {
+                        // Failed to fetch, disable filter
+                        filterActive = false;
+                        e.target.checked = false;
+                        localStorage.setItem('followingFilterActive', 'false');
+                        alert('Failed to fetch following list');
+                        return;
+                    }
+                }
+            }
+            
+            applyFollowingFilter(filterActive);
+        });
     }
     
     // Set up infinite scrolling

@@ -666,6 +666,73 @@ async fn get_custom_emojis() -> Result<impl Responder> {
     Ok(HttpResponse::Ok().json(emojis))
 }
 
+/// Get the DIDs of accounts the logged-in user follows
+#[get("/api/following")]
+async fn get_following(
+    session: Session,
+    oauth_client: web::Data<OAuthClientType>,
+) -> Result<impl Responder> {
+    // Check if user is logged in
+    let did = match session.get::<Did>("did").ok().flatten() {
+        Some(did) => did,
+        None => {
+            return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
+                "error": "Not logged in"
+            })));
+        }
+    };
+
+    // Restore OAuth session
+    let bsky_session = match oauth_client.restore(&did).await {
+        Ok(session) => session,
+        Err(err) => {
+            log::error!("Failed to restore session: {}", err);
+            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to restore session"
+            })));
+        }
+    };
+
+    let agent = Agent::new(bsky_session);
+
+    // Fetch follows from Bluesky
+    let mut all_follows = Vec::new();
+    let mut cursor = None;
+
+    loop {
+        let params = atrium_api::app::bsky::graph::get_follows::ParametersData {
+            actor: atrium_api::types::string::AtIdentifier::Did(did.clone()),
+            limit: None, // Use default limit
+            cursor: cursor.clone(),
+        };
+
+        match agent.api.app.bsky.graph.get_follows(params.into()).await {
+            Ok(response) => {
+                // Extract DIDs from the follows
+                for follow in &response.follows {
+                    all_follows.push(follow.did.to_string());
+                }
+
+                // Check if there are more pages
+                cursor = response.cursor.clone();
+                if cursor.is_none() {
+                    break;
+                }
+            }
+            Err(err) => {
+                log::error!("Failed to fetch follows: {}", err);
+                return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                    "error": "Failed to fetch follows"
+                })));
+            }
+        }
+    }
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "follows": all_follows
+    })))
+}
+
 /// JSON API for a specific user's status
 #[get("/@{handle}/json")]
 async fn user_status_json(
@@ -1480,6 +1547,7 @@ async fn main() -> std::io::Result<()> {
             .service(status_json)
             .service(owner_status_json)
             .service(get_custom_emojis)
+            .service(get_following)
             .service(api_feed)
             .service(user_status_page)
             .service(user_status_json)
