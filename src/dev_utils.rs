@@ -60,9 +60,14 @@ pub fn generate_dummy_statuses(count: usize) -> Vec<StatusFromDb> {
             None
         };
 
+        // Extract username from handle for DID generation
+        let handle = handles[i % handles.len()];
+        let username = handle.split('.').next().unwrap_or(handle);
+        let did = format!("did:plc:{}", username);
+
         let mut status = StatusFromDb::new(
-            format!("at://did:plc:dummy{}/xyz.statusphere.status/dummy{}", i, i),
-            format!("did:plc:dummy{}", i % handles.len()),
+            format!("at://{}/xyz.statusphere.status/status{}", did, i),
+            did,
             emojis.choose(&mut rng).unwrap().to_string(),
         );
 
@@ -70,7 +75,7 @@ pub fn generate_dummy_statuses(count: usize) -> Vec<StatusFromDb> {
         status.started_at = started_at;
         status.expires_at = expires_at;
         status.indexed_at = started_at;
-        status.handle = Some(handles[i % handles.len()].to_string());
+        status.handle = Some(handle.to_string());
 
         statuses.push(status);
     }

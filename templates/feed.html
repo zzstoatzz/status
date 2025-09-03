@@ -73,7 +73,7 @@
             </div>
             
             {% if !statuses.is_empty() %}
-            <div class="status-list">
+            <div class="status-list" id="status-list">
                 {% for status in statuses %}
                 <div class="status-item" data-did="{{ status.author_did }}">
                     <span class="status-emoji">
@@ -499,6 +499,11 @@ body {
     animation: slideUp 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Hide non-followed items initially when filter is active */
+body.following-filter-active .status-item[data-should-hide="true"] {
+    display: none !important;
+}
+
 .status-emoji {
     font-size: 2rem;
     line-height: 1;
@@ -694,7 +699,7 @@ const checkNeedMoreContent = () => {
 let isAnimating = false;
 
 // Apply following filter to existing statuses with smooth animations
-const applyFollowingFilter = (active) => {
+const applyFollowingFilter = (active, animate = true) => {
     const statusItems = document.querySelectorAll('.status-item');
     
     // Prevent overlapping animations
@@ -705,7 +710,16 @@ const applyFollowingFilter = (active) => {
         });
     }
     
-    isAnimating = true;
+    // Update body class for CSS-based hiding
+    if (active) {
+        document.body.classList.add('following-filter-active');
+    } else {
+        document.body.classList.remove('following-filter-active');
+    }
+    
+    if (animate) {
+        isAnimating = true;
+    }
     
     // Separate items into those that will be shown and hidden
     const toShow = [];
@@ -719,17 +733,28 @@ const applyFollowingFilter = (active) => {
         
         if (!active || !followingDids) {
             // Show all if filter is off or we don't have following data
+            item.setAttribute('data-should-hide', 'false');
             toShow.push(item);
         } else {
             const authorDid = item.getAttribute('data-did');
             // Check if this author is in our following list
             if (followingDids.includes(authorDid)) {
+                item.setAttribute('data-should-hide', 'false');
                 toShow.push(item);
             } else {
+                item.setAttribute('data-should-hide', 'true');
                 toHide.push(item);
             }
         }
     });
+    
+    // If not animating, just check for more content and return
+    if (!animate) {
+        if (active) {
+            checkNeedMoreContent();
+        }
+        return;
+    }
     
     // Apply animations
     if (active) {
@@ -942,8 +967,10 @@ document.addEventListener('DOMContentLoaded', () => {
             feedToggle.checked = true;
             filterActive = true;
             feedTitle.textContent = 'following feed';
+            // Add body class immediately to hide non-followed items via CSS
+            document.body.classList.add('following-filter-active');
             
-            // Fetch following list and apply filter WITHOUT animation on initial load
+            // Fetch following list and apply filter without animation on page load
             fetchFollowing().then(follows => {
                 if (follows) {
                     followingDids = follows;
@@ -951,17 +978,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.setItem('followingDids', JSON.stringify(follows));
                     localStorage.setItem('followingDidsTimestamp', Date.now().toString());
                     
-                    // Apply filter immediately without animation on page load
-                    const statusItems = document.querySelectorAll('.status-item');
-                    statusItems.forEach(item => {
-                        const authorDid = item.getAttribute('data-did');
-                        if (!followingDids.includes(authorDid)) {
-                            item.style.display = 'none';
-                        }
-                        item.setAttribute('data-filtered', 'true');
-                    });
-                    // Check if we need more content
-                    checkNeedMoreContent();
+                    // Apply filter WITHOUT animation on initial page load
+                    applyFollowingFilter(true, false);
                 }
             });
         }
@@ -1008,7 +1026,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             
-            applyFollowingFilter(filterActive);
+            // Animate when user manually toggles
+            applyFollowingFilter(filterActive, true);
         });
     }
     
