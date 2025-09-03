@@ -474,13 +474,9 @@ body {
         opacity: 1;
         transform: scale(1) translateY(0);
     }
-    50% {
-        opacity: 0.5;
-        transform: scale(0.98) translateY(-5px);
-    }
     100% {
         opacity: 0;
-        transform: scale(0.95) translateY(-10px);
+        transform: scale(0.95) translateY(-5px);
     }
 }
 
@@ -496,11 +492,11 @@ body {
 }
 
 .status-item.dissolving {
-    animation: dissolveOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    animation: dissolveOut 0.15s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 .status-item.sliding {
-    animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: slideUp 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .status-emoji {
@@ -745,8 +741,8 @@ const applyFollowingFilter = (active) => {
                 // Actually hide after animation completes
                 setTimeout(() => {
                     item.style.display = 'none';
-                }, 300);
-            }, index * 20); // 20ms stagger
+                }, 150);
+            }, Math.min(index * 10, 100)); // 10ms stagger, max 100ms delay
         });
         
         // Slide up the remaining items after a brief delay
@@ -758,10 +754,10 @@ const applyFollowingFilter = (active) => {
                     // Remove animation class after it completes
                     setTimeout(() => {
                         item.classList.remove('sliding');
-                    }, 300);
-                }, index * 15); // 15ms stagger
+                    }, 200);
+                }, Math.min(index * 8, 80)); // 8ms stagger, max 80ms delay
             });
-        }, 150); // Wait for dissolve to start
+        }, 80); // Wait for dissolve to start
         
     } else {
         // When deactivating filter: show all with slide animation
@@ -772,8 +768,8 @@ const applyFollowingFilter = (active) => {
                 // Remove animation class after it completes
                 setTimeout(() => {
                     item.classList.remove('sliding');
-                }, 300);
-            }, index * 10); // 10ms stagger for reveal
+                }, 200);
+            }, Math.min(index * 5, 100)); // 5ms stagger, max 100ms delay
         });
     }
     
@@ -784,7 +780,7 @@ const applyFollowingFilter = (active) => {
         if (active) {
             checkNeedMoreContent();
         }
-    }, 500); // Total animation time
+    }, 250); // Total animation time
 };
 
 // Infinite scroll variables
@@ -947,14 +943,25 @@ document.addEventListener('DOMContentLoaded', () => {
             filterActive = true;
             feedTitle.textContent = 'following feed';
             
-            // Fetch following list and apply filter
+            // Fetch following list and apply filter WITHOUT animation on initial load
             fetchFollowing().then(follows => {
                 if (follows) {
                     followingDids = follows;
                     // Cache the following list with timestamp
                     localStorage.setItem('followingDids', JSON.stringify(follows));
                     localStorage.setItem('followingDidsTimestamp', Date.now().toString());
-                    applyFollowingFilter(true);
+                    
+                    // Apply filter immediately without animation on page load
+                    const statusItems = document.querySelectorAll('.status-item');
+                    statusItems.forEach(item => {
+                        const authorDid = item.getAttribute('data-did');
+                        if (!followingDids.includes(authorDid)) {
+                            item.style.display = 'none';
+                        }
+                        item.setAttribute('data-filtered', 'true');
+                    });
+                    // Check if we need more content
+                    checkNeedMoreContent();
                 }
             });
         }

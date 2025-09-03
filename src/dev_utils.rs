@@ -29,6 +29,9 @@ pub fn generate_dummy_statuses(count: usize) -> Vec<StatusFromDb> {
     ];
 
     let handles = [
+        "testuser1.bsky", // These will be followed users for testing
+        "testuser2.bsky",
+        "testuser3.bsky",
         "alice.test",
         "bob.test",
         "charlie.test",
@@ -38,9 +41,6 @@ pub fn generate_dummy_statuses(count: usize) -> Vec<StatusFromDb> {
         "grace.test",
         "henry.test",
         "iris.test",
-        "jack.test",
-        "karen.test",
-        "leo.test",
     ];
 
     let now = Utc::now();
