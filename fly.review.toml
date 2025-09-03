@@ -5,11 +5,11 @@ primary_region = "ewr"
   dockerfile = "Dockerfile"
 
 [env]
-  PORT = "8080"
-  HOST = "0.0.0.0"
-  DB_PATH = "/data/status.db"
+  SERVER_PORT = "8080"
+  SERVER_HOST = "0.0.0.0"
+  DATABASE_URL = "sqlite:///data/status.db"
   ENABLE_FIREHOSE = "true"
-  # PUBLIC_URL will be set dynamically by the workflow
+  # OAUTH_REDIRECT_BASE will be set dynamically by the workflow
 
 [http_service]
   internal_port = 8080

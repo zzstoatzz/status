@@ -50,7 +50,7 @@ pub async fn create_tables_in_database(pool: &Pool) -> Result<(), async_sqlite::
         .unwrap();
 
         // Note: custom_emojis table removed - we serve emojis directly from static/emojis/ directory
-        
+
         // Add indexes for performance optimization
         // Index on startedAt for feed queries (ORDER BY startedAt DESC)
         conn.execute(
@@ -58,20 +58,20 @@ pub async fn create_tables_in_database(pool: &Pool) -> Result<(), async_sqlite::
             [],
         )
         .unwrap();
-        
+
         // Composite index for user status queries (WHERE authorDid = ? ORDER BY startedAt DESC)
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_status_authorDid_startedAt ON status(authorDid, startedAt DESC)",
             [],
         )
         .unwrap();
-        
+
         // Add hidden column for moderation (won't error if already exists)
         let _ = conn.execute(
             "ALTER TABLE status ADD COLUMN hidden BOOLEAN DEFAULT FALSE",
             [],
         );
-        
+
         Ok(())
     })
     .await?;

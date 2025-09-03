@@ -1,8 +1,4 @@
-use actix_web::{
-    error::ResponseError,
-    http::StatusCode,
-    HttpResponse,
-};
+use actix_web::{HttpResponse, error::ResponseError, http::StatusCode};
 use std::fmt;
 
 #[derive(Debug)]
@@ -10,9 +6,9 @@ pub enum AppError {
     InternalError(String),
     DatabaseError(String),
     AuthenticationError(String),
-    #[allow(dead_code)]  // Keep for potential future use
+    #[allow(dead_code)] // Keep for potential future use
     ValidationError(String),
-    #[allow(dead_code)]  // Keep for potential future use
+    #[allow(dead_code)] // Keep for potential future use
     NotFound(String),
     RateLimitExceeded,
 }
@@ -34,20 +30,31 @@ impl ResponseError for AppError {
     fn error_response(&self) -> HttpResponse {
         let (status_code, error_message) = match self {
             AppError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.clone()),
-            AppError::DatabaseError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Database error occurred".to_string()),
+            AppError::DatabaseError(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Database error occurred".to_string(),
+            ),
             AppError::AuthenticationError(msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
             AppError::ValidationError(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
-            AppError::RateLimitExceeded => (StatusCode::TOO_MANY_REQUESTS, "Rate limit exceeded. Please try again later.".to_string()),
+            AppError::RateLimitExceeded => (
+                StatusCode::TOO_MANY_REQUESTS,
+                "Rate limit exceeded. Please try again later.".to_string(),
+            ),
         };
-        
-        HttpResponse::build(status_code)
-            .body(format!("Error {}: {}", status_code.as_u16(), error_message))
+
+        HttpResponse::build(status_code).body(format!(
+            "Error {}: {}",
+            status_code.as_u16(),
+            error_message
+        ))
     }
-    
+
     fn status_code(&self) -> StatusCode {
         match self {
-            AppError::InternalError(_) | AppError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::InternalError(_) | AppError::DatabaseError(_) => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
             AppError::AuthenticationError(_) => StatusCode::UNAUTHORIZED,
             AppError::ValidationError(_) => StatusCode::BAD_REQUEST,
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
@@ -75,22 +82,37 @@ impl From<serde_json::Error> for AppError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_error_display() {
         let err = AppError::ValidationError("Invalid input".to_string());
         assert_eq!(err.to_string(), "Validation error: Invalid input");
-        
+
         let err = AppError::RateLimitExceeded;
         assert_eq!(err.to_string(), "Rate limit exceeded");
     }
-    
+
     #[test]
     fn test_error_status_codes() {
-        assert_eq!(AppError::InternalError("test".to_string()).status_code(), StatusCode::INTERNAL_SERVER_ERROR);
-        assert_eq!(AppError::ValidationError("test".to_string()).status_code(), StatusCode::BAD_REQUEST);
-        assert_eq!(AppError::AuthenticationError("test".to_string()).status_code(), StatusCode::UNAUTHORIZED);
-        assert_eq!(AppError::NotFound("test".to_string()).status_code(), StatusCode::NOT_FOUND);
-        assert_eq!(AppError::RateLimitExceeded.status_code(), StatusCode::TOO_MANY_REQUESTS);
+        assert_eq!(
+            AppError::InternalError("test".to_string()).status_code(),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+        assert_eq!(
+            AppError::ValidationError("test".to_string()).status_code(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            AppError::AuthenticationError("test".to_string()).status_code(),
+            StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            AppError::NotFound("test".to_string()).status_code(),
+            StatusCode::NOT_FOUND
+        );
+        assert_eq!(
+            AppError::RateLimitExceeded.status_code(),
+            StatusCode::TOO_MANY_REQUESTS
+        );
     }
 }
