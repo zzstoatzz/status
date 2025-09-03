@@ -1,3 +1,5 @@
+#![allow(clippy::collapsible_if)]
+
 use crate::{
     db::{StatusFromDb, create_tables_in_database},
     error_handler::AppError,
@@ -37,12 +39,7 @@ use atrium_oauth::{
 use dotenv::dotenv;
 use resolver::HickoryDnsTxtResolver;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    io::{Error, ErrorKind},
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::HashMap, io::Error, sync::Arc, time::Duration};
 use templates::{ErrorTemplate, Profile};
 
 mod config;
@@ -1337,7 +1334,7 @@ async fn main() -> std::io::Result<()> {
         Err(err) => {
             log::error!("Error creating the sqlite pool: {}", err);
             return Err(Error::new(
-                ErrorKind::Other,
+                std::io::ErrorKind::Other,
                 "sqlite pool could not be created.",
             ));
         }
