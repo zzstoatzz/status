@@ -57,7 +57,12 @@
 
         <!-- Feed -->
         <div class="feed-container">
-            <h2>recent updates</h2>
+            <div class="feed-header-with-indicator">
+                <h2>recent updates</h2>
+                {% if dev_mode %}
+                <div class="dev-indicator">dev</div>
+                {% endif %}
+            </div>
             
             {% if !statuses.is_empty() %}
             <div class="status-list">
@@ -353,13 +358,30 @@ body {
     margin: 2rem 0;
 }
 
+.feed-header-with-indicator {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
 .feed-container h2 {
     font-size: 1rem;
     font-weight: 500;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 1.5rem;
+    margin: 0;
+}
+
+.dev-indicator {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.25rem 0.5rem;
+    opacity: 0.7;
 }
 
 /* Status List */
