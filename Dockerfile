@@ -9,14 +9,25 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy manifests
-COPY Cargo.toml Cargo.lock ./
+# Create dummy project for dependency caching
+RUN USER=root cargo new --bin nate-status
+WORKDIR /app/nate-status
 
-# Copy source code
+# Copy manifests ONLY first
+COPY Cargo.toml Cargo.lock ./
+COPY rust-toolchain.toml* ./
+
+# Build dependencies only - this layer will be cached
+RUN cargo build --release && rm -rf src target/release/deps/nate_status*
+
+# Now copy actual source code
 COPY src ./src
 COPY templates ./templates
 COPY lexicons ./lexicons
 COPY static ./static
+
+# Touch main.rs to ensure rebuild with our actual code
+RUN touch src/main.rs
 
 # Build for release
 RUN cargo build --release
