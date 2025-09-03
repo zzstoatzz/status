@@ -12,7 +12,7 @@ use std::{fmt::Debug, sync::Arc};
 /// Creates the tables in the db.
 pub async fn create_tables_in_database(pool: &Pool) -> Result<(), async_sqlite::Error> {
     pool.conn(move |conn| {
-        conn.execute("PRAGMA foreign_keys = ON", [])?;
+        conn.execute("PRAGMA foreign_keys = ON", []).unwrap();
 
         // status
         conn.execute(
@@ -26,7 +26,8 @@ pub async fn create_tables_in_database(pool: &Pool) -> Result<(), async_sqlite::
             indexedAt INTEGER NOT NULL
         )",
             [],
-        )?;
+        )
+        .unwrap();
 
         // auth_session
         conn.execute(
@@ -35,7 +36,8 @@ pub async fn create_tables_in_database(pool: &Pool) -> Result<(), async_sqlite::
             session TEXT NOT NULL
         )",
             [],
-        )?;
+        )
+        .unwrap();
 
         // auth_state
         conn.execute(
@@ -44,7 +46,8 @@ pub async fn create_tables_in_database(pool: &Pool) -> Result<(), async_sqlite::
             state TEXT NOT NULL
         )",
             [],
-        )?;
+        )
+        .unwrap();
 
         // Note: custom_emojis table removed - we serve emojis directly from static/emojis/ directory
         
@@ -53,13 +56,15 @@ pub async fn create_tables_in_database(pool: &Pool) -> Result<(), async_sqlite::
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_status_startedAt ON status(startedAt DESC)",
             [],
-        )?;
+        )
+        .unwrap();
         
         // Composite index for user status queries (WHERE authorDid = ? ORDER BY startedAt DESC)
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_status_authorDid_startedAt ON status(authorDid, startedAt DESC)",
             [],
-        )?;
+        )
+        .unwrap();
         
         // Add hidden column for moderation (won't error if already exists)
         let _ = conn.execute(
@@ -125,7 +130,7 @@ impl StatusFromDb {
             indexed_at: {
                 let timestamp: i64 = row.get(6)?;
                 DateTime::from_timestamp(timestamp, 0).ok_or_else(|| {
-                    Error::InvalidColumnType(6, "Invalid timestamp".to_string(), Type::Text)
+                    Error::InvalidColumnType(6, "Invalid timestamp".parse().unwrap(), Type::Text)
                 })?
             },
             handle: None,
@@ -221,7 +226,8 @@ impl StatusFromDb {
                 let mut stmt =
                     conn.prepare("SELECT * FROM status WHERE (hidden IS NULL OR hidden = FALSE) ORDER BY startedAt DESC LIMIT 10")?;
                 let status_iter = stmt
-                    .query_map([], |row| Self::map_from_row(row))?;
+                    .query_map([], |row| Ok(Self::map_from_row(row).unwrap()))
+                    .unwrap();
 
                 let mut statuses = Vec::new();
                 for status in status_iter {
@@ -245,8 +251,9 @@ impl StatusFromDb {
                 )?;
                 let status_iter = stmt
                     .query_map(rusqlite::params![limit, offset], |row| {
-                        Self::map_from_row(row)
-                    })?;
+                        Ok(Self::map_from_row(row).unwrap())
+                    })
+                    .unwrap();
 
                 let mut statuses = Vec::new();
                 for status in status_iter {
@@ -325,11 +332,7 @@ impl AuthSession {
     where
         V: Serialize,
     {
-        let session = serde_json::to_string(&session)
-            .unwrap_or_else(|e| {
-                log::error!("Failed to serialize session: {}", e);
-                "{}".to_string()
-            });
+        let session = serde_json::to_string(&session).unwrap();
         Self {
             key: key.to_string(),
             session,
@@ -345,13 +348,7 @@ impl AuthSession {
 
     /// Gets a session by the users did(key)
     pub async fn get_by_did(pool: &Pool, did: String) -> Result<Option<Self>, async_sqlite::Error> {
-        let did = match Did::new(did) {
-            Ok(d) => d,
-            Err(e) => {
-                log::error!("Invalid DID: {}", e);
-                return Ok(None);
-            }
-        };
+        let did = Did::new(did).unwrap();
         pool.conn(move |conn| {
             let mut stmt = conn.prepare("SELECT * FROM auth_session WHERE key = ?1")?;
             stmt.query_row([did.as_str()], Self::map_from_row)
@@ -428,11 +425,7 @@ impl AuthState {
     where
         V: Serialize,
     {
-        let state = serde_json::to_string(&state)
-            .unwrap_or_else(|e| {
-                log::error!("Failed to serialize state: {}", e);
-                "{}".to_string()
-            });
+        let state = serde_json::to_string(&state).unwrap();
         Self {
             key: key.to_string(),
             state,
