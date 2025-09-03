@@ -45,6 +45,7 @@ use std::{
 };
 use templates::{ErrorTemplate, Profile};
 
+mod config;
 mod db;
 mod error_handler;
 mod ingester;
@@ -78,19 +79,15 @@ type OAuthClientType = Arc<
 /// HandleResolver to make it easier to access the OAuthClient in web requests
 type HandleResolver = Arc<CommonDidResolver<DefaultHttpClient>>;
 
-/// Admin DID for moderation
-const ADMIN_DID: &str = "did:plc:xbtmt2zjwlrfegqvch7fboei"; // zzstoatzz.io
-
 /// Check if a DID is the admin
-fn is_admin(did: &str) -> bool {
-    did == ADMIN_DID
+fn is_admin(did: &str, config: &config::Config) -> bool {
+    did == config.admin_did
 }
 
 /// OAuth client metadata endpoint for production
 #[get("/client-metadata.json")]
-async fn client_metadata() -> Result<HttpResponse> {
-    let public_url = std::env::var("PUBLIC_URL")
-        .unwrap_or_else(|_| "http://localhost:8080".to_string());
+async fn client_metadata(config: web::Data<config::Config>) -> Result<HttpResponse> {
+    let public_url = config.oauth_redirect_base.clone();
     
     let metadata = serde_json::json!({
         "client_id": format!("{}/client-metadata.json", public_url),
@@ -190,7 +187,9 @@ async fn oauth_callback(
             let agent = Agent::new(bsky_session);
             match agent.did().await {
                 Some(did) => {
-                    session.insert("did", did).unwrap();
+                    if let Err(e) = session.insert("did", did) {
+                        log::error!("Failed to save session: {}", e);
+                    }
                     Redirect::to("/")
                         .see_other()
                         .respond_to(&request)
@@ -247,6 +246,49 @@ struct LoginForm {
 }
 
 /// TS version https://github.com/bluesky-social/statusphere-example-app/blob/e4721616df50cd317c198f4c00a4818d5626d4ce/src/routes.ts#L101
+/// Shared function to resolve handles for a list of statuses
+async fn resolve_handles_for_statuses(
+    statuses: &mut Vec<StatusFromDb>,
+    handle_resolver: &HandleResolver,
+) -> Result<()> {
+    let mut quick_resolve_map: HashMap<Did, String> = HashMap::new();
+    
+    for db_status in statuses.iter_mut() {
+        let authors_did = Did::new(db_status.author_did.clone())
+            .map_err(|e| AppError::InternalError(format!("Failed to parse DID: {}", e)))?;
+        
+        // Check cache first
+        if let Some(found_handle) = quick_resolve_map.get(&authors_did) {
+            db_status.handle = Some(found_handle.clone());
+            continue;
+        }
+        
+        // Resolve handle
+        db_status.handle = match handle_resolver.resolve(&authors_did).await {
+            Ok(did_doc) => {
+                did_doc.also_known_as
+                    .and_then(|aka| {
+                        if aka.is_empty() {
+                            None
+                        } else {
+                            aka.first().map(|full_handle| {
+                                let handle = full_handle.replace("at://", "");
+                                quick_resolve_map.insert(authors_did.clone(), handle.clone());
+                                handle
+                            })
+                        }
+                    })
+            }
+            Err(err) => {
+                log::debug!("Could not resolve handle for DID {}: {}", authors_did.as_str(), err);
+                None
+            }
+        };
+    }
+    
+    Ok(())
+}
+
 /// Login endpoint
 #[post("/login")]
 async fn login_post(
@@ -302,9 +344,10 @@ async fn home(
     _oauth_client: web::Data<OAuthClientType>,
     db_pool: web::Data<Arc<Pool>>,
     handle_resolver: web::Data<HandleResolver>,
+    config: web::Data<config::Config>,
 ) -> Result<impl Responder> {
-    // Default owner of the domain
-    const OWNER_HANDLE: &str = "zzstoatzz.io";
+    // Owner handle from config
+    let owner_handle = &config.owner_handle;
 
     // Check if user is logged in
     match session.get::<String>("did").unwrap_or(None) {
@@ -363,9 +406,10 @@ async fn home(
                 http_client: Arc::new(DefaultHttpClient::default()),
             });
 
-            let owner_handle =
-                atrium_api::types::string::Handle::new(OWNER_HANDLE.to_string()).ok();
-            let owner_did = if let Some(handle) = owner_handle {
+            let owner_handle_str = owner_handle.to_string();
+            let owner_handle_parsed =
+                atrium_api::types::string::Handle::new(owner_handle_str.clone()).ok();
+            let owner_did = if let Some(handle) = owner_handle_parsed {
                 atproto_handle_resolver.resolve(&handle).await.ok()
             } else {
                 None
@@ -401,7 +445,7 @@ async fn home(
 
             let html = StatusTemplate {
                 title: "nate's status",
-                handle: OWNER_HANDLE.to_string(),
+                handle: owner_handle_str,
                 status_options: &STATUS_OPTIONS,
                 current_status,
                 history,
@@ -508,9 +552,10 @@ async fn user_status_page(
 async fn owner_status_json(
     db_pool: web::Data<Arc<Pool>>,
     _handle_resolver: web::Data<HandleResolver>,
+    config: web::Data<config::Config>,
 ) -> Result<impl Responder> {
-    // Default owner of the domain
-    const OWNER_HANDLE: &str = "zzstoatzz.io";
+    // Owner handle from config
+    let owner_handle = &config.owner_handle;
     
     // Resolve handle to DID using ATProto handle resolution
     let atproto_handle_resolver = AtprotoHandleResolver::new(AtprotoHandleResolverConfig {
@@ -519,12 +564,12 @@ async fn owner_status_json(
     });
 
     let did = match atproto_handle_resolver
-        .resolve(&OWNER_HANDLE.parse().expect("failed to parse handle"))
+        .resolve(&owner_handle.parse().expect("failed to parse handle"))
         .await
     {
         Ok(d) => Some(d.to_string()),
         Err(e) => {
-            log::error!("Failed to resolve handle {}: {}", OWNER_HANDLE, e);
+            log::error!("Failed to resolve handle {}: {}", owner_handle, e);
             None
         }
     };
@@ -549,7 +594,7 @@ async fn owner_status_json(
 
     let response = if let Some(status_data) = current_status {
         serde_json::json!({
-            "handle": OWNER_HANDLE,
+            "handle": owner_handle,
             "status": "known",
             "emoji": status_data.status,
             "text": status_data.text,
@@ -558,7 +603,7 @@ async fn owner_status_json(
         })
     } else {
         serde_json::json!({
-            "handle": OWNER_HANDLE,
+            "handle": owner_handle,
             "status": "unknown",
             "message": "No current status is known"
         })
@@ -589,32 +634,9 @@ async fn api_feed(
             vec![]
         });
     
-    // Resolve handles for each status
-    let mut quick_resolve_map: HashMap<Did, String> = HashMap::new();
-    for db_status in &mut statuses {
-        let authors_did = Did::new(db_status.author_did.clone()).expect("failed to parse did");
-        match quick_resolve_map.get(&authors_did) {
-            None => {}
-            Some(found_handle) => {
-                db_status.handle = Some(found_handle.clone());
-                continue;
-            }
-        }
-        db_status.handle = match handle_resolver.resolve(&authors_did).await {
-            Ok(did_doc) => match did_doc.also_known_as {
-                None => None,
-                Some(also_known_as) => match also_known_as.is_empty() {
-                    true => None,
-                    false => {
-                        let full_handle = also_known_as.first().unwrap();
-                        let handle = full_handle.replace("at://", "");
-                        quick_resolve_map.insert(authors_did, handle.clone());
-                        Some(handle)
-                    }
-                },
-            },
-            Err(_) => None,
-        };
+    // Resolve handles for all statuses
+    if let Err(e) = resolve_handles_for_statuses(&mut statuses, &handle_resolver).await {
+        log::error!("Error resolving handles: {}", e);
     }
     
     Ok(HttpResponse::Ok().json(statuses))
@@ -725,10 +747,13 @@ async fn user_status_json(
 
 /// JSON API endpoint for status - returns current status or "unknown"
 #[get("/api/status")]
-async fn status_json(db_pool: web::Data<Arc<Pool>>) -> Result<impl Responder> {
-    const OWNER_DID: &str = "did:plc:xbtmt2zjwlrfegqvch7fboei"; // zzstoatzz.io
-
-    let owner_did = Did::new(OWNER_DID.to_string()).ok();
+async fn status_json(
+    db_pool: web::Data<Arc<Pool>>,
+    config: web::Data<config::Config>,
+) -> Result<impl Responder> {
+    // For backwards compatibility, this returns the owner's status
+    // Use owner's DID from config (admin DID)
+    let owner_did = Did::new(config.admin_did.clone()).ok();
     let current_status = if let Some(ref did) = owner_did {
         StatusFromDb::my_status(&db_pool, did)
             .await
@@ -771,6 +796,7 @@ async fn feed(
     oauth_client: web::Data<OAuthClientType>,
     db_pool: web::Data<Arc<Pool>>,
     handle_resolver: web::Data<HandleResolver>,
+    config: web::Data<config::Config>,
 ) -> Result<impl Responder> {
     // This is essentially the old home function
     const TITLE: &str = "status feed";
@@ -781,34 +807,9 @@ async fn feed(
             vec![]
         });
 
-    let mut quick_resolve_map: HashMap<Did, String> = HashMap::new();
-    for db_status in &mut statuses {
-        let authors_did = Did::new(db_status.author_did.clone()).expect("failed to parse did");
-        match quick_resolve_map.get(&authors_did) {
-            None => {}
-            Some(found_handle) => {
-                db_status.handle = Some(found_handle.clone());
-                continue;
-            }
-        }
-        db_status.handle = match handle_resolver.resolve(&authors_did).await {
-            Ok(did_doc) => match did_doc.also_known_as {
-                None => None,
-                Some(also_known_as) => match also_known_as.is_empty() {
-                    true => None,
-                    false => {
-                        let full_handle = also_known_as.first().unwrap();
-                        let handle = full_handle.replace("at://", "");
-                        quick_resolve_map.insert(authors_did, handle.clone());
-                        Some(handle)
-                    }
-                },
-            },
-            Err(err) => {
-                log::error!("Error resolving did: {err}");
-                None
-            }
-        };
+    // Resolve handles for all statuses
+    if let Err(e) = resolve_handles_for_statuses(&mut statuses, &handle_resolver).await {
+        log::error!("Error resolving handles: {}", e);
     }
 
     match session.get::<String>("did").unwrap_or(None) {
@@ -837,7 +838,7 @@ async fn feed(
                         )
                         .await;
 
-                    let is_admin = is_admin(&did.to_string());
+                    let is_admin = is_admin(&did.to_string(), &config);
                     let html = FeedTemplate {
                         title: TITLE,
                         profile: match profile {
@@ -1132,11 +1133,12 @@ async fn hide_status(
     session: Session,
     db_pool: web::Data<Arc<Pool>>,
     req: web::Json<HideStatusRequest>,
+    config: web::Data<config::Config>,
 ) -> HttpResponse {
     // Check if the user is logged in and is admin
     match session.get::<String>("did").unwrap_or(None) {
         Some(did_string) => {
-            if !is_admin(&did_string) {
+            if !is_admin(&did_string, &config) {
                 return HttpResponse::Forbidden().json(serde_json::json!({
                     "error": "Admin access required"
                 }));
@@ -1238,7 +1240,8 @@ async fn status(
                         .repo
                         .create_record(
                             atrium_api::com::atproto::repo::create_record::InputData {
-                                collection: "io.zzstoatzz.status.record".parse().unwrap(),
+                                collection: "io.zzstoatzz.status.record".parse()
+                                    .map_err(|e| AppError::InternalError(format!("Invalid collection: {}", e)))?,
                                 repo: did.into(),
                                 rkey: None,
                                 record: status.into(),
@@ -1304,16 +1307,21 @@ async fn status(
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-    let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = std::env::var("PORT")
-        .unwrap_or_else(|_| "8080".to_string())
-        .parse::<u16>()
-        .unwrap_or(8080);
+    
+    // Load configuration
+    let config = config::Config::from_env().expect("Failed to load configuration");
+    let app_config = config.clone();
+    
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or(&config.log_level));
+    let host = config.server_host.clone();
+    let port = config.server_port;
 
-    //Uses a default sqlite db path or use the one from env
-    let db_connection_string =
-        std::env::var("DB_PATH").unwrap_or_else(|_| String::from("./statusphere.sqlite3"));
+    // Use database URL from config
+    let db_connection_string = if config.database_url.starts_with("sqlite://") {
+        config.database_url.strip_prefix("sqlite://").unwrap_or(&config.database_url).to_string()
+    } else {
+        config.database_url.clone()
+    };
 
     //Crates a db pool to share resources to the db
     let pool = match PoolBuilder::new().path(db_connection_string).open().await {
@@ -1344,18 +1352,19 @@ async fn main() -> std::io::Result<()> {
     // Create a new OAuth client
     let http_client = Arc::new(DefaultHttpClient::default());
     
-    // Check if we're running in production (with PUBLIC_URL) or locally
-    let public_url = std::env::var("PUBLIC_URL").ok();
+    // Check if we're running in production (non-localhost) or locally
+    let is_production = !config.oauth_redirect_base.starts_with("http://localhost") 
+        && !config.oauth_redirect_base.starts_with("http://127.0.0.1");
     
-    let client: OAuthClientType = if let Some(public_url) = public_url {
+    let client: OAuthClientType = if is_production {
         // Production configuration with AtprotoClientMetadata
-        log::info!("Configuring OAuth for production with URL: {}", public_url);
+        log::info!("Configuring OAuth for production with URL: {}", config.oauth_redirect_base);
         
-        let config = OAuthClientConfig {
+        let oauth_config = OAuthClientConfig {
             client_metadata: AtprotoClientMetadata {
-                client_id: format!("{}/client-metadata.json", public_url),
-                client_uri: Some(public_url.clone()),
-                redirect_uris: vec![format!("{}/oauth/callback", public_url)],
+                client_id: format!("{}/client-metadata.json", config.oauth_redirect_base),
+                client_uri: Some(config.oauth_redirect_base.clone()),
+                redirect_uris: vec![format!("{}/oauth/callback", config.oauth_redirect_base)],
                 token_endpoint_auth_method: AuthMethod::None,
                 grant_types: vec![GrantType::AuthorizationCode, GrantType::RefreshToken],
                 scopes: vec![
@@ -1381,16 +1390,16 @@ async fn main() -> std::io::Result<()> {
             state_store: SqliteStateStore::new(pool.clone()),
             session_store: SqliteSessionStore::new(pool.clone()),
         };
-        Arc::new(OAuthClient::new(config).expect("failed to create OAuth client"))
+        Arc::new(OAuthClient::new(oauth_config).expect("failed to create OAuth client"))
     } else {
         // Local development configuration with AtprotoLocalhostClientMetadata
-        log::info!("Configuring OAuth for local development at {}:{}", host, port);
+        log::info!("Configuring OAuth for local development at {}", config.oauth_redirect_base);
         
-        let config = OAuthClientConfig {
+        let oauth_config = OAuthClientConfig {
             client_metadata: AtprotoLocalhostClientMetadata {
                 redirect_uris: Some(vec![format!(
                     //This must match the endpoint you use the callback function
-                    "http://{host}:{port}/oauth/callback"
+                    "{}/oauth/callback", config.oauth_redirect_base
                 )]),
                 scopes: Some(vec![
                     Scope::Known(KnownScope::Atproto),
@@ -1413,15 +1422,10 @@ async fn main() -> std::io::Result<()> {
             state_store: SqliteStateStore::new(pool.clone()),
             session_store: SqliteSessionStore::new(pool.clone()),
         };
-        Arc::new(OAuthClient::new(config).expect("failed to create OAuth client"))
+        Arc::new(OAuthClient::new(oauth_config).expect("failed to create OAuth client"))
     };
-    // Only start the firehose ingester if enabled (default: disabled locally)
-    let enable_firehose = std::env::var("ENABLE_FIREHOSE")
-        .unwrap_or_else(|_| "false".to_string())
-        .parse::<bool>()
-        .unwrap_or(false);
-    
-    if enable_firehose {
+    // Only start the firehose ingester if enabled (from config)
+    if app_config.enable_firehose {
         let arc_pool = Arc::new(pool.clone());
         log::info!("Starting Jetstream firehose ingester");
         //Spawns the ingester that listens for other's Statusphere updates
@@ -1443,6 +1447,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(client.clone()))
             .app_data(web::Data::new(arc_pool.clone()))
             .app_data(web::Data::new(handle_resolver.clone()))
+            .app_data(web::Data::new(app_config.clone()))
             .app_data(rate_limiter.clone())
             .wrap(
                 SessionMiddleware::builder(CookieSessionStore::default(), Key::from(&[0; 64]))
