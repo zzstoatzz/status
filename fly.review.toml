@@ -9,6 +9,7 @@ primary_region = "ewr"
   SERVER_HOST = "0.0.0.0"
   DATABASE_URL = "sqlite:///data/status.db"
   ENABLE_FIREHOSE = "true"
+  DEV_MODE = "true"
   # OAUTH_REDIRECT_BASE will be set dynamically by the workflow
 
 [http_service]
