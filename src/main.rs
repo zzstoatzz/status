@@ -45,6 +45,7 @@ use std::{
 };
 use templates::{ErrorTemplate, Profile};
 
+mod config;
 mod db;
 mod error_handler;
 mod ingester;
@@ -88,9 +89,8 @@ fn is_admin(did: &str) -> bool {
 
 /// OAuth client metadata endpoint for production
 #[get("/client-metadata.json")]
-async fn client_metadata() -> Result<HttpResponse> {
-    let public_url = std::env::var("PUBLIC_URL")
-        .unwrap_or_else(|_| "http://localhost:8080".to_string());
+async fn client_metadata(config: web::Data<config::Config>) -> Result<HttpResponse> {
+    let public_url = config.oauth_redirect_base.clone();
     
     let metadata = serde_json::json!({
         "client_id": format!("{}/client-metadata.json", public_url),
@@ -1304,16 +1304,21 @@ async fn status(
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-    let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = std::env::var("PORT")
-        .unwrap_or_else(|_| "8080".to_string())
-        .parse::<u16>()
-        .unwrap_or(8080);
+    
+    // Load configuration
+    let config = config::Config::from_env().expect("Failed to load configuration");
+    let app_config = config.clone();
+    
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or(&config.log_level));
+    let host = config.server_host.clone();
+    let port = config.server_port;
 
-    //Uses a default sqlite db path or use the one from env
-    let db_connection_string =
-        std::env::var("DB_PATH").unwrap_or_else(|_| String::from("./statusphere.sqlite3"));
+    // Use database URL from config
+    let db_connection_string = if config.database_url.starts_with("sqlite://") {
+        config.database_url.strip_prefix("sqlite://").unwrap_or(&config.database_url).to_string()
+    } else {
+        config.database_url.clone()
+    };
 
     //Crates a db pool to share resources to the db
     let pool = match PoolBuilder::new().path(db_connection_string).open().await {
@@ -1344,18 +1349,19 @@ async fn main() -> std::io::Result<()> {
     // Create a new OAuth client
     let http_client = Arc::new(DefaultHttpClient::default());
     
-    // Check if we're running in production (with PUBLIC_URL) or locally
-    let public_url = std::env::var("PUBLIC_URL").ok();
+    // Check if we're running in production (non-localhost) or locally
+    let is_production = !config.oauth_redirect_base.starts_with("http://localhost") 
+        && !config.oauth_redirect_base.starts_with("http://127.0.0.1");
     
-    let client: OAuthClientType = if let Some(public_url) = public_url {
+    let client: OAuthClientType = if is_production {
         // Production configuration with AtprotoClientMetadata
-        log::info!("Configuring OAuth for production with URL: {}", public_url);
+        log::info!("Configuring OAuth for production with URL: {}", config.oauth_redirect_base);
         
-        let config = OAuthClientConfig {
+        let oauth_config = OAuthClientConfig {
             client_metadata: AtprotoClientMetadata {
-                client_id: format!("{}/client-metadata.json", public_url),
-                client_uri: Some(public_url.clone()),
-                redirect_uris: vec![format!("{}/oauth/callback", public_url)],
+                client_id: format!("{}/client-metadata.json", config.oauth_redirect_base),
+                client_uri: Some(config.oauth_redirect_base.clone()),
+                redirect_uris: vec![format!("{}/oauth/callback", config.oauth_redirect_base)],
                 token_endpoint_auth_method: AuthMethod::None,
                 grant_types: vec![GrantType::AuthorizationCode, GrantType::RefreshToken],
                 scopes: vec![
@@ -1381,12 +1387,12 @@ async fn main() -> std::io::Result<()> {
             state_store: SqliteStateStore::new(pool.clone()),
             session_store: SqliteSessionStore::new(pool.clone()),
         };
-        Arc::new(OAuthClient::new(config).expect("failed to create OAuth client"))
+        Arc::new(OAuthClient::new(oauth_config).expect("failed to create OAuth client"))
     } else {
         // Local development configuration with AtprotoLocalhostClientMetadata
         log::info!("Configuring OAuth for local development at {}:{}", host, port);
         
-        let config = OAuthClientConfig {
+        let oauth_config = OAuthClientConfig {
             client_metadata: AtprotoLocalhostClientMetadata {
                 redirect_uris: Some(vec![format!(
                     //This must match the endpoint you use the callback function
@@ -1413,15 +1419,10 @@ async fn main() -> std::io::Result<()> {
             state_store: SqliteStateStore::new(pool.clone()),
             session_store: SqliteSessionStore::new(pool.clone()),
         };
-        Arc::new(OAuthClient::new(config).expect("failed to create OAuth client"))
+        Arc::new(OAuthClient::new(oauth_config).expect("failed to create OAuth client"))
     };
-    // Only start the firehose ingester if enabled (default: disabled locally)
-    let enable_firehose = std::env::var("ENABLE_FIREHOSE")
-        .unwrap_or_else(|_| "false".to_string())
-        .parse::<bool>()
-        .unwrap_or(false);
-    
-    if enable_firehose {
+    // Only start the firehose ingester if enabled (from config)
+    if app_config.enable_firehose {
         let arc_pool = Arc::new(pool.clone());
         log::info!("Starting Jetstream firehose ingester");
         //Spawns the ingester that listens for other's Statusphere updates
@@ -1443,6 +1444,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(client.clone()))
             .app_data(web::Data::new(arc_pool.clone()))
             .app_data(web::Data::new(handle_resolver.clone()))
+            .app_data(web::Data::new(app_config.clone()))
             .app_data(rate_limiter.clone())
             .wrap(
                 SessionMiddleware::builder(CookieSessionStore::default(), Key::from(&[0; 64]))
