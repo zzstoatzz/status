@@ -1,7 +1,7 @@
 use actix_web::{
-    error::{ResponseError, ErrorInternalServerError},
+    error::ResponseError,
     http::StatusCode,
-    HttpResponse, Result,
+    HttpResponse,
 };
 use std::fmt;
 
@@ -10,7 +10,9 @@ pub enum AppError {
     InternalError(String),
     DatabaseError(String),
     AuthenticationError(String),
+    #[allow(dead_code)]  // Keep for potential future use
     ValidationError(String),
+    #[allow(dead_code)]  // Keep for potential future use
     NotFound(String),
     RateLimitExceeded,
 }
@@ -67,10 +69,8 @@ impl From<serde_json::Error> for AppError {
     }
 }
 
-// Helper function to wrap results
-pub fn handle_result<T>(result: Result<T, AppError>) -> Result<T> {
-    result.map_err(|e| ErrorInternalServerError(e))
-}
+// Helper function to wrap results - removed as unused
+// If needed in the future, use: result.map_err(|e| ErrorInternalServerError(e))
 
 #[cfg(test)]
 mod tests {

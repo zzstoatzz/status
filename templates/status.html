@@ -14,8 +14,16 @@
         <!-- Header -->
         <header class="header">
             <h1><a href="https://bsky.app/profile/{{ handle }}" target="_blank" rel="noopener" class="handle-link">@{{ handle }}</a></h1>
-            {% if is_owner %}
-            <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+            <div class="header-actions">
+                <a href="/feed" class="nav-button" aria-label="Global feed" title="Global feed">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                </a>
+                {% if is_owner %}
+                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
                 <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="5"></circle>
                     <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -33,6 +41,7 @@
                 <span class="theme-indicator" id="theme-indicator"></span>
             </button>
             {% endif %}
+            </div>
         </header>
 
         <!-- Current Status Display -->
@@ -73,32 +82,34 @@
         <div class="status-editor">
             <form action="/status" method="post" id="status-form">
                 <div class="input-group">
-                    <button type="button" class="emoji-trigger" id="emoji-trigger">
-                        <span id="selected-emoji">
-                            {% if let Some(current) = current_status.as_ref() %}
-                                {% if current.status.starts_with("custom:") %}
-                                    {% let emoji_name = current.status.strip_prefix("custom:").unwrap() %}
-                                    <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" 
-                                         onerror="this.onerror=null; this.src='/emojis/{{emoji_name}}.gif';">
+                    <div class="status-text-row">
+                        <button type="button" class="emoji-trigger" id="emoji-trigger">
+                            <span id="selected-emoji">
+                                {% if let Some(current) = current_status.as_ref() %}
+                                    {% if current.status.starts_with("custom:") %}
+                                        {% let emoji_name = current.status.strip_prefix("custom:").unwrap() %}
+                                        <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" 
+                                             onerror="this.onerror=null; this.src='/emojis/{{emoji_name}}.gif';">
+                                    {% else %}
+                                        {{ current.status }}
+                                    {% endif %}
                                 {% else %}
-                                    {{ current.status }}
+                                    😊
                                 {% endif %}
-                            {% else %}
-                                😊
-                            {% endif %}
-                        </span>
-                    </button>
-                    <input type="hidden" name="status" id="status-input" value="{% if let Some(current) = current_status.as_ref() %}{{ current.status }}{% else %}😊{% endif %}" required>
-                    
-                    <input 
-                        type="text" 
-                        name="text" 
-                        id="status-text"
-                        placeholder="What's your status?"
-                        maxlength="100"
-                        value=""
-                        autocomplete="off"
-                    >
+                            </span>
+                        </button>
+                        <input type="hidden" name="status" id="status-input" value="{% if let Some(current) = current_status.as_ref() %}{{ current.status }}{% else %}😊{% endif %}" required>
+                        
+                        <input 
+                            type="text" 
+                            name="text" 
+                            id="status-text"
+                            placeholder="What's your status?"
+                            maxlength="100"
+                            value=""
+                            autocomplete="off"
+                        >
+                    </div>
                     
                     <div class="input-actions">
                         <button type="button" class="clear-after-btn" id="clear-after-btn">
@@ -211,11 +222,25 @@
         </div>
         {% endif %}
 
-        <!-- Links -->
-        <nav class="nav-links">
-            <a href="/feed">Global feed</a>
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <a href="/feed" class="nav-button-bottom">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                </svg>
+                <span>global feed</span>
+            </a>
             {% if !is_owner %}
-            <a href="/login">Set your status</a>
+            <a href="/login" class="nav-button-bottom">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                    <polyline points="10 17 15 12 10 7"></polyline>
+                    <line x1="15" y1="12" x2="3" y2="12"></line>
+                </svg>
+                <span>set your status</span>
+            </a>
             {% endif %}
         </nav>
     </div>
@@ -291,19 +316,57 @@ body {
     margin-bottom: 2rem;
 }
 
+.header-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
 .header h1 {
     font-size: 1.5rem;
     font-weight: 600;
+    max-width: calc(100% - 60px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .handle-link {
     color: var(--text-secondary);
     text-decoration: none;
     transition: color 0.2s;
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .handle-link:hover {
     color: var(--accent);
+}
+
+.nav-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.nav-button:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.nav-button svg {
+    stroke: currentColor;
 }
 
 .theme-toggle {
@@ -436,6 +499,14 @@ body {
     border-radius: var(--radius);
     padding: 0.5rem;
     transition: border-color 0.2s;
+}
+
+/* Status text row - keeps emoji and input together */
+.status-text-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex: 1;
 }
 
 .input-group:focus-within {
@@ -807,24 +878,39 @@ body {
     color: var(--danger);
 }
 
-/* Nav Links */
-.nav-links {
+/* Bottom Navigation */
+.bottom-nav {
     display: flex;
     justify-content: center;
-    gap: 2rem;
+    gap: 1rem;
     padding-top: 2rem;
+    margin-top: 2rem;
     border-top: 1px solid var(--border-color);
 }
 
-.nav-links a {
-    color: var(--accent);
+.nav-button-bottom {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
     text-decoration: none;
+    transition: all 0.2s;
     font-size: 0.875rem;
-    transition: color 0.2s;
 }
 
-.nav-links a:hover {
-    color: var(--accent-hover);
+.nav-button-bottom:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.nav-button-bottom svg {
+    stroke: currentColor;
+    flex-shrink: 0;
 }
 
 /* Mobile adjustments */
@@ -837,34 +923,47 @@ body {
         max-width: 100%;
     }
     
+    .header h1 {
+        font-size: 1.25rem;
+    }
+    
     .status-emoji {
         font-size: 3rem;
     }
     
-    /* Fix input group on mobile */
+    /* Better mobile layout for status input */
     .input-group {
-        flex-wrap: wrap;
+        flex-direction: column;
+        gap: 0.75rem;
         padding: 0.75rem;
+    }
+    
+    /* Status text row - keep emoji and input on same line */
+    .status-text-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        width: 100%;
     }
     
     .emoji-trigger {
         font-size: 1.5rem;
+        width: 2.5rem;
+        height: 2.5rem;
+        flex-shrink: 0;
     }
     
     #status-text {
-        width: 100%;
+        flex: 1;
         min-width: 0;
-        flex: 1 1 100%;
-        order: 2;
-        margin-top: 0.5rem;
-        padding: 0.5rem 0;
+        padding: 0.5rem;
+        font-size: 1rem;
     }
     
     .input-actions {
-        order: 3;
         width: 100%;
         justify-content: space-between;
-        margin-top: 0.5rem;
+        gap: 0.5rem;
     }
     
     .clear-after-btn {
