@@ -797,10 +797,10 @@ async fn feed(
                 Some(also_known_as) => match also_known_as.is_empty() {
                     true => None,
                     false => {
-                        let formatted_handle =
-                            format!("@{}", also_known_as[0]).replace("at://", "");
-                        quick_resolve_map.insert(authors_did, formatted_handle.clone());
-                        Some(formatted_handle)
+                        let full_handle = also_known_as.first().unwrap();
+                        let handle = full_handle.replace("at://", "");
+                        quick_resolve_map.insert(authors_did, handle.clone());
+                        Some(handle)
                     }
                 },
             },

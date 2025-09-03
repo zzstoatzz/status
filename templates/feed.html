@@ -74,7 +74,7 @@
                     </span>
                     <div class="status-content">
                         <div class="status-main">
-                            <a class="status-author" href="/{{status.author_display_name()}}">{{status.author_display_name()}}</a>
+                            <a class="status-author" href="/@{{status.author_display_name()}}">@{{status.author_display_name()}}</a>
                             {% if status.text.is_some() %}
                             <span class="status-text">{{ status.text.as_ref().unwrap() }}</span>
                             {% endif %}
@@ -695,13 +695,13 @@ const loadMoreStatuses = async () => {
             }
             
             const displayName = status.handle || status.author_did;
-            const profileUrl = status.handle ? `/${status.handle}` : '#';
+            const profileUrl = status.handle ? `/@${status.handle}` : '#';
             
             statusItem.innerHTML = `
                 <span class="status-emoji">${emojiHtml}</span>
                 <div class="status-content">
                     <div class="status-main">
-                        <a class="status-author" href="${profileUrl}">${displayName}</a>
+                        <a class="status-author" href="${profileUrl}">@${displayName}</a>
                         ${status.text ? `<span class="status-text">${status.text}</span>` : ''}
                     </div>
                     <div class="status-meta">
