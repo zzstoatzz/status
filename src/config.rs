@@ -55,7 +55,16 @@ impl Config {
         Ok(Config {
             admin_did,
             owner_handle: env::var("OWNER_HANDLE").unwrap_or_else(|_| "zzstoatzz.io".to_string()),
+            // Support both DATABASE_URL and DB_PATH for backward compatibility
             database_url: env::var("DATABASE_URL")
+                .or_else(|_| env::var("DB_PATH").map(|path| {
+                    // If DB_PATH doesn't have sqlite:// prefix, add it
+                    if path.starts_with("sqlite://") {
+                        path
+                    } else {
+                        format!("sqlite://{}", path)
+                    }
+                }))
                 .unwrap_or_else(|_| "sqlite://./statusphere.sqlite3".to_string()),
             oauth_redirect_base,
             server_host,

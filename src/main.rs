@@ -1393,13 +1393,13 @@ async fn main() -> std::io::Result<()> {
         Arc::new(OAuthClient::new(oauth_config).expect("failed to create OAuth client"))
     } else {
         // Local development configuration with AtprotoLocalhostClientMetadata
-        log::info!("Configuring OAuth for local development at {}", config.oauth_redirect_base);
+        log::info!("Configuring OAuth for local development at {}:{}", host, port);
         
         let oauth_config = OAuthClientConfig {
             client_metadata: AtprotoLocalhostClientMetadata {
                 redirect_uris: Some(vec![format!(
                     //This must match the endpoint you use the callback function
-                    "{}/oauth/callback", config.oauth_redirect_base
+                    "http://{}:{}/oauth/callback", host, port
                 )]),
                 scopes: Some(vec![
                     Scope::Known(KnownScope::Atproto),
