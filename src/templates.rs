@@ -47,4 +47,5 @@ pub struct FeedTemplate<'a> {
     pub profile: Option<Profile>,
     pub statuses: Vec<StatusFromDb>,
     pub is_admin: bool,
+    pub dev_mode: bool,
 }
