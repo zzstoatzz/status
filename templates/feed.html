@@ -459,11 +459,48 @@ body {
     border: 1px solid var(--border-color);
     border-radius: var(--radius);
     transition: all 0.2s;
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .status-item:hover {
     border-color: var(--accent);
     box-shadow: var(--shadow-sm);
+}
+
+/* Animation classes for filtering */
+@keyframes dissolveOut {
+    0% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+    50% {
+        opacity: 0.5;
+        transform: scale(0.98) translateY(-5px);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0.8;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.status-item.dissolving {
+    animation: dissolveOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.status-item.sliding {
+    animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .status-emoji {
@@ -657,29 +694,97 @@ const checkNeedMoreContent = () => {
     }, 50); // Small delay to ensure layout is updated
 };
 
-// Apply following filter to existing statuses
+// Track animation state
+let isAnimating = false;
+
+// Apply following filter to existing statuses with smooth animations
 const applyFollowingFilter = (active) => {
     const statusItems = document.querySelectorAll('.status-item');
     
+    // Prevent overlapping animations
+    if (isAnimating) {
+        // Cancel existing animations
+        statusItems.forEach(item => {
+            item.classList.remove('dissolving', 'sliding');
+        });
+    }
+    
+    isAnimating = true;
+    
+    // Separate items into those that will be shown and hidden
+    const toShow = [];
+    const toHide = [];
+    
     statusItems.forEach(item => {
+        // Mark as filtered to prevent re-animation during infinite scroll
+        item.setAttribute('data-filtered', 'true');
+        // Clean up any previous animation classes
+        item.classList.remove('dissolving', 'sliding');
+        
         if (!active || !followingDids) {
             // Show all if filter is off or we don't have following data
-            item.style.display = '';
+            toShow.push(item);
         } else {
             const authorDid = item.getAttribute('data-did');
             // Check if this author is in our following list
             if (followingDids.includes(authorDid)) {
-                item.style.display = '';
+                toShow.push(item);
             } else {
-                item.style.display = 'none';
+                toHide.push(item);
             }
         }
     });
     
-    // After filtering, check if we need more content
+    // Apply animations
     if (active) {
-        checkNeedMoreContent();
+        // When activating filter: dissolve out hidden items, slide up remaining
+        toHide.forEach((item, index) => {
+            // Stagger the dissolve animation slightly for smoothness
+            setTimeout(() => {
+                item.classList.add('dissolving');
+                // Actually hide after animation completes
+                setTimeout(() => {
+                    item.style.display = 'none';
+                }, 300);
+            }, index * 20); // 20ms stagger
+        });
+        
+        // Slide up the remaining items after a brief delay
+        setTimeout(() => {
+            toShow.forEach((item, index) => {
+                item.style.display = '';
+                setTimeout(() => {
+                    item.classList.add('sliding');
+                    // Remove animation class after it completes
+                    setTimeout(() => {
+                        item.classList.remove('sliding');
+                    }, 300);
+                }, index * 15); // 15ms stagger
+            });
+        }, 150); // Wait for dissolve to start
+        
+    } else {
+        // When deactivating filter: show all with slide animation
+        statusItems.forEach((item, index) => {
+            item.style.display = '';
+            setTimeout(() => {
+                item.classList.add('sliding');
+                // Remove animation class after it completes
+                setTimeout(() => {
+                    item.classList.remove('sliding');
+                }, 300);
+            }, index * 10); // 10ms stagger for reveal
+        });
     }
+    
+    // Mark animation as complete after all animations finish
+    setTimeout(() => {
+        isAnimating = false;
+        // After filtering, check if we need more content
+        if (active) {
+            checkNeedMoreContent();
+        }
+    }, 500); // Total animation time
 };
 
 // Infinite scroll variables
@@ -700,7 +805,15 @@ const loadMoreStatuses = async () => {
     loadingIndicator.style.display = 'block';
     
     try {
-        const response = await fetch(`/api/feed?offset=${offset}&limit=20`);
+        // Include dev parameter if present in current URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const devParam = urlParams.get('dev');
+        let apiUrl = `/api/feed?offset=${offset}&limit=20`;
+        if (devParam) {
+            apiUrl += `&dev=${devParam}`;
+        }
+        
+        const response = await fetch(apiUrl);
         const newStatuses = await response.json();
         
         if (newStatuses.length === 0) {
@@ -764,7 +877,29 @@ const loadMoreStatuses = async () => {
         
         // Apply filter to newly added items if active
         if (filterActive && followingDids) {
-            applyFollowingFilter(true);
+            // Filter new items without re-animating existing ones
+            const newItems = statusList.querySelectorAll('.status-item:not([data-filtered])');
+            newItems.forEach((item, index) => {
+                item.setAttribute('data-filtered', 'true');
+                const authorDid = item.getAttribute('data-did');
+                if (!followingDids.includes(authorDid)) {
+                    // Hide non-following items with dissolve
+                    setTimeout(() => {
+                        item.classList.add('dissolving');
+                        setTimeout(() => {
+                            item.style.display = 'none';
+                        }, 300);
+                    }, index * 20);
+                } else {
+                    // Show following items with slide
+                    setTimeout(() => {
+                        item.classList.add('sliding');
+                        setTimeout(() => {
+                            item.classList.remove('sliding');
+                        }, 300);
+                    }, index * 15);
+                }
+            });
         }
         
         offset += newStatuses.length;

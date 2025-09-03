@@ -589,15 +589,22 @@ async fn api_feed(
     // Check if dev mode is requested
     let use_dev_mode = config.dev_mode && query.get("dev").is_some_and(|v| v == "true" || v == "1");
 
-    let mut statuses = if use_dev_mode && offset == 0 {
-        // For first page in dev mode, mix dummy data with real data
-        let mut real_statuses = StatusFromDb::load_statuses_paginated(&db_pool, 0, limit / 2)
-            .await
-            .unwrap_or_else(|err| {
-                log::error!("Error loading paginated statuses: {err}");
-                vec![]
-            });
-        let dummy_statuses = dev_utils::generate_dummy_statuses((limit / 2) as usize);
+    let mut statuses = if use_dev_mode {
+        // In dev mode, always mix dummy data with real data for every page
+        // This ensures we have plenty of test data for animations and filtering
+        let real_count = limit / 2;
+        let dummy_count = limit - real_count;
+
+        let mut real_statuses =
+            StatusFromDb::load_statuses_paginated(&db_pool, offset / 2, real_count)
+                .await
+                .unwrap_or_else(|err| {
+                    log::error!("Error loading paginated statuses: {err}");
+                    vec![]
+                });
+
+        // Generate unique dummy statuses for each page by using offset as seed
+        let dummy_statuses = dev_utils::generate_dummy_statuses(dummy_count as usize);
         real_statuses.extend(dummy_statuses);
         real_statuses.sort_by(|a, b| b.started_at.cmp(&a.started_at));
         real_statuses
