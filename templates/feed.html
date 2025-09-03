@@ -6,7 +6,14 @@
         <!-- Header -->
         <header class="header">
             <h1>global feed</h1>
-            <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+            <div class="header-actions">
+                <a href="/" class="nav-button" aria-label="Your status" title="Your status">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                </a>
+                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
                 <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="5"></circle>
                     <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -23,6 +30,7 @@
                 </svg>
                 <span class="theme-indicator" id="theme-indicator"></span>
             </button>
+            </div>
         </header>
 
         <!-- Session Info -->
@@ -106,9 +114,15 @@
             </div>
         </div>
 
-        <!-- Navigation -->
-        <nav class="nav-links">
-            <a href="/">← back to status</a>
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <a href="/" class="nav-button-bottom">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span>Your status</span>
+            </a>
         </nav>
     </div>
 </div>
@@ -187,6 +201,35 @@ body {
     font-size: 1.5rem;
     font-weight: 600;
     color: var(--text-secondary);
+}
+
+.header-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.nav-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.nav-button:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.nav-button svg {
+    stroke: currentColor;
 }
 
 .theme-toggle {
@@ -409,30 +452,49 @@ body {
     color: var(--text-tertiary);
 }
 
-/* Navigation */
-.nav-links {
+/* Bottom Navigation */
+.bottom-nav {
     display: flex;
     justify-content: center;
-    gap: 2rem;
+    gap: 1rem;
     padding-top: 2rem;
+    margin-top: 2rem;
     border-top: 1px solid var(--border-color);
 }
 
-.nav-links a {
-    color: var(--accent);
+.nav-button-bottom {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
     text-decoration: none;
+    transition: all 0.2s;
     font-size: 0.875rem;
-    transition: color 0.2s;
 }
 
-.nav-links a:hover {
-    color: var(--accent-hover);
+.nav-button-bottom:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.nav-button-bottom svg {
+    stroke: currentColor;
+    flex-shrink: 0;
 }
 
 /* Mobile adjustments */
 @media (max-width: 640px) {
     #root {
         padding: 1rem;
+    }
+    
+    .header h1 {
+        font-size: 1.25rem;
     }
     
     .status-item {
