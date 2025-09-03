@@ -206,7 +206,7 @@
                     {% if status.text.is_some() %}
                     <span class="history-text">{{ status.text.as_ref().unwrap() }}</span>
                     {% endif %}
-                    <span class="history-time local-time" data-timestamp="{{ status.started_at.to_rfc3339() }}" data-format="short"></span>
+                    <span class="history-time local-time" data-timestamp="{{ status.started_at.to_rfc3339() }}" data-format="compact"></span>
                 </div>
                 {% if is_owner %}
                 <button type="button" class="history-delete" data-uri="{{ status.uri }}" title="Delete this status">
@@ -1248,65 +1248,11 @@ const emojiData = {
 };
 
 // Initialize on page load
-// Format local times
-const formatLocalTimes = () => {
-    document.querySelectorAll('.local-time').forEach(el => {
-        const timestamp = el.dataset.timestamp;
-        const prefix = el.dataset.prefix;
-        const format = el.dataset.format;
-        
-        if (timestamp) {
-            const date = new Date(timestamp);
-            const now = new Date();
-            const isToday = date.toDateString() === now.toDateString();
-            
-            let formatted;
-            if (format === 'short') {
-                // For history items
-                if (isToday) {
-                    formatted = date.toLocaleTimeString('en-US', { 
-                        hour: 'numeric', 
-                        minute: '2-digit',
-                        hour12: true 
-                    }).toLowerCase();
-                } else {
-                    formatted = date.toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        day: 'numeric' 
-                    });
-                }
-            } else {
-                // For current status
-                if (isToday) {
-                    formatted = date.toLocaleTimeString('en-US', { 
-                        hour: 'numeric', 
-                        minute: '2-digit',
-                        hour12: true 
-                    }).toLowerCase();
-                } else {
-                    formatted = date.toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        day: 'numeric' 
-                    }) + ', ' + date.toLocaleTimeString('en-US', { 
-                        hour: 'numeric', 
-                        minute: '2-digit',
-                        hour12: true 
-                    }).toLowerCase();
-                }
-                
-                if (prefix) {
-                    formatted = prefix + ' ' + formatted;
-                }
-            }
-            
-            el.textContent = formatted;
-        }
-    });
-};
+// Timestamp formatting is handled by /static/timestamps.js
 
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
-    formatLocalTimes();
+    // Timestamps are auto-initialized by timestamps.js
     
     // Theme toggle
     const themeToggle = document.getElementById('theme-toggle');
