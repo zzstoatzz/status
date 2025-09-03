@@ -647,6 +647,16 @@ const fetchFollowing = async () => {
     }
 };
 
+// Check if we need to load more content after filtering
+const checkNeedMoreContent = () => {
+    // Check if filtered content fills the viewport
+    setTimeout(() => {
+        if (document.documentElement.scrollHeight <= window.innerHeight && hasMore && !isLoading) {
+            loadMoreStatuses();
+        }
+    }, 50); // Small delay to ensure layout is updated
+};
+
 // Apply following filter to existing statuses
 const applyFollowingFilter = (active) => {
     const statusItems = document.querySelectorAll('.status-item');
@@ -665,6 +675,11 @@ const applyFollowingFilter = (active) => {
             }
         }
     });
+    
+    // After filtering, check if we need more content
+    if (active) {
+        checkNeedMoreContent();
+    }
 };
 
 // Infinite scroll variables
