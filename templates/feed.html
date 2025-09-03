@@ -5,7 +5,15 @@
     <div class="container">
         <!-- Header -->
         <header class="header">
-            <h1>global feed</h1>
+            <div class="feed-title-wrapper">
+                <h1 id="feed-title">global feed</h1>
+                {% if let Some(Profile {did, display_name}) = profile %}
+                <label class="feed-toggle" for="feed-toggle-input">
+                    <input type="checkbox" id="feed-toggle-input" />
+                    <span class="toggle-slider"></span>
+                </label>
+                {% endif %}
+            </div>
             <div class="header-actions">
                 <a href="/" class="nav-button" aria-label="Your status" title="Your status">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -59,12 +67,6 @@
         <div class="feed-container">
             <div class="feed-header">
                 <h2>recent updates</h2>
-                {% if let Some(Profile {did, display_name}) = profile %}
-                <label class="following-filter">
-                    <input type="checkbox" id="following-filter" />
-                    <span>following only</span>
-                </label>
-                {% endif %}
             </div>
             
             {% if !statuses.is_empty() %}
@@ -361,13 +363,60 @@ body {
     margin: 2rem 0;
 }
 
-.feed-header {
+.feed-title-wrapper {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 0.75rem;
+}
+
+#feed-title {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feed-toggle {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.feed-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border-color);
+    border-radius: 20px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-slider::before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    top: 2px;
+    background: white;
+    border-radius: 50%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feed-toggle input:checked + .toggle-slider {
+    background: var(--accent);
+}
+
+.feed-toggle input:checked + .toggle-slider::before {
+    transform: translateX(20px);
+}
+
+.feed-header {
     margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-    gap: 1rem;
 }
 
 .feed-header h2 {
@@ -377,24 +426,6 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin: 0;
-}
-
-.following-filter {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    user-select: none;
-}
-
-.following-filter input[type="checkbox"] {
-    cursor: pointer;
-}
-
-.following-filter:hover {
-    color: var(--accent);
 }
 
 /* Status List */
@@ -738,14 +769,17 @@ document.addEventListener('DOMContentLoaded', () => {
         themeToggle.addEventListener('click', toggleTheme);
     }
     
-    // Following filter
-    const followingFilter = document.getElementById('following-filter');
-    if (followingFilter) {
+    // Feed toggle
+    const feedToggle = document.getElementById('feed-toggle-input');
+    const feedTitle = document.getElementById('feed-title');
+    
+    if (feedToggle && feedTitle) {
         // Restore preference from localStorage
         const savedPreference = localStorage.getItem('followingFilterActive');
         if (savedPreference === 'true') {
-            followingFilter.checked = true;
+            feedToggle.checked = true;
             filterActive = true;
+            feedTitle.textContent = 'following feed';
             
             // Fetch following list and apply filter
             fetchFollowing().then(follows => {
@@ -759,9 +793,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         
-        followingFilter.addEventListener('change', async (e) => {
+        feedToggle.addEventListener('change', async (e) => {
             filterActive = e.target.checked;
             localStorage.setItem('followingFilterActive', filterActive.toString());
+            
+            // Animate title change
+            feedTitle.style.opacity = '0';
+            
+            setTimeout(() => {
+                feedTitle.textContent = filterActive ? 'following feed' : 'global feed';
+                feedTitle.style.opacity = '1';
+            }, 150);
             
             if (filterActive) {
                 // Check if we have cached following list (valid for 1 hour)
@@ -786,6 +828,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         filterActive = false;
                         e.target.checked = false;
                         localStorage.setItem('followingFilterActive', 'false');
+                        feedTitle.textContent = 'global feed';
                         alert('Failed to fetch following list');
                         return;
                     }
