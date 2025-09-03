@@ -7,7 +7,6 @@ use crate::{
     storage::{SqliteSessionStore, SqliteStateStore},
     templates::{FeedTemplate, LoginTemplate, StatusTemplate},
 };
-use async_sqlite::rusqlite;
 use actix_files::Files;
 use actix_session::{
     Session, SessionMiddleware, config::PersistentSession, storage::CookieSessionStore,
@@ -19,6 +18,7 @@ use actix_web::{
     web::{self, Redirect},
 };
 use askama::Template;
+use async_sqlite::rusqlite;
 use async_sqlite::{Pool, PoolBuilder};
 use atrium_api::{
     agent::Agent,
@@ -30,8 +30,8 @@ use atrium_identity::{
     handle::{AtprotoHandleResolver, AtprotoHandleResolverConfig},
 };
 use atrium_oauth::{
-    AtprotoClientMetadata, AtprotoLocalhostClientMetadata, AuthorizeOptions, CallbackParams,
-    AuthMethod, DefaultHttpClient, GrantType, KnownScope, OAuthClient, OAuthClientConfig,
+    AtprotoClientMetadata, AtprotoLocalhostClientMetadata, AuthMethod, AuthorizeOptions,
+    CallbackParams, DefaultHttpClient, GrantType, KnownScope, OAuthClient, OAuthClientConfig,
     OAuthResolverConfig, Scope,
 };
 use dotenv::dotenv;
@@ -91,7 +91,7 @@ fn is_admin(did: &str) -> bool {
 #[get("/client-metadata.json")]
 async fn client_metadata(config: web::Data<config::Config>) -> Result<HttpResponse> {
     let public_url = config.oauth_redirect_base.clone();
-    
+
     let metadata = serde_json::json!({
         "client_id": format!("{}/client-metadata.json", public_url),
         "client_name": "Status Sphere",
@@ -103,7 +103,7 @@ async fn client_metadata(config: web::Data<config::Config>) -> Result<HttpRespon
         "token_endpoint_auth_method": "none",
         "dpop_bound_access_tokens": true
     });
-    
+
     Ok(HttpResponse::Ok()
         .content_type("application/json")
         .body(metadata.to_string()))
@@ -153,17 +153,19 @@ async fn oauth_callback(
 ) -> HttpResponse {
     // Check if there's an OAuth error from BlueSky
     if let Some(error) = &params.error {
-        let error_msg = params.error_description.as_deref()
+        let error_msg = params
+            .error_description
+            .as_deref()
             .unwrap_or("An error occurred during authentication");
         log::error!("OAuth error from BlueSky: {} - {}", error, error_msg);
-        
+
         let html = ErrorTemplate {
             title: "Authentication Error",
             error: error_msg,
         };
         return HttpResponse::BadRequest().body(html.render().expect("template should be valid"));
     }
-    
+
     // Check if we have the required code field for a successful callback
     let code = match &params.code {
         Some(code) => code.clone(),
@@ -173,17 +175,18 @@ async fn oauth_callback(
                 title: "Error",
                 error: "Missing required OAuth code. Please try logging in again.",
             };
-            return HttpResponse::BadRequest().body(html.render().expect("template should be valid"));
+            return HttpResponse::BadRequest()
+                .body(html.render().expect("template should be valid"));
         }
     };
-    
+
     // Create CallbackParams for the OAuth client
-    let callback_params = CallbackParams { 
+    let callback_params = CallbackParams {
         code,
         state: params.state.clone(),
         iss: params.iss.clone(),
     };
-    
+
     //Processes the call back and parses out a session if found and valid
     match oauth_client.callback(callback_params).await {
         Ok((bsky_session, _)) => {
@@ -511,7 +514,7 @@ async fn owner_status_json(
 ) -> Result<impl Responder> {
     // Default owner of the domain
     const OWNER_HANDLE: &str = "zzstoatzz.io";
-    
+
     // Resolve handle to DID using ATProto handle resolution
     let atproto_handle_resolver = AtprotoHandleResolver::new(AtprotoHandleResolverConfig {
         dns_txt_resolver: HickoryDnsTxtResolver::default(),
@@ -574,21 +577,23 @@ async fn api_feed(
     db_pool: web::Data<Arc<Pool>>,
     handle_resolver: web::Data<HandleResolver>,
 ) -> Result<impl Responder> {
-    let offset = query.get("offset")
+    let offset = query
+        .get("offset")
         .and_then(|s| s.parse::<i32>().ok())
         .unwrap_or(0);
-    let limit = query.get("limit")
+    let limit = query
+        .get("limit")
         .and_then(|s| s.parse::<i32>().ok())
         .unwrap_or(20)
         .min(50); // Cap at 50 items per request
-    
+
     let mut statuses = StatusFromDb::load_statuses_paginated(&db_pool, offset, limit)
         .await
         .unwrap_or_else(|err| {
             log::error!("Error loading statuses: {err}");
             vec![]
         });
-    
+
     // Resolve handles for each status
     let mut quick_resolve_map: HashMap<Did, String> = HashMap::new();
     for db_status in &mut statuses {
@@ -616,7 +621,7 @@ async fn api_feed(
             Err(_) => None,
         };
     }
-    
+
     Ok(HttpResponse::Ok().json(statuses))
 }
 
@@ -624,24 +629,31 @@ async fn api_feed(
 #[get("/api/custom-emojis")]
 async fn get_custom_emojis() -> Result<impl Responder> {
     use std::fs;
-    
+
     #[derive(Serialize)]
     struct SimpleEmoji {
         name: String,
         filename: String,
     }
-    
+
     let emojis_dir = "static/emojis";
     let mut emojis = Vec::new();
-    
+
     if let Ok(entries) = fs::read_dir(emojis_dir) {
         for entry in entries.flatten() {
             if let Some(filename) = entry.file_name().to_str() {
                 // Only include image files
-                if filename.ends_with(".png") || filename.ends_with(".gif") || 
-                   filename.ends_with(".jpg") || filename.ends_with(".webp") {
+                if filename.ends_with(".png")
+                    || filename.ends_with(".gif")
+                    || filename.ends_with(".jpg")
+                    || filename.ends_with(".webp")
+                {
                     // Remove file extension to get name
-                    let name = filename.rsplit_once('.').map(|(name, _)| name).unwrap_or(filename).to_string();
+                    let name = filename
+                        .rsplit_once('.')
+                        .map(|(name, _)| name)
+                        .unwrap_or(filename)
+                        .to_string();
                     emojis.push(SimpleEmoji {
                         name: name.clone(),
                         filename: filename.to_string(),
@@ -650,10 +662,10 @@ async fn get_custom_emojis() -> Result<impl Responder> {
             }
         }
     }
-    
+
     // Sort by name
     emojis.sort_by(|a, b| a.name.cmp(&b.name));
-    
+
     Ok(HttpResponse::Ok().json(emojis))
 }
 
@@ -837,7 +849,7 @@ async fn feed(
                         )
                         .await;
 
-                    let is_admin = is_admin(&did.to_string());
+                    let is_admin = is_admin(did.as_str());
                     let html = FeedTemplate {
                         title: TITLE,
                         profile: match profile {
@@ -1033,7 +1045,7 @@ async fn delete_status(
     match session.get::<String>("did").unwrap_or(None) {
         Some(did_string) => {
             let did = Did::new(did_string.clone()).expect("failed to parse did");
-            
+
             // Parse the URI to verify it belongs to this user
             // URI format: at://did:plc:xxx/io.zzstoatzz.status.record/rkey
             let uri_parts: Vec<&str> = req.uri.split('/').collect();
@@ -1042,7 +1054,7 @@ async fn delete_status(
                     "error": "Invalid status URI format"
                 }));
             }
-            
+
             // Extract DID from URI (at://did:plc:xxx/...)
             let uri_did_part = uri_parts[2];
             if uri_did_part != did_string {
@@ -1050,14 +1062,14 @@ async fn delete_status(
                     "error": "You can only delete your own statuses"
                 }));
             }
-            
+
             // Extract record key
             if let Some(rkey) = uri_parts.last() {
                 // Get OAuth session
                 match oauth_client.restore(&did).await {
                     Ok(session) => {
                         let agent = Agent::new(session);
-                        
+
                         // Delete the record from ATProto
                         let delete_request =
                             atrium_api::com::atproto::repo::delete_record::InputData {
@@ -1066,14 +1078,12 @@ async fn delete_status(
                                 )
                                 .expect("valid nsid"),
                                 repo: did.clone().into(),
-                                rkey: atrium_api::types::string::RecordKey::new(
-                                    rkey.to_string(),
-                                )
-                                .expect("valid rkey"),
+                                rkey: atrium_api::types::string::RecordKey::new(rkey.to_string())
+                                    .expect("valid rkey"),
                                 swap_commit: None,
                                 swap_record: None,
                             };
-                        
+
                         match agent
                             .api
                             .com
@@ -1084,8 +1094,9 @@ async fn delete_status(
                         {
                             Ok(_) => {
                                 // Also remove from local database
-                                let _ = StatusFromDb::delete_by_uri(&db_pool, req.uri.clone()).await;
-                                
+                                let _ =
+                                    StatusFromDb::delete_by_uri(&db_pool, req.uri.clone()).await;
+
                                 HttpResponse::Ok().json(serde_json::json!({
                                     "success": true
                                 }))
@@ -1141,11 +1152,11 @@ async fn hide_status(
                     "error": "Admin access required"
                 }));
             }
-            
+
             // Update the hidden status in the database
             let uri = req.uri.clone();
             let hidden = req.hidden;
-            
+
             let result = db_pool
                 .conn(move |conn| {
                     conn.execute(
@@ -1154,7 +1165,7 @@ async fn hide_status(
                     )
                 })
                 .await;
-            
+
             match result {
                 Ok(rows_affected) if rows_affected > 0 => {
                     HttpResponse::Ok().json(serde_json::json!({
@@ -1162,11 +1173,9 @@ async fn hide_status(
                         "message": if hidden { "Status hidden" } else { "Status unhidden" }
                     }))
                 }
-                Ok(_) => {
-                    HttpResponse::NotFound().json(serde_json::json!({
-                        "error": "Status not found"
-                    }))
-                }
+                Ok(_) => HttpResponse::NotFound().json(serde_json::json!({
+                    "error": "Status not found"
+                })),
                 Err(err) => {
                     log::error!("Error updating hidden status: {}", err);
                     HttpResponse::InternalServerError().json(serde_json::json!({
@@ -1175,11 +1184,9 @@ async fn hide_status(
                 }
             }
         }
-        None => {
-            HttpResponse::Unauthorized().json(serde_json::json!({
-                "error": "Not authenticated"
-            }))
-        }
+        None => HttpResponse::Unauthorized().json(serde_json::json!({
+            "error": "Not authenticated"
+        })),
     }
 }
 
@@ -1256,10 +1263,10 @@ async fn status(
                                 did_string,
                                 form.status.clone(),
                             );
-                            
+
                             // Set the text field if provided
                             status.text = form.text.clone();
-                            
+
                             // Set the expiration time if provided
                             if let Some(exp_str) = &form.expires_in {
                                 if let Some(duration) = parse_duration(exp_str) {
@@ -1295,27 +1302,31 @@ async fn status(
                 }
             }
         }
-        None => {
-            Err(AppError::AuthenticationError("You must be logged in to create a status.".to_string()))
-        }
+        None => Err(AppError::AuthenticationError(
+            "You must be logged in to create a status.".to_string(),
+        )),
     }
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
-    
+
     // Load configuration
     let config = config::Config::from_env().expect("Failed to load configuration");
     let app_config = config.clone();
-    
+
     env_logger::init_from_env(env_logger::Env::new().default_filter_or(&config.log_level));
     let host = config.server_host.clone();
     let port = config.server_port;
 
     // Use database URL from config
     let db_connection_string = if config.database_url.starts_with("sqlite://") {
-        config.database_url.strip_prefix("sqlite://").unwrap_or(&config.database_url).to_string()
+        config
+            .database_url
+            .strip_prefix("sqlite://")
+            .unwrap_or(&config.database_url)
+            .to_string()
     } else {
         config.database_url.clone()
     };
@@ -1348,15 +1359,18 @@ async fn main() -> std::io::Result<()> {
 
     // Create a new OAuth client
     let http_client = Arc::new(DefaultHttpClient::default());
-    
+
     // Check if we're running in production (non-localhost) or locally
-    let is_production = !config.oauth_redirect_base.starts_with("http://localhost") 
+    let is_production = !config.oauth_redirect_base.starts_with("http://localhost")
         && !config.oauth_redirect_base.starts_with("http://127.0.0.1");
-    
+
     let client: OAuthClientType = if is_production {
         // Production configuration with AtprotoClientMetadata
-        log::info!("Configuring OAuth for production with URL: {}", config.oauth_redirect_base);
-        
+        log::info!(
+            "Configuring OAuth for production with URL: {}",
+            config.oauth_redirect_base
+        );
+
         let oauth_config = OAuthClientConfig {
             client_metadata: AtprotoClientMetadata {
                 client_id: format!("{}/client-metadata.json", config.oauth_redirect_base),
@@ -1390,8 +1404,12 @@ async fn main() -> std::io::Result<()> {
         Arc::new(OAuthClient::new(oauth_config).expect("failed to create OAuth client"))
     } else {
         // Local development configuration with AtprotoLocalhostClientMetadata
-        log::info!("Configuring OAuth for local development at {}:{}", host, port);
-        
+        log::info!(
+            "Configuring OAuth for local development at {}:{}",
+            host,
+            port
+        );
+
         let oauth_config = OAuthClientConfig {
             client_metadata: AtprotoLocalhostClientMetadata {
                 redirect_uris: Some(vec![format!(
@@ -1433,10 +1451,10 @@ async fn main() -> std::io::Result<()> {
         log::info!("Jetstream firehose disabled (set ENABLE_FIREHOSE=true to enable)");
     }
     let arc_pool = Arc::new(pool.clone());
-    
+
     // Create rate limiter - 30 requests per minute per IP
     let rate_limiter = web::Data::new(RateLimiter::new(30, Duration::from_secs(60)));
-    
+
     log::info!("starting HTTP server at http://{host}:{port}");
     HttpServer::new(move || {
         App::new()
@@ -1484,7 +1502,7 @@ async fn main() -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use actix_web::{test, App};
+    use actix_web::{App, test};
 
     #[actix_web::test]
     async fn test_health_check() {
@@ -1495,15 +1513,12 @@ mod tests {
     #[actix_web::test]
     async fn test_custom_emojis_endpoint() {
         // Test that the custom emojis endpoint returns JSON
-        let app = test::init_service(
-            App::new()
-                .service(get_custom_emojis)
-        ).await;
+        let app = test::init_service(App::new().service(get_custom_emojis)).await;
 
         let req = test::TestRequest::get()
             .uri("/api/custom-emojis")
             .to_request();
-        
+
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success());
     }
@@ -1512,34 +1527,41 @@ mod tests {
     async fn test_rate_limiting() {
         // Simple test of the rate limiter directly
         let rate_limiter = RateLimiter::new(3, Duration::from_secs(60));
-        
+
         // Should allow first 3 requests from same IP
         for i in 0..3 {
-            assert!(rate_limiter.check_rate_limit("test_ip"), 
-                    "Request {} should be allowed", i + 1);
+            assert!(
+                rate_limiter.check_rate_limit("test_ip"),
+                "Request {} should be allowed",
+                i + 1
+            );
         }
-        
+
         // 4th request should be blocked
-        assert!(!rate_limiter.check_rate_limit("test_ip"),
-                "4th request should be blocked");
-        
+        assert!(
+            !rate_limiter.check_rate_limit("test_ip"),
+            "4th request should be blocked"
+        );
+
         // Different IP should have its own limit
-        assert!(rate_limiter.check_rate_limit("different_ip"),
-                "Different IP should have its own rate limit");
+        assert!(
+            rate_limiter.check_rate_limit("different_ip"),
+            "Different IP should have its own rate limit"
+        );
     }
-    
+
     #[actix_web::test]
     async fn test_error_handling() {
         use crate::error_handler::AppError;
-        use actix_web::{http::StatusCode, ResponseError};
-        
+        use actix_web::{ResponseError, http::StatusCode};
+
         // Test that our error types return correct status codes
         let err = AppError::ValidationError("test".to_string());
         assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
-        
+
         let err = AppError::RateLimitExceeded;
         assert_eq!(err.status_code(), StatusCode::TOO_MANY_REQUESTS);
-        
+
         let err = AppError::AuthenticationError("test".to_string());
         assert_eq!(err.status_code(), StatusCode::UNAUTHORIZED);
     }
