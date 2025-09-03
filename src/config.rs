@@ -28,6 +28,9 @@ pub struct Config {
 
     /// Log level
     pub log_level: String,
+
+    /// Dev mode for testing with dummy data
+    pub dev_mode: bool,
 }
 
 impl Config {
@@ -53,6 +56,10 @@ impl Config {
                 .parse()
                 .unwrap_or(false),
             log_level: env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string()),
+            dev_mode: env::var("DEV_MODE")
+                .unwrap_or_else(|_| "false".to_string())
+                .parse()
+                .unwrap_or(false),
         })
     }
 }

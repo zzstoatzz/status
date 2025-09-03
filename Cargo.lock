@@ -2277,6 +2277,7 @@ dependencies = [
  "env_logger",
  "hickory-resolver",
  "log",
+ "rand 0.8.5",
  "rocketman",
  "serde",
  "serde_json",

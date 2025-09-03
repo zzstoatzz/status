@@ -117,10 +117,10 @@
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <polyline points="12 6 12 12 16 14"></polyline>
                             </svg>
-                            <span id="clear-text">Don't clear</span>
+                            <span id="clear-text">don't clear</span>
                         </button>
                         
-                        <button type="submit" class="save-btn">Set</button>
+                        <button type="submit" class="save-btn">set</button>
                     </div>
                 </div>
                 
@@ -165,7 +165,7 @@
 
         <!-- Clear Time Picker (hidden by default) -->
         <div class="clear-picker" id="clear-picker" style="display: none;">
-            <button class="clear-option active" data-value="">Don't clear</button>
+            <button class="clear-option active" data-value="">don't clear</button>
             <button class="clear-option" data-value="30m">30 minutes</button>
             <button class="clear-option" data-value="1h">1 hour</button>
             <button class="clear-option" data-value="2h">2 hours</button>
@@ -176,20 +176,20 @@
             <button class="clear-option" data-value="custom">Custom...</button>
             <div class="custom-datetime" id="custom-datetime" style="display: none;">
                 <input type="datetime-local" id="custom-datetime-input" />
-                <button type="button" class="custom-datetime-set" id="custom-datetime-set">Set</button>
+                <button type="button" class="custom-datetime-set" id="custom-datetime-set">set</button>
             </div>
         </div>
 
         <!-- Session Info -->
         <div class="session-info">
-            <a href="/logout" class="logout-link">Log out</a>
+            <a href="/logout" class="logout-link">log out</a>
         </div>
         {% endif %}
 
         <!-- History -->
         {% if !history.is_empty() %}
         <div class="history">
-            <h3>Recent</h3>
+            <h3>recent</h3>
             {% for status in history %}
             {% if loop.index0 < 5 %}
             <div class="history-item">
@@ -1423,7 +1423,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Update button text
                 const labels = {
-                    '': "Don't clear",
+                    '': "don't clear",
                     '30m': '30m',
                     '1h': '1h',
                     '2h': '2h',
@@ -1639,7 +1639,7 @@ document.addEventListener('DOMContentLoaded', () => {
             saveBtn.textContent = 'No changes';
         } else {
             saveBtn.disabled = false;
-            saveBtn.textContent = 'Set';
+            saveBtn.textContent = 'set';
         }
     };
     

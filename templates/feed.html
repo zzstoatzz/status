@@ -5,7 +5,15 @@
     <div class="container">
         <!-- Header -->
         <header class="header">
-            <h1>global feed</h1>
+            <div class="feed-title-wrapper">
+                <h1 id="feed-title">global feed</h1>
+                {% if let Some(Profile {did, display_name}) = profile %}
+                <label class="feed-toggle" for="feed-toggle-input">
+                    <input type="checkbox" id="feed-toggle-input" />
+                    <span class="toggle-slider"></span>
+                </label>
+                {% endif %}
+            </div>
             <div class="header-actions">
                 <a href="/" class="nav-button" aria-label="Your status" title="Your status">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -57,12 +65,17 @@
 
         <!-- Feed -->
         <div class="feed-container">
-            <h2>recent updates</h2>
+            <div class="feed-header-with-indicator">
+                <h2>recent updates</h2>
+                {% if dev_mode %}
+                <div class="dev-indicator" title="dev mode: showing dummy data mixed with real posts">dev</div>
+                {% endif %}
+            </div>
             
             {% if !statuses.is_empty() %}
             <div class="status-list">
                 {% for status in statuses %}
-                <div class="status-item">
+                <div class="status-item" data-did="{{ status.author_did }}">
                     <span class="status-emoji">
                         {% if status.status.starts_with("custom:") %}
                             {% let emoji_name = status.status.strip_prefix("custom:").unwrap() %}
@@ -110,7 +123,7 @@
             
             <!-- End of feed indicator -->
             <div id="end-of-feed" style="display: none; text-align: center; padding: 2rem;">
-                <span style="color: var(--text-tertiary);">You've reached the beginning of time ✨</span>
+                <span style="color: var(--text-tertiary);">you've reached the beginning of time ✨</span>
             </div>
         </div>
 
@@ -353,13 +366,82 @@ body {
     margin: 2rem 0;
 }
 
+.feed-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+#feed-title {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feed-toggle {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.feed-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border-color);
+    border-radius: 20px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-slider::before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    top: 2px;
+    background: white;
+    border-radius: 50%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feed-toggle input:checked + .toggle-slider {
+    background: var(--accent);
+}
+
+.feed-toggle input:checked + .toggle-slider::before {
+    transform: translateX(20px);
+}
+
+.feed-header-with-indicator {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
 .feed-container h2 {
     font-size: 1rem;
     font-weight: 500;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 1.5rem;
+    margin: 0;
+}
+
+.dev-indicator {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.25rem 0.5rem;
+    opacity: 0.7;
 }
 
 /* Status List */
@@ -549,10 +631,50 @@ const toggleTheme = () => {
 
 // Timestamp formatting is handled by /static/timestamps.js
 
+// Fetch user's following list
+const fetchFollowing = async () => {
+    try {
+        const response = await fetch('/api/following');
+        if (!response.ok) {
+            console.error('Failed to fetch following list');
+            return null;
+        }
+        const data = await response.json();
+        return data.follows;
+    } catch (error) {
+        console.error('Error fetching following:', error);
+        return null;
+    }
+};
+
+// Apply following filter to existing statuses
+const applyFollowingFilter = (active) => {
+    const statusItems = document.querySelectorAll('.status-item');
+    
+    statusItems.forEach(item => {
+        if (!active || !followingDids) {
+            // Show all if filter is off or we don't have following data
+            item.style.display = '';
+        } else {
+            const authorDid = item.getAttribute('data-did');
+            // Check if this author is in our following list
+            if (followingDids.includes(authorDid)) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        }
+    });
+};
+
 // Infinite scroll variables
 let isLoading = false;
 let offset = {% if !statuses.is_empty() %}{{ statuses.len() }}{% else %}0{% endif %};
 let hasMore = true;
+
+// Following filter variables
+let followingDids = null;
+let filterActive = false;
 
 // Load more statuses
 const loadMoreStatuses = async () => {
@@ -579,6 +701,7 @@ const loadMoreStatuses = async () => {
         newStatuses.forEach(status => {
             const statusItem = document.createElement('div');
             statusItem.className = 'status-item';
+            statusItem.setAttribute('data-did', status.author_did);
             
             let emojiHtml = '';
             if (status.status.startsWith('custom:')) {
@@ -624,6 +747,11 @@ const loadMoreStatuses = async () => {
             TimestampFormatter.initialize();
         }
         
+        // Apply filter to newly added items if active
+        if (filterActive && followingDids) {
+            applyFollowingFilter(true);
+        }
+        
         offset += newStatuses.length;
         loadingIndicator.style.display = 'none';
     } catch (error) {
@@ -655,6 +783,76 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeToggle = document.getElementById('theme-toggle');
     if (themeToggle) {
         themeToggle.addEventListener('click', toggleTheme);
+    }
+    
+    // Feed toggle
+    const feedToggle = document.getElementById('feed-toggle-input');
+    const feedTitle = document.getElementById('feed-title');
+    
+    if (feedToggle && feedTitle) {
+        // Restore preference from localStorage
+        const savedPreference = localStorage.getItem('followingFilterActive');
+        if (savedPreference === 'true') {
+            feedToggle.checked = true;
+            filterActive = true;
+            feedTitle.textContent = 'following feed';
+            
+            // Fetch following list and apply filter
+            fetchFollowing().then(follows => {
+                if (follows) {
+                    followingDids = follows;
+                    // Cache the following list with timestamp
+                    localStorage.setItem('followingDids', JSON.stringify(follows));
+                    localStorage.setItem('followingDidsTimestamp', Date.now().toString());
+                    applyFollowingFilter(true);
+                }
+            });
+        }
+        
+        feedToggle.addEventListener('change', async (e) => {
+            filterActive = e.target.checked;
+            localStorage.setItem('followingFilterActive', filterActive.toString());
+            
+            // Animate title change
+            feedTitle.style.opacity = '0';
+            
+            setTimeout(() => {
+                feedTitle.textContent = filterActive ? 'following feed' : 'global feed';
+                feedTitle.style.opacity = '1';
+            }, 150);
+            
+            if (filterActive) {
+                // Check if we have cached following list (valid for 1 hour)
+                const cachedFollows = localStorage.getItem('followingDids');
+                const cacheTimestamp = localStorage.getItem('followingDidsTimestamp');
+                const oneHour = 60 * 60 * 1000;
+                
+                if (cachedFollows && cacheTimestamp && 
+                    (Date.now() - parseInt(cacheTimestamp)) < oneHour) {
+                    // Use cached data
+                    followingDids = JSON.parse(cachedFollows);
+                } else {
+                    // Fetch fresh data
+                    const follows = await fetchFollowing();
+                    if (follows) {
+                        followingDids = follows;
+                        // Cache the following list
+                        localStorage.setItem('followingDids', JSON.stringify(follows));
+                        localStorage.setItem('followingDidsTimestamp', Date.now().toString());
+                    } else {
+                        // Failed to fetch, disable filter
+                        filterActive = false;
+                        e.target.checked = false;
+                        localStorage.setItem('followingFilterActive', 'false');
+                        feedTitle.textContent = 'global feed';
+                        alert('Failed to fetch following list');
+                        return;
+                    }
+                }
+            }
+            
+            applyFollowingFilter(filterActive);
+        });
     }
     
     // Set up infinite scrolling

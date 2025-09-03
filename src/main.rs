@@ -44,6 +44,7 @@ use templates::{ErrorTemplate, Profile};
 
 mod config;
 mod db;
+mod dev_utils;
 mod error_handler;
 mod ingester;
 #[allow(dead_code)]
@@ -573,6 +574,7 @@ async fn api_feed(
     query: web::Query<HashMap<String, String>>,
     db_pool: web::Data<Arc<Pool>>,
     handle_resolver: web::Data<HandleResolver>,
+    config: web::Data<config::Config>,
 ) -> Result<impl Responder> {
     let offset = query
         .get("offset")
@@ -584,12 +586,29 @@ async fn api_feed(
         .unwrap_or(20)
         .min(50); // Cap at 50 items per request
 
-    let mut statuses = StatusFromDb::load_statuses_paginated(&db_pool, offset, limit)
-        .await
-        .unwrap_or_else(|err| {
-            log::error!("Error loading statuses: {err}");
-            vec![]
-        });
+    // Check if dev mode is requested
+    let use_dev_mode = config.dev_mode && query.get("dev").is_some_and(|v| v == "true" || v == "1");
+
+    let mut statuses = if use_dev_mode && offset == 0 {
+        // For first page in dev mode, mix dummy data with real data
+        let mut real_statuses = StatusFromDb::load_statuses_paginated(&db_pool, 0, limit / 2)
+            .await
+            .unwrap_or_else(|err| {
+                log::error!("Error loading paginated statuses: {err}");
+                vec![]
+            });
+        let dummy_statuses = dev_utils::generate_dummy_statuses((limit / 2) as usize);
+        real_statuses.extend(dummy_statuses);
+        real_statuses.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+        real_statuses
+    } else {
+        StatusFromDb::load_statuses_paginated(&db_pool, offset, limit)
+            .await
+            .unwrap_or_else(|err| {
+                log::error!("Error loading statuses: {err}");
+                vec![]
+            })
+    };
 
     // Resolve handles for each status
     let mut quick_resolve_map: HashMap<Did, String> = HashMap::new();
@@ -664,6 +683,73 @@ async fn get_custom_emojis() -> Result<impl Responder> {
     emojis.sort_by(|a, b| a.name.cmp(&b.name));
 
     Ok(HttpResponse::Ok().json(emojis))
+}
+
+/// Get the DIDs of accounts the logged-in user follows
+#[get("/api/following")]
+async fn get_following(
+    session: Session,
+    oauth_client: web::Data<OAuthClientType>,
+) -> Result<impl Responder> {
+    // Check if user is logged in
+    let did = match session.get::<Did>("did").ok().flatten() {
+        Some(did) => did,
+        None => {
+            return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
+                "error": "Not logged in"
+            })));
+        }
+    };
+
+    // Restore OAuth session
+    let bsky_session = match oauth_client.restore(&did).await {
+        Ok(session) => session,
+        Err(err) => {
+            log::error!("Failed to restore session: {}", err);
+            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to restore session"
+            })));
+        }
+    };
+
+    let agent = Agent::new(bsky_session);
+
+    // Fetch follows from Bluesky
+    let mut all_follows = Vec::new();
+    let mut cursor = None;
+
+    loop {
+        let params = atrium_api::app::bsky::graph::get_follows::ParametersData {
+            actor: atrium_api::types::string::AtIdentifier::Did(did.clone()),
+            limit: None, // Use default limit
+            cursor: cursor.clone(),
+        };
+
+        match agent.api.app.bsky.graph.get_follows(params.into()).await {
+            Ok(response) => {
+                // Extract DIDs from the follows
+                for follow in &response.follows {
+                    all_follows.push(follow.did.to_string());
+                }
+
+                // Check if there are more pages
+                cursor = response.cursor.clone();
+                if cursor.is_none() {
+                    break;
+                }
+            }
+            Err(err) => {
+                log::error!("Failed to fetch follows: {}", err);
+                return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                    "error": "Failed to fetch follows"
+                })));
+            }
+        }
+    }
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "follows": all_follows
+    })))
 }
 
 /// JSON API for a specific user's status
@@ -776,19 +862,41 @@ async fn status_json(db_pool: web::Data<Arc<Pool>>) -> Result<impl Responder> {
 /// Feed page - shows all users' statuses
 #[get("/feed")]
 async fn feed(
+    request: HttpRequest,
     session: Session,
     oauth_client: web::Data<OAuthClientType>,
     db_pool: web::Data<Arc<Pool>>,
     handle_resolver: web::Data<HandleResolver>,
+    config: web::Data<config::Config>,
 ) -> Result<impl Responder> {
     // This is essentially the old home function
     const TITLE: &str = "status feed";
-    let mut statuses = StatusFromDb::load_latest_statuses(&db_pool)
-        .await
-        .unwrap_or_else(|err| {
-            log::error!("Error loading statuses: {err}");
-            vec![]
-        });
+
+    // Check if dev mode is active
+    let query = request.query_string();
+    let use_dev_mode = config.dev_mode && dev_utils::is_dev_mode_requested(query);
+
+    let mut statuses = if use_dev_mode {
+        // Mix dummy data with real data for testing
+        let mut real_statuses = StatusFromDb::load_latest_statuses(&db_pool)
+            .await
+            .unwrap_or_else(|err| {
+                log::error!("Error loading statuses: {err}");
+                vec![]
+            });
+        let dummy_statuses = dev_utils::generate_dummy_statuses(15);
+        real_statuses.extend(dummy_statuses);
+        // Resort by started_at
+        real_statuses.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+        real_statuses
+    } else {
+        StatusFromDb::load_latest_statuses(&db_pool)
+            .await
+            .unwrap_or_else(|err| {
+                log::error!("Error loading statuses: {err}");
+                vec![]
+            })
+    };
 
     let mut quick_resolve_map: HashMap<Did, String> = HashMap::new();
     for db_status in &mut statuses {
@@ -864,6 +972,7 @@ async fn feed(
                         },
                         statuses,
                         is_admin,
+                        dev_mode: use_dev_mode,
                     }
                     .render()
                     .expect("template should be valid");
@@ -889,6 +998,7 @@ async fn feed(
                 profile: None,
                 statuses,
                 is_admin: false,
+                dev_mode: use_dev_mode,
             }
             .render()
             .expect("template should be valid");
@@ -1480,6 +1590,7 @@ async fn main() -> std::io::Result<()> {
             .service(status_json)
             .service(owner_status_json)
             .service(get_custom_emojis)
+            .service(get_following)
             .service(api_feed)
             .service(user_status_page)
             .service(user_status_json)
