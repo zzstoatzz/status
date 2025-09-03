@@ -83,5 +83,6 @@ pub fn generate_dummy_statuses(count: usize) -> Vec<StatusFromDb> {
 
 /// Check if dev mode is requested via query parameter
 pub fn is_dev_mode_requested(query: &str) -> bool {
-    query.contains("dev=true") || query.contains("dev=1")
+    let query_lower = query.to_lowercase();
+    query_lower.contains("dev=true") || query.contains("dev=1")
 }

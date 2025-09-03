@@ -587,7 +587,11 @@ async fn api_feed(
         .min(50); // Cap at 50 items per request
 
     // Check if dev mode is requested
-    let use_dev_mode = config.dev_mode && query.get("dev").is_some_and(|v| v == "true" || v == "1");
+    let use_dev_mode = config.dev_mode
+        && query.get("dev").is_some_and(|v| {
+            let v_lower = v.to_lowercase();
+            v_lower == "true" || v == "1"
+        });
 
     let mut statuses = if use_dev_mode {
         // In dev mode, always mix dummy data with real data for every page
