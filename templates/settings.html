@@ -1,41 +1,209 @@
 {% extends "base.html" %}
 
-{% block title %}Settings - status.zzstoatzz.io{% endblock %}
+{% block title %}settings - status.zzstoatzz.io{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width:600px;margin:2rem auto;">
-  <h1 style="margin-bottom:1rem;">Settings</h1>
-
-  <section style="border:1px solid var(--border-color);padding:1rem;border-radius:8px;background:var(--bg-secondary);">
-    <h2 style="font-size:1.1rem;margin-bottom:0.5rem;">Outbound Webhook</h2>
-    <p style="color:var(--text-secondary);margin-bottom:1rem;">Configure a webhook to receive signed events when your status changes.</p>
-
-    <form method="post" action="/settings/webhook" style="display:flex;flex-direction:column;gap:0.75rem;">
-      <label>
-        <span>Webhook URL</span>
-        <input type="url" name="url" required placeholder="https://example.com/status-webhook" value="{% if webhook_url.is_some() %}{{ webhook_url.as_ref().unwrap() }}{% endif %}" style="width:100%;padding:0.5rem;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary);" />
-      </label>
-      <label>
-        <span>Secret</span>
-        <input type="text" name="secret" required placeholder="your-shared-secret" style="width:100%;padding:0.5rem;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary);" />
-      </label>
-      <label style="display:flex;align-items:center;gap:0.5rem;">
-        <input type="checkbox" name="enabled" value="true" {% if webhook_enabled %}checked{% endif %} />
-        <span>Enable webhook</span>
-      </label>
-      <div style="display:flex;gap:0.5rem;">
-        <button type="submit" class="primary-btn">Save</button>
-        <button type="submit" formaction="/settings/webhook/test" formmethod="post" class="nav-button">Send Test</button>
+<div id="root">
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <h1>settings</h1>
+      <div class="header-actions">
+        <a href="/" class="nav-button" aria-label="Your status" title="Your status">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+        </a>
+        <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+          <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+          <span class="theme-indicator" id="theme-indicator"></span>
+        </button>
       </div>
-    </form>
+    </header>
 
-    <div style="margin-top:1rem;color:var(--text-secondary);font-size:0.9rem;">
-      <p>We sign each request with headers:</p>
-      <code>X-Status-Timestamp, X-Status-Event-Id, X-Status-Signature (v1=...)</code>
-    </div>
-  </section>
-  <nav style="margin-top:1rem;">
-    <a href="/" class="nav-button">Back</a>
-  </nav>
+    <!-- Settings Card -->
+    <section class="settings-card">
+      <h2>outbound webhook</h2>
+      <p class="muted">configure a webhook to receive signed events when your status changes.</p>
+
+      <form method="post" action="/settings/webhook" class="form">
+        <div class="form-group">
+          <label for="url">webhook url</label>
+          <input class="form-control" id="url" type="url" name="url" required placeholder="https://example.com/status-webhook" value="{% if webhook_url.is_some() %}{{ webhook_url.as_ref().unwrap() }}{% endif %}" />
+        </div>
+
+        <div class="form-group">
+          <label for="secret">secret</label>
+          <input class="form-control" id="secret" type="text" name="secret" required placeholder="your-shared-secret" />
+        </div>
+
+        <label class="checkbox">
+          <input type="checkbox" name="enabled" value="true" {% if webhook_enabled %}checked{% endif %} />
+          <span>enable webhook</span>
+        </label>
+
+        <div class="form-actions">
+          <button type="submit" class="button button-primary">save</button>
+          <button type="submit" formaction="/settings/webhook/test" formmethod="post" class="button button-secondary">send test</button>
+        </div>
+      </form>
+
+      <div class="help-text">
+        <p>we sign each request with headers:</p>
+        <code>X-Status-Timestamp, X-Status-Event-Id, X-Status-Signature (v1=...)</code>
+      </div>
+    </section>
+
+    <nav class="bottom-nav">
+      <a href="/" class="nav-button-bottom">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+        <span>your status</span>
+      </a>
+    </nav>
+  </div>
 </div>
+
+<style>
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --bg-tertiary: #ffffff;
+  --text-primary: #1a1a1a;
+  --text-secondary: #6c757d;
+  --text-tertiary: #adb5bd;
+  --border-color: #e9ecef;
+  --accent: #4a9eff;
+  --accent-hover: #3a8eee;
+  --danger: #dc3545;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #2a2a2a;
+  --text-primary: #ffffff;
+  --text-secondary: #adb5bd;
+  --text-tertiary: #6c757d;
+  --border-color: #2a2a2a;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+input, button, select, textarea { font-family: inherit; }
+body {
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", "Source Code Pro", "SF Mono", "Monaco", "Inconsolata", "Consolas", monospace;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  transition: background 0.3s, color 0.3s;
+}
+
+#root { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
+.container { width: 100%; max-width: 600px; }
+
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+.header h1 { font-size: 1.25rem; font-weight: 600; color: var(--text-secondary); }
+.header-actions { display: flex; gap: 0.75rem; align-items: center; }
+.nav-button { display: flex; align-items: center; justify-content: center; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.5rem; color: var(--text-secondary); transition: all 0.2s; text-decoration: none; }
+.nav-button:hover { background: var(--bg-tertiary); border-color: var(--accent); color: var(--accent); }
+.nav-button svg { stroke: currentColor; }
+.theme-toggle { position: relative; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.theme-toggle:hover { background: var(--bg-tertiary); }
+.theme-toggle svg { stroke: var(--text-secondary); }
+.sun-icon, .moon-icon { display: none; }
+[data-theme="light"] .sun-icon { display: block; stroke: #f39c12; }
+[data-theme="dark"] .moon-icon { display: block; stroke: #8e44ad; }
+.theme-indicator { position: absolute; top: calc(100% + 0.5rem); right: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.25rem 0.5rem; font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 1000; }
+.theme-indicator.visible { opacity: 1; }
+
+.settings-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 1.25rem; }
+.settings-card h2 { font-size: 1rem; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+.settings-card .muted { color: var(--text-secondary); margin-bottom: 1rem; }
+
+.form { display: flex; flex-direction: column; gap: 0.75rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.25rem; }
+.form-group label { font-size: 0.875rem; color: var(--text-secondary); }
+.form-control { width: 100%; padding: 0.6rem 0.7rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-primary); }
+.form-control::placeholder { color: var(--text-tertiary); }
+.checkbox { display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); margin-top: 0.5rem; }
+.form-actions { display: flex; gap: 0.5rem; margin-top: 0.25rem; }
+
+.button { display: inline-block; padding: 0.5rem 1rem; border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 500; text-decoration: none; cursor: pointer; border: none; transition: all 0.2s; font-family: inherit; }
+.button-primary { background: var(--accent); color: white; }
+.button-primary:hover { background: var(--accent-hover); }
+.button-secondary { background: transparent; color: var(--text-secondary); border: 1px solid var(--border-color); }
+.button-secondary:hover { background: var(--bg-tertiary); border-color: var(--text-secondary); }
+
+.help-text { margin-top: 0.75rem; color: var(--text-secondary); font-size: 0.9rem; }
+
+.bottom-nav { display: flex; justify-content: center; gap: 1rem; padding-top: 2rem; margin-top: 2rem; border-top: 1px solid var(--border-color); }
+.nav-button-bottom { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.25rem; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: var(--text-secondary); text-decoration: none; transition: all 0.2s; font-size: 0.875rem; }
+.nav-button-bottom:hover { background: var(--bg-tertiary); border-color: var(--accent); color: var(--accent); }
+.nav-button-bottom svg { stroke: currentColor; flex-shrink: 0; }
+
+@media (max-width: 640px) {
+  #root { padding: 1rem; }
+}
+</style>
+
+<script>
+const initTheme = () => {
+  const saved = localStorage.getItem('theme');
+  const theme = saved || 'system';
+  if (theme === 'system') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.body.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+  } else {
+    document.body.setAttribute('data-theme', theme);
+  }
+};
+
+const toggleTheme = () => {
+  const saved = localStorage.getItem('theme') || 'system';
+  const themes = ['system', 'light', 'dark'];
+  const currentIndex = themes.indexOf(saved);
+  const next = themes[(currentIndex + 1) % themes.length];
+  localStorage.setItem('theme', next);
+  if (next === 'system') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.body.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+  } else {
+    document.body.setAttribute('data-theme', next);
+  }
+  const indicator = document.getElementById('theme-indicator');
+  if (indicator) {
+    indicator.textContent = next;
+    indicator.classList.add('visible');
+    setTimeout(() => indicator.classList.remove('visible'), 1500);
+  }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+  const themeToggle = document.getElementById('theme-toggle');
+  if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+});
+</script>
 {% endblock %}
