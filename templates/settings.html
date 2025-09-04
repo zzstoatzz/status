@@ -58,8 +58,10 @@
 
         <div class="form-actions">
           <button type="submit" class="button button-primary">save</button>
-          <button type="submit" formaction="/settings/webhook/test" formmethod="post" class="button button-secondary">send test</button>
+          <button type="button" id="send-test" class="button button-secondary">send test</button>
         </div>
+
+        <div id="test-result" class="alert" style="display:none;"></div>
       </form>
 
       <div class="help-text">
@@ -204,6 +206,49 @@ document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   const themeToggle = document.getElementById('theme-toggle');
   if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+  const testBtn = document.getElementById('send-test');
+  const resultEl = document.getElementById('test-result');
+  const formEl = document.querySelector('form[action="/settings/webhook"]');
+  if (testBtn && formEl) {
+    testBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      resultEl.style.display = 'none';
+      resultEl.className = 'alert';
+      testBtn.disabled = true;
+      try {
+        const url = document.getElementById('url').value.trim();
+        const secret = document.getElementById('secret').value.trim();
+        const enabled = document.querySelector('input[name="enabled"]').checked ? 'true' : '';
+        const body = new URLSearchParams({ url, secret, enabled });
+        const resp = await fetch('/settings/webhook/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body
+        });
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+          resultEl.textContent = 'Test delivered successfully';
+          resultEl.classList.add('success');
+        } else {
+          resultEl.textContent = data.error || 'Delivery failed';
+          resultEl.classList.add('error');
+        }
+      } catch (err) {
+        resultEl.textContent = 'Request error';
+        resultEl.classList.add('error');
+      } finally {
+        resultEl.style.display = 'block';
+        testBtn.disabled = false;
+      }
+    });
+  }
 });
+</script>
+
+<style>
+.alert { margin-top: 0.75rem; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-secondary); }
+.alert.success { border-color: var(--accent); color: var(--accent); }
+.alert.error { border-color: var(--danger); color: var(--danger); }
+</style>
 </script>
 {% endblock %}

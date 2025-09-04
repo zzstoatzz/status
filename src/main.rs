@@ -288,13 +288,23 @@ async fn save_webhook(
 
 /// Send a test webhook event to verify receiver
 #[post("/settings/webhook/test")]
-async fn test_webhook(session: Session, db_pool: web::Data<Arc<Pool>>) -> Result<impl Responder> {
+async fn test_webhook(
+    session: Session,
+    _db_pool: web::Data<Arc<Pool>>,
+    form: web::Form<WebhookForm>,
+) -> Result<impl Responder> {
     if let Some(did) = session.get::<String>("did").unwrap_or(None) {
-        // Construct and send a minimal test event
-        webhooks::send_status_event(&db_pool, &did, "status.test", None).await;
-        Ok(Redirect::to("/settings").see_other())
+        let ok =
+            webhooks::send_status_event_direct(&form.url, &form.secret, &did, "status.test", None)
+                .await;
+        let resp = if ok {
+            serde_json::json!({ "ok": true })
+        } else {
+            serde_json::json!({ "ok": false, "error": "delivery failed" })
+        };
+        Ok(HttpResponse::Ok().json(resp))
     } else {
-        Ok(Redirect::to("/login").see_other())
+        Ok(HttpResponse::Unauthorized().json(serde_json::json!({"error":"not logged in"})))
     }
 }
 
