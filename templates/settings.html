@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - status.zzstoatzz.io{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:600px;margin:2rem auto;">
+  <h1 style="margin-bottom:1rem;">Settings</h1>
+
+  <section style="border:1px solid var(--border-color);padding:1rem;border-radius:8px;background:var(--bg-secondary);">
+    <h2 style="font-size:1.1rem;margin-bottom:0.5rem;">Outbound Webhook</h2>
+    <p style="color:var(--text-secondary);margin-bottom:1rem;">Configure a webhook to receive signed events when your status changes.</p>
+
+    <form method="post" action="/settings/webhook" style="display:flex;flex-direction:column;gap:0.75rem;">
+      <label>
+        <span>Webhook URL</span>
+        <input type="url" name="url" required placeholder="https://example.com/status-webhook" value="{% if webhook_url.is_some() %}{{ webhook_url.as_ref().unwrap() }}{% endif %}" style="width:100%;padding:0.5rem;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary);" />
+      </label>
+      <label>
+        <span>Secret</span>
+        <input type="text" name="secret" required placeholder="your-shared-secret" style="width:100%;padding:0.5rem;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary);" />
+      </label>
+      <label style="display:flex;align-items:center;gap:0.5rem;">
+        <input type="checkbox" name="enabled" value="true" {% if webhook_enabled %}checked{% endif %} />
+        <span>Enable webhook</span>
+      </label>
+      <div style="display:flex;gap:0.5rem;">
+        <button type="submit" class="primary-btn">Save</button>
+        <button type="submit" formaction="/settings/webhook/test" formmethod="post" class="nav-button">Send Test</button>
+      </div>
+    </form>
+
+    <div style="margin-top:1rem;color:var(--text-secondary);font-size:0.9rem;">
+      <p>We sign each request with headers:</p>
+      <code>X-Status-Timestamp, X-Status-Event-Id, X-Status-Signature (v1=...)</code>
+    </div>
+  </section>
+  <nav style="margin-top:1rem;">
+    <a href="/" class="nav-button">Back</a>
+  </nav>
+</div>
+{% endblock %}

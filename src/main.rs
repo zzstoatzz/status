@@ -1,13 +1,13 @@
 #![allow(clippy::collapsible_if)]
 
 use crate::{
-    db::{StatusFromDb, create_tables_in_database},
+    db::{StatusFromDb, WebhookConfig, create_tables_in_database},
     error_handler::AppError,
     ingester::start_ingester,
     lexicons::record::KnownRecord,
     rate_limiter::RateLimiter,
     storage::{SqliteSessionStore, SqliteStateStore},
-    templates::{FeedTemplate, LoginTemplate, StatusTemplate},
+    templates::{FeedTemplate, LoginTemplate, SettingsTemplate, StatusTemplate},
 };
 use actix_files::Files;
 use actix_session::{
@@ -53,6 +53,7 @@ mod rate_limiter;
 mod resolver;
 mod storage;
 mod templates;
+mod webhooks;
 
 /// OAuthClientType to make it easier to access the OAuthClient in web requests
 /// Custom OAuth callback parameters that can handle both success and error cases
@@ -228,6 +229,73 @@ async fn login() -> Result<impl Responder> {
     Ok(web::Html::new(
         html.render().expect("template should be valid"),
     ))
+}
+
+/// Settings page (owner only) for configuring outbound webhook
+#[get("/settings")]
+async fn settings_page(session: Session, db_pool: web::Data<Arc<Pool>>) -> Result<impl Responder> {
+    if let Some(did) = session.get::<String>("did").unwrap_or(None) {
+        let cfg = WebhookConfig::get_by_did(&db_pool, did)
+            .await
+            .unwrap_or(None);
+        let html = SettingsTemplate {
+            title: "Settings",
+            webhook_url: cfg.as_ref().map(|c| c.url.clone()),
+            webhook_enabled: cfg.as_ref().map(|c| c.enabled).unwrap_or(false),
+        }
+        .render()
+        .expect("template should be valid");
+        Ok(web::Html::new(html))
+    } else {
+        Ok(web::Html::new(
+            ErrorTemplate {
+                title: "Unauthorized",
+                error: "Please log in",
+            }
+            .render()
+            .unwrap(),
+        ))
+    }
+}
+
+#[derive(Deserialize)]
+struct WebhookForm {
+    url: String,
+    secret: String,
+    enabled: Option<String>,
+}
+
+/// Save webhook settings
+#[post("/settings/webhook")]
+async fn save_webhook(
+    session: Session,
+    db_pool: web::Data<Arc<Pool>>,
+    form: web::Form<WebhookForm>,
+) -> Result<impl Responder> {
+    if let Some(did) = session.get::<String>("did").unwrap_or(None) {
+        let cfg = WebhookConfig {
+            user_did: did,
+            url: form.url.clone(),
+            secret: form.secret.clone(),
+            enabled: form.enabled.as_deref() == Some("true"),
+        };
+        let _ = cfg.upsert(&db_pool).await;
+        Ok(Redirect::to("/settings").see_other())
+    } else {
+        Ok(Redirect::to("/login").see_other())
+    }
+}
+
+/// Send a test webhook event to verify receiver
+#[post("/settings/webhook/test")]
+async fn test_webhook(session: Session, db_pool: web::Data<Arc<Pool>>) -> Result<impl Responder> {
+    if let Some(did) = session.get::<String>("did").unwrap_or(None) {
+        // Construct and send a minimal test event
+        webhooks::send_status_event(&db_pool, &did, "status.test", None).await;
+        Ok(Redirect::to("/settings").see_other())
+    } else {
+        Ok(Redirect::to("/login").see_other())
+    }
 }
 
 /// TS version https://github.com/bluesky-social/statusphere-example-app/blob/e4721616df50cd317c198f4c00a4818d5626d4ce/src/routes.ts#L93
@@ -1096,6 +1164,19 @@ async fn clear_status(
                                         )
                                         .await;
 
+                                        // Emit webhook: status.cleared
+                                        let did_for_wh = did_string.clone();
+                                        let pool_for_wh = db_pool.clone();
+                                        tokio::spawn(async move {
+                                            webhooks::send_status_event(
+                                                &pool_for_wh,
+                                                &did_for_wh,
+                                                "status.cleared",
+                                                None,
+                                            )
+                                            .await;
+                                        });
+
                                         Redirect::to("/")
                                             .see_other()
                                             .respond_to(&request)
@@ -1203,6 +1284,19 @@ async fn delete_status(
                                 // Also remove from local database
                                 let _ =
                                     StatusFromDb::delete_by_uri(&db_pool, req.uri.clone()).await;
+
+                                // Emit webhook: status.cleared
+                                let did_for_wh = did_string.clone();
+                                let pool_for_wh = db_pool.clone();
+                                tokio::spawn(async move {
+                                    webhooks::send_status_event(
+                                        &pool_for_wh,
+                                        &did_for_wh,
+                                        "status.cleared",
+                                        None,
+                                    )
+                                    .await;
+                                });
 
                                 HttpResponse::Ok().json(serde_json::json!({
                                     "success": true
@@ -1367,7 +1461,7 @@ async fn status(
                         Ok(record) => {
                             let mut status = StatusFromDb::new(
                                 record.uri.clone(),
-                                did_string,
+                                did_string.clone(),
                                 form.status.clone(),
                             );
 
@@ -1381,7 +1475,21 @@ async fn status(
                                 }
                             }
 
-                            let _ = status.save(db_pool).await;
+                            let _ = status.save(db_pool.clone()).await;
+
+                            // Emit webhook asynchronously: status.set
+                            let did_for_wh = did_string.clone();
+                            let pool_for_wh = db_pool.clone();
+                            let status_for_wh = status.clone();
+                            tokio::spawn(async move {
+                                webhooks::send_status_event(
+                                    &pool_for_wh,
+                                    &did_for_wh,
+                                    "status.set",
+                                    Some(&status_for_wh),
+                                )
+                                .await;
+                            });
                             Ok(Redirect::to("/")
                                 .see_other()
                                 .respond_to(&request)
@@ -1585,6 +1693,9 @@ async fn main() -> std::io::Result<()> {
             .service(login)
             .service(login_post)
             .service(logout)
+            .service(settings_page)
+            .service(save_webhook)
+            .service(test_webhook)
             .service(home)
             .service(feed)
             .service(status_json)

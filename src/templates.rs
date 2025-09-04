@@ -49,3 +49,12 @@ pub struct FeedTemplate<'a> {
     pub is_admin: bool,
     pub dev_mode: bool,
 }
+
+#[derive(Template)]
+#[template(path = "settings.html")]
+pub struct SettingsTemplate<'a> {
+    #[allow(dead_code)]
+    pub title: &'a str,
+    pub webhook_url: Option<String>,
+    pub webhook_enabled: bool,
+}

@@ -72,6 +72,20 @@ pub async fn create_tables_in_database(pool: &Pool) -> Result<(), async_sqlite::
             [],
         );
 
+        // webhook_config - per-user outbound webhook settings
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS webhook_config (
+            userDid TEXT PRIMARY KEY,
+            url TEXT NOT NULL,
+            secret TEXT NOT NULL,
+            enabled BOOLEAN DEFAULT 1,
+            createdAt INTEGER DEFAULT (unixepoch()),
+            updatedAt INTEGER DEFAULT (unixepoch())
+        )",
+            [],
+        )
+        .unwrap();
+
         Ok(())
     })
     .await?;
@@ -317,6 +331,72 @@ impl StatusFromDb {
             None => self.author_did.to_string(),
         }
     }
+}
+
+/// Webhook configuration per user
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct WebhookConfig {
+    pub user_did: String,
+    pub url: String,
+    pub secret: String,
+    pub enabled: bool,
+}
+
+impl WebhookConfig {
+    fn map_from_row(row: &Row) -> Result<Self, Error> {
+        Ok(Self {
+            user_did: row.get(0)?,
+            url: row.get(1)?,
+            secret: row.get(2)?,
+            enabled: row.get::<_, Option<bool>>(3)?.unwrap_or(true),
+        })
+    }
+
+    pub async fn get_by_did(
+        pool: &Pool,
+        user_did: String,
+    ) -> Result<Option<Self>, async_sqlite::Error> {
+        pool.conn(move |conn| {
+            let mut stmt = conn.prepare(
+                "SELECT userDid, url, secret, enabled FROM webhook_config WHERE userDid = ?1",
+            )?;
+            stmt.query_row([user_did.as_str()], Self::map_from_row)
+                .map(Some)
+                .or_else(|err| {
+                    if err == Error::QueryReturnedNoRows {
+                        Ok(None)
+                    } else {
+                        Err(err)
+                    }
+                })
+        })
+        .await
+    }
+
+    pub async fn upsert(&self, pool: &Pool) -> Result<(), async_sqlite::Error> {
+        let me = self.clone();
+        pool.conn(move |conn| {
+            let mut stmt = conn.prepare("SELECT COUNT(*) FROM webhook_config WHERE userDid = ?1")?;
+            let count: i64 = stmt.query_row([&me.user_did], |row| row.get(0))?;
+            if count > 0 {
+                let mut upd = conn.prepare(
+                    "UPDATE webhook_config SET url = ?2, secret = ?3, enabled = ?4, updatedAt = unixepoch() WHERE userDid = ?1",
+                )?;
+                upd.execute(rusqlite::params![&me.user_did, &me.url, &me.secret, &me.enabled])?;
+                Ok(())
+            } else {
+                conn.execute(
+                    "INSERT INTO webhook_config (userDid, url, secret, enabled) VALUES (?1, ?2, ?3, ?4)",
+                    rusqlite::params![&me.user_did, &me.url, &me.secret, &me.enabled],
+                )?;
+                Ok(())
+            }
+        })
+        .await?;
+        Ok(())
+    }
+
+    // delete not used yet
 }
 
 /// AuthSession table data type
