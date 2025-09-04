@@ -667,8 +667,8 @@ const applyFollowingFilter = (active) => {
             item.style.display = '';
         } else {
             const authorDid = item.getAttribute('data-did');
-            // Check if this author is in our following list
-            if (followingDids.includes(authorDid)) {
+            // Check if this author is in our following list OR is the current user
+            if (followingDids.includes(authorDid) || authorDid === currentUserDid) {
                 item.style.display = '';
             } else {
                 item.style.display = 'none';
@@ -690,6 +690,8 @@ let hasMore = true;
 // Following filter variables
 let followingDids = null;
 let filterActive = false;
+// Store current user's DID to include their own posts in following feed
+const currentUserDid = {% if let Some(Profile {did, display_name}) = profile %}"{{ did }}"{% else %}null{% endif %};
 
 // Load more statuses
 const loadMoreStatuses = async () => {
