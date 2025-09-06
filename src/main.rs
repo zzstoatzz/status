@@ -612,6 +612,42 @@ async fn api_feed(
     Ok(HttpResponse::Ok().json(statuses))
 }
 
+/// Get the most frequently used emojis from all statuses
+#[get("/api/frequent-emojis")]
+async fn get_frequent_emojis(db_pool: web::Data<Arc<Pool>>) -> Result<impl Responder> {
+    // Get top 20 most frequently used emojis
+    let emojis = db::get_frequent_emojis(&db_pool, 20)
+        .await
+        .unwrap_or_else(|err| {
+            log::error!("Failed to get frequent emojis: {}", err);
+            Vec::new()
+        });
+
+    // If we have less than 12 emojis, add some defaults to fill it out
+    let mut result = emojis;
+    if result.is_empty() {
+        log::info!("No emoji usage data found, using defaults");
+        let defaults = vec![
+            "😊", "👍", "❤️", "😂", "🎉", "🔥", "✨", "💯", "🚀", "💪", "🙏", "👏",
+        ];
+        result = defaults.into_iter().map(String::from).collect();
+    } else if result.len() < 12 {
+        log::info!("Found {} emojis, padding with defaults", result.len());
+        let defaults = vec![
+            "😊", "👍", "❤️", "😂", "🎉", "🔥", "✨", "💯", "🚀", "💪", "🙏", "👏",
+        ];
+        for emoji in defaults {
+            if !result.contains(&emoji.to_string()) && result.len() < 20 {
+                result.push(emoji.to_string());
+            }
+        }
+    } else {
+        log::info!("Found {} frequently used emojis", result.len());
+    }
+
+    Ok(web::Json(result))
+}
+
 /// Get all custom emojis available on the site
 #[get("/api/custom-emojis")]
 async fn get_custom_emojis() -> Result<impl Responder> {
@@ -1579,6 +1615,7 @@ async fn main() -> std::io::Result<()> {
             .service(status_json)
             .service(owner_status_json)
             .service(get_custom_emojis)
+            .service(get_frequent_emojis)
             .service(get_following)
             .service(api_feed)
             .service(user_status_page)
