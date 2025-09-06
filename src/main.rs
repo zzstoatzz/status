@@ -948,15 +948,23 @@ async fn feed(
                     Ok(web::Html::new(html))
                 }
                 Err(err) => {
-                    session.purge();
-                    log::error!("Error restoring session: {err}");
-                    let error_html = ErrorTemplate {
-                        title: "Error",
-                        error: "Was an error resuming the session, please check the logs.",
+                    // Don't purge the session - just show feed without profile
+                    // OAuth tokens might be expired but user is still logged in
+                    log::warn!(
+                        "Could not restore OAuth session for feed (tokens may be expired): {err}"
+                    );
+
+                    let html = FeedTemplate {
+                        title: TITLE,
+                        profile: None, // Show feed without profile info
+                        statuses,
+                        is_admin: is_admin(did.as_str()),
+                        dev_mode: use_dev_mode,
                     }
                     .render()
                     .expect("template should be valid");
-                    Ok(web::Html::new(error_html))
+
+                    Ok(web::Html::new(html))
                 }
             }
         }
@@ -1368,12 +1376,11 @@ async fn status(
                     }
                 }
                 Err(err) => {
-                    // Destroys the system or you're in a loop
-                    session.purge();
-                    log::error!(
-                        "Error restoring session, we are removing the session from the cookie: {err}"
-                    );
-                    Err(AppError::AuthenticationError("Session error".to_string()))
+                    // Don't purge session - OAuth tokens might just be expired
+                    log::error!("Error restoring OAuth session for status creation: {err}");
+                    Err(AppError::AuthenticationError(
+                        "OAuth session expired. Please try logging out and back in.".to_string(),
+                    ))
                 }
             }
         }
