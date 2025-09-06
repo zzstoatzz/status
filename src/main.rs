@@ -95,7 +95,7 @@ async fn client_metadata(config: web::Data<config::Config>) -> Result<HttpRespon
         "client_name": "Status Sphere",
         "client_uri": public_url.clone(),
         "redirect_uris": [format!("{}/oauth/callback", public_url)],
-        "scope": "atproto repo:io.zzstoatzz.status.record",
+        "scope": "atproto repo:io.zzstoatzz.status.record rpc:app.bsky.actor.getProfile?aud=did:web:api.bsky.app#bsky_appview",
         "grant_types": ["authorization_code", "refresh_token"],
         "response_types": ["code"],
         "token_endpoint_auth_method": "none",
@@ -237,6 +237,8 @@ async fn login_post(
                             // Using granular scope for status records only
                             // This replaces TransitionGeneric with specific permissions
                             Scope::Unknown("repo:io.zzstoatzz.status.record".to_string()),
+                            // Need to read profiles for the feed page
+                            Scope::Unknown("rpc:app.bsky.actor.getProfile?aud=did:web:api.bsky.app#bsky_appview".to_string()),
                         ],
                         ..Default::default()
                     },
@@ -282,6 +284,7 @@ async fn home(
     match session.get::<String>("did").unwrap_or(None) {
         Some(did_string) => {
             // User is logged in - show their status page
+            log::debug!("Home: User is logged in with DID: {}", did_string);
             let did = Did::new(did_string.clone()).expect("failed to parse did");
 
             // Get their handle
@@ -897,8 +900,9 @@ async fn feed(
     }
 
     match session.get::<String>("did").unwrap_or(None) {
-        Some(did) => {
-            let did = Did::new(did).expect("failed to parse did");
+        Some(did_string) => {
+            log::debug!("Feed: User has session with DID: {}", did_string);
+            let did = Did::new(did_string.clone()).expect("failed to parse did");
             let _my_status = StatusFromDb::my_status(&db_pool, &did)
                 .await
                 .unwrap_or_else(|err| {
@@ -906,8 +910,13 @@ async fn feed(
                     None
                 });
 
+            log::debug!(
+                "Feed: Attempting to restore OAuth session for DID: {}",
+                did_string
+            );
             match oauth_client.restore(&did).await {
                 Ok(session) => {
+                    log::debug!("Feed: Successfully restored OAuth session");
                     let agent = Agent::new(session);
                     let profile = agent
                         .api
@@ -948,15 +957,21 @@ async fn feed(
                     Ok(web::Html::new(html))
                 }
                 Err(err) => {
-                    session.purge();
-                    log::error!("Error restoring session: {err}");
-                    let error_html = ErrorTemplate {
-                        title: "Error",
-                        error: "Was an error resuming the session, please check the logs.",
+                    // Don't purge the session - OAuth tokens might be expired but user is still logged in
+                    log::warn!("Could not restore OAuth session for feed: {:?}", err);
+
+                    // Show feed without profile info instead of error page
+                    let html = FeedTemplate {
+                        title: TITLE,
+                        profile: None,
+                        statuses,
+                        is_admin: is_admin(did.as_str()),
+                        dev_mode: use_dev_mode,
                     }
                     .render()
                     .expect("template should be valid");
-                    Ok(web::Html::new(error_html))
+
+                    Ok(web::Html::new(html))
                 }
             }
         }
@@ -1438,7 +1453,7 @@ async fn main() -> std::io::Result<()> {
 
     let client: OAuthClientType = if is_production {
         // Production configuration with AtprotoClientMetadata
-        log::info!(
+        log::debug!(
             "Configuring OAuth for production with URL: {}",
             config.oauth_redirect_base
         );
@@ -1455,6 +1470,8 @@ async fn main() -> std::io::Result<()> {
                     // Using granular scope for status records only
                     // This replaces TransitionGeneric with specific permissions
                     Scope::Unknown("repo:io.zzstoatzz.status.record".to_string()),
+                    // Need to read profiles for the feed page
+                    Scope::Unknown("rpc:app.bsky.actor.getProfile".to_string()),
                 ],
                 jwks_uri: None,
                 token_endpoint_auth_signing_alg: None,
@@ -1478,7 +1495,7 @@ async fn main() -> std::io::Result<()> {
         Arc::new(OAuthClient::new(oauth_config).expect("failed to create OAuth client"))
     } else {
         // Local development configuration with AtprotoLocalhostClientMetadata
-        log::info!(
+        log::debug!(
             "Configuring OAuth for local development at {}:{}",
             host,
             port
@@ -1518,20 +1535,20 @@ async fn main() -> std::io::Result<()> {
     // Only start the firehose ingester if enabled (from config)
     if app_config.enable_firehose {
         let arc_pool = Arc::new(pool.clone());
-        log::info!("Starting Jetstream firehose ingester");
+        log::debug!("Starting Jetstream firehose ingester");
         //Spawns the ingester that listens for other's Statusphere updates
         tokio::spawn(async move {
             start_ingester(arc_pool).await;
         });
     } else {
-        log::info!("Jetstream firehose disabled (set ENABLE_FIREHOSE=true to enable)");
+        log::debug!("Jetstream firehose disabled (set ENABLE_FIREHOSE=true to enable)");
     }
     let arc_pool = Arc::new(pool.clone());
 
     // Create rate limiter - 30 requests per minute per IP
     let rate_limiter = web::Data::new(RateLimiter::new(30, Duration::from_secs(60)));
 
-    log::info!("starting HTTP server at http://{host}:{port}");
+    log::debug!("starting HTTP server at http://{host}:{port}");
     HttpServer::new(move || {
         App::new()
             .wrap(middleware::Logger::default())
