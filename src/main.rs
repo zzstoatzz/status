@@ -107,38 +107,7 @@ async fn client_metadata(config: web::Data<config::Config>) -> Result<HttpRespon
         .body(metadata.to_string()))
 }
 
-/// All the available emoji status options
-const STATUS_OPTIONS: [&str; 29] = [
-    "👍",
-    "👎",
-    "💙",
-    "🥹",
-    "😧",
-    "😤",
-    "🙃",
-    "😉",
-    "😎",
-    "🤓",
-    "🤨",
-    "🥳",
-    "😭",
-    "😤",
-    "🤯",
-    "🫡",
-    "💀",
-    "✊",
-    "🤘",
-    "👀",
-    "🧠",
-    "👩‍💻",
-    "🧑‍💻",
-    "🥷",
-    "🧌",
-    "🦋",
-    "🚀",
-    "🥔",
-    "🦀",
-];
+// Removed STATUS_OPTIONS: emojis are now loaded client-side from CDN
 
 /// TS version https://github.com/bluesky-social/statusphere-example-app/blob/e4721616df50cd317c198f4c00a4818d5626d4ce/src/routes.ts#L71
 /// OAuth callback endpoint to complete session creation
@@ -346,7 +315,6 @@ async fn home(
             let html = StatusTemplate {
                 title: "your status",
                 handle,
-                status_options: &STATUS_OPTIONS,
                 current_status,
                 history,
                 is_owner: true, // They're viewing their own status
@@ -403,7 +371,6 @@ async fn home(
             let html = StatusTemplate {
                 title: "nate's status",
                 handle: OWNER_HANDLE.to_string(),
-                status_options: &STATUS_OPTIONS,
                 current_status,
                 history,
                 is_owner: false, // Visitor viewing owner's status
@@ -493,7 +460,6 @@ async fn user_status_page(
     let html = StatusTemplate {
         title: &format!("@{} status", handle),
         handle: handle.clone(),
-        status_options: &STATUS_OPTIONS,
         current_status,
         history,
         is_owner,

@@ -32,8 +32,6 @@ pub struct StatusTemplate<'a> {
     #[allow(dead_code)]
     pub title: &'a str,
     pub handle: String,
-    #[allow(dead_code)]
-    pub status_options: &'a [&'a str],
     pub current_status: Option<StatusFromDb>,
     pub history: Vec<StatusFromDb>,
     pub is_owner: bool,
