@@ -1146,8 +1146,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('emoji-categories').classList.remove('hidden');
             }
             
-            // Load frequent emojis by default
-            loadEmojiCategory('frequent');
+            // Load frequent emojis by default (wait for custom emojis to be loaded first)
+            loadCustomEmojis().then(() => {
+                loadEmojiCategory('frequent');
+            });
             
             // Focus search for easy typing
             setTimeout(() => {
@@ -1167,6 +1169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) {
             console.error('Failed to load custom emojis:', e);
         }
+        return customEmojis;
     };
     
     // Load custom emojis on page load
@@ -1174,7 +1177,48 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Load emoji category
     const loadEmojiCategory = async (category) => {
-        if (category === 'custom') {
+        if (category === 'frequent') {
+            // For frequent tab, we need to handle both regular and custom emojis
+            const emojis = emojiData[category] || [];
+            let html = '';
+            
+            for (const emoji of emojis) {
+                if (emoji.startsWith('custom:')) {
+                    // This is a custom emoji
+                    const emojiName = emoji.replace('custom:', '');
+                    // Find the custom emoji data
+                    const customEmoji = customEmojis.find(e => e.name === emojiName);
+                    if (customEmoji) {
+                        html += `<button type="button" class="emoji-option custom-emoji" data-emoji="${emoji}" data-name="${emojiName}">
+                            <img src="/emojis/${customEmoji.filename}" alt="${emojiName}" title="${emojiName}">
+                        </button>`;
+                    }
+                } else {
+                    // Regular Unicode emoji
+                    html += `<button type="button" class="emoji-option" data-emoji="${emoji}">${emoji}</button>`;
+                }
+            }
+            
+            emojiGrid.innerHTML = html;
+            
+            // Add click handlers for both types
+            emojiGrid.querySelectorAll('.emoji-option').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const emoji = btn.getAttribute('data-emoji');
+                    
+                    if (emoji.startsWith('custom:')) {
+                        const img = btn.querySelector('img');
+                        selectedEmoji.innerHTML = `<img src="${img.src}" alt="${img.alt}" style="width: 1.5em; height: 1.5em; vertical-align: middle;">`;
+                    } else {
+                        selectedEmoji.textContent = emoji;
+                    }
+                    
+                    statusInput.value = emoji;
+                    emojiPicker.style.display = 'none';
+                });
+            });
+        } else if (category === 'custom') {
             // Load custom image emojis
             if (customEmojis.length === 0) {
                 await loadCustomEmojis();
