@@ -503,3 +503,30 @@ impl AuthState {
 }
 
 // CustomEmoji struct removed - we serve emojis directly from static/emojis/ directory
+
+/// Get the most frequently used emojis from all statuses
+pub async fn get_frequent_emojis(
+    pool: &Pool,
+    limit: usize,
+) -> Result<Vec<String>, async_sqlite::Error> {
+    pool.conn(move |conn| {
+        let mut stmt = conn.prepare(
+            "SELECT emoji, COUNT(*) as count 
+             FROM status 
+             WHERE emoji NOT LIKE 'custom:%'
+             GROUP BY emoji 
+             ORDER BY count DESC 
+             LIMIT ?1",
+        )?;
+
+        let emoji_iter = stmt.query_map([limit], |row| row.get::<_, String>(0))?;
+
+        let mut emojis = Vec::new();
+        for emoji in emoji_iter {
+            emojis.push(emoji?);
+        }
+
+        Ok(emojis)
+    })
+    .await
+}

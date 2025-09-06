@@ -1085,10 +1085,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (window.emojiDataLoader) {
         const data = await window.emojiDataLoader.loadEmojiData();
         emojiKeywords = data.emojis;
-        // Merge with existing frequent emojis
+        
+        // Load frequent emojis from API
+        let frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🔥', '✨', '💯', '🚀', '💪', '🙏', '👏']; // defaults
+        try {
+            const response = await fetch('/api/frequent-emojis');
+            if (response.ok) {
+                frequentEmojis = await response.json();
+            }
+        } catch (e) {
+            console.log('Using default frequent emojis');
+        }
+        
         emojiData = {
             ...data.categories,
-            frequent: ['😊', '👍', '❤️', '😂', '🎉', '🔥', '✨', '💯', '🚀', '💪', '🙏', '👏'],
+            frequent: frequentEmojis,
             custom: [] // Will be filled with custom emojis
         };
     }
