@@ -95,7 +95,7 @@ async fn client_metadata(config: web::Data<config::Config>) -> Result<HttpRespon
         "client_name": "Status Sphere",
         "client_uri": public_url.clone(),
         "redirect_uris": [format!("{}/oauth/callback", public_url)],
-        "scope": "atproto transition:generic",
+        "scope": "atproto repo:io.zzstoatzz.status.record",
         "grant_types": ["authorization_code", "refresh_token"],
         "response_types": ["code"],
         "token_endpoint_auth_method": "none",
@@ -234,7 +234,9 @@ async fn login_post(
                     AuthorizeOptions {
                         scopes: vec![
                             Scope::Known(KnownScope::Atproto),
-                            Scope::Known(KnownScope::TransitionGeneric),
+                            // Using granular scope for status records only
+                            // This replaces TransitionGeneric with specific permissions
+                            Scope::Unknown("repo:io.zzstoatzz.status.record".to_string()),
                         ],
                         ..Default::default()
                     },
@@ -1450,7 +1452,9 @@ async fn main() -> std::io::Result<()> {
                 grant_types: vec![GrantType::AuthorizationCode, GrantType::RefreshToken],
                 scopes: vec![
                     Scope::Known(KnownScope::Atproto),
-                    Scope::Known(KnownScope::TransitionGeneric),
+                    // Using granular scope for status records only
+                    // This replaces TransitionGeneric with specific permissions
+                    Scope::Unknown("repo:io.zzstoatzz.status.record".to_string()),
                 ],
                 jwks_uri: None,
                 token_endpoint_auth_signing_alg: None,
@@ -1488,7 +1492,9 @@ async fn main() -> std::io::Result<()> {
                 )]),
                 scopes: Some(vec![
                     Scope::Known(KnownScope::Atproto),
-                    Scope::Known(KnownScope::TransitionGeneric),
+                    // Using granular scope for status records only
+                    // This replaces TransitionGeneric with specific permissions
+                    Scope::Unknown("repo:io.zzstoatzz.status.record".to_string()),
                 ]),
             },
             keys: None,
