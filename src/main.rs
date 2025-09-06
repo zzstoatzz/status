@@ -234,7 +234,9 @@ async fn login_post(
                     AuthorizeOptions {
                         scopes: vec![
                             Scope::Known(KnownScope::Atproto),
-                            Scope::Known(KnownScope::TransitionGeneric),
+                            // Using granular scope for status records only
+                            // This replaces TransitionGeneric with specific permissions
+                            Scope::Unknown("repo:io.zzstoatzz.status.record".to_string()),
                         ],
                         ..Default::default()
                     },
@@ -1450,7 +1452,9 @@ async fn main() -> std::io::Result<()> {
                 grant_types: vec![GrantType::AuthorizationCode, GrantType::RefreshToken],
                 scopes: vec![
                     Scope::Known(KnownScope::Atproto),
-                    Scope::Known(KnownScope::TransitionGeneric),
+                    // Using granular scope for status records only
+                    // This replaces TransitionGeneric with specific permissions
+                    Scope::Unknown("repo:io.zzstoatzz.status.record".to_string()),
                 ],
                 jwks_uri: None,
                 token_endpoint_auth_signing_alg: None,
@@ -1488,7 +1492,9 @@ async fn main() -> std::io::Result<()> {
                 )]),
                 scopes: Some(vec![
                     Scope::Known(KnownScope::Atproto),
-                    Scope::Known(KnownScope::TransitionGeneric),
+                    // Using granular scope for status records only
+                    // This replaces TransitionGeneric with specific permissions
+                    Scope::Unknown("repo:io.zzstoatzz.status.record".to_string()),
                 ]),
             },
             keys: None,
