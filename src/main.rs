@@ -625,7 +625,14 @@ async fn get_frequent_emojis(db_pool: web::Data<Arc<Pool>>) -> Result<impl Respo
 
     // If we have less than 12 emojis, add some defaults to fill it out
     let mut result = emojis;
-    if result.len() < 12 {
+    if result.is_empty() {
+        log::info!("No emoji usage data found, using defaults");
+        let defaults = vec![
+            "😊", "👍", "❤️", "😂", "🎉", "🔥", "✨", "💯", "🚀", "💪", "🙏", "👏",
+        ];
+        result = defaults.into_iter().map(String::from).collect();
+    } else if result.len() < 12 {
+        log::info!("Found {} emojis, padding with defaults", result.len());
         let defaults = vec![
             "😊", "👍", "❤️", "😂", "🎉", "🔥", "✨", "💯", "🚀", "💪", "🙏", "👏",
         ];
@@ -634,6 +641,8 @@ async fn get_frequent_emojis(db_pool: web::Data<Arc<Pool>>) -> Result<impl Respo
                 result.push(emoji.to_string());
             }
         }
+    } else {
+        log::info!("Found {} frequently used emojis", result.len());
     }
 
     Ok(web::Json(result))
