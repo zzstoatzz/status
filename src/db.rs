@@ -513,7 +513,6 @@ pub async fn get_frequent_emojis(
         let mut stmt = conn.prepare(
             "SELECT emoji, COUNT(*) as count 
              FROM status 
-             WHERE emoji NOT LIKE 'custom:%'
              GROUP BY emoji 
              ORDER BY count DESC 
              LIMIT ?1",
