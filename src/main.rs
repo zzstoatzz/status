@@ -240,7 +240,7 @@ async fn login_post(
                             // Need to read profiles for the feed page
                             Scope::Unknown("rpc:app.bsky.actor.getProfile?aud=did:web:api.bsky.app#bsky_appview".to_string()),
                             // Need to read following list for following feed
-                            Scope::Unknown("rpc:app.bsky.graph.getFollows?aud=did:web:api.bsky.app#bsky_appview".to_string()),
+                            Scope::Unknown("rpc:app.bsky.graph.getFollows?aud=did:web:api.bsky.app".to_string()),
                         ],
                         ..Default::default()
                     },
