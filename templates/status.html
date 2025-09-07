@@ -43,6 +43,24 @@
             {% endif %}
             </div>
         </header>
+        
+        <!-- Simple Settings (owner only) -->
+        {% if is_owner %}
+        <div class="simple-settings" id="simple-settings">
+            <div class="settings-row">
+                <label>font size</label>
+                <div class="button-group">
+                    <button class="size-btn" data-size="small">small</button>
+                    <button class="size-btn active" data-size="medium">medium</button>
+                    <button class="size-btn" data-size="large">large</button>
+                </div>
+            </div>
+            <div class="settings-row">
+                <label>accent color</label>
+                <input type="color" id="accent-color" value="#1DA1F2">
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Current Status Display -->
         <div class="status-display">
@@ -369,6 +387,64 @@ body {
 
 .nav-button svg {
     stroke: currentColor;
+}
+
+/* Simple Settings */
+.simple-settings {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.settings-row label {
+    min-width: 100px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.button-group {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.size-btn {
+    padding: 0.25rem 0.75rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+}
+
+.size-btn:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.size-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+#accent-color {
+    width: 60px;
+    height: 32px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
 }
 
 .theme-toggle {
@@ -1080,6 +1156,59 @@ let emojiData = {
 document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
     // Timestamps are auto-initialized by timestamps.js
+    
+    // Simple settings
+    const initSettings = () => {
+        // Load saved settings
+        const savedSize = localStorage.getItem('fontSize') || 'medium';
+        const savedAccent = localStorage.getItem('accentColor') || '#1DA1F2';
+        
+        // Apply font size
+        document.documentElement.style.setProperty('--font-size-base', 
+            savedSize === 'small' ? '14px' : 
+            savedSize === 'large' ? '18px' : '16px');
+        
+        // Update buttons
+        document.querySelectorAll('.size-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.size === savedSize);
+        });
+        
+        // Apply accent color
+        document.documentElement.style.setProperty('--accent', savedAccent);
+        const accentInput = document.getElementById('accent-color');
+        if (accentInput) {
+            accentInput.value = savedAccent;
+        }
+    };
+    
+    // Font size buttons
+    document.querySelectorAll('.size-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const size = btn.dataset.size;
+            localStorage.setItem('fontSize', size);
+            
+            // Update UI
+            document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // Apply
+            document.documentElement.style.setProperty('--font-size-base',
+                size === 'small' ? '14px' : 
+                size === 'large' ? '18px' : '16px');
+        });
+    });
+    
+    // Accent color
+    const accentInput = document.getElementById('accent-color');
+    if (accentInput) {
+        accentInput.addEventListener('input', () => {
+            const color = accentInput.value;
+            localStorage.setItem('accentColor', color);
+            document.documentElement.style.setProperty('--accent', color);
+        });
+    }
+    
+    initSettings();
     
     // Load emoji data
     if (window.emojiDataLoader) {

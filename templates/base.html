@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}status.zzstoatzz.io{% endblock %}</title>
     
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/style.css">
+    
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="alternate icon" href="/static/favicon.png">
@@ -25,6 +28,21 @@
     
     <!-- Shared Timestamp Formatter -->
     <script src="/static/timestamps.js"></script>
+    
+    <!-- Apply User Settings -->
+    <script>
+        // Apply saved settings immediately to prevent flash
+        (function() {
+            const savedSize = localStorage.getItem('fontSize') || 'medium';
+            const savedAccent = localStorage.getItem('accentColor') || '#1DA1F2';
+            
+            document.documentElement.style.setProperty('--font-size-base',
+                savedSize === 'small' ? '14px' : 
+                savedSize === 'large' ? '18px' : '16px');
+            
+            document.documentElement.style.setProperty('--accent', savedAccent);
+        })();
+    </script>
 </head>
 <body>
     {% block content %}{% endblock %}
