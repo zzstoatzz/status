@@ -23,6 +23,12 @@
                     </svg>
                 </a>
                 {% if is_owner %}
+                <button class="settings-toggle" id="settings-toggle" aria-label="Settings">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M12 1v6m0 6v6m4.22-13.22l4.24 4.24M18.36 18.36l4.24 4.24M23 12h-6m-6 0H1m4.22 4.22l-4.24 4.24M5.64 5.64L1.4 1.4"></path>
+                    </svg>
+                </button>
                 <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
                 <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="5"></circle>
@@ -46,18 +52,27 @@
         
         <!-- Simple Settings (owner only) -->
         {% if is_owner %}
-        <div class="simple-settings" id="simple-settings">
+        <div class="simple-settings hidden" id="simple-settings">
             <div class="settings-row">
-                <label>font size</label>
+                <label>font</label>
                 <div class="button-group">
-                    <button class="size-btn" data-size="small">small</button>
-                    <button class="size-btn active" data-size="medium">medium</button>
-                    <button class="size-btn" data-size="large">large</button>
+                    <button class="font-btn active" data-font="system">system</button>
+                    <button class="font-btn" data-font="mono">mono</button>
+                    <button class="font-btn" data-font="serif">serif</button>
+                    <button class="font-btn" data-font="comic">comic</button>
                 </div>
             </div>
             <div class="settings-row">
-                <label>accent color</label>
+                <label>accent</label>
                 <input type="color" id="accent-color" value="#1DA1F2">
+                <div class="preset-colors">
+                    <button class="color-preset" data-color="#1DA1F2" style="background: #1DA1F2"></button>
+                    <button class="color-preset" data-color="#FF6B6B" style="background: #FF6B6B"></button>
+                    <button class="color-preset" data-color="#4ECDC4" style="background: #4ECDC4"></button>
+                    <button class="color-preset" data-color="#FFEAA7" style="background: #FFEAA7"></button>
+                    <button class="color-preset" data-color="#A29BFE" style="background: #A29BFE"></button>
+                    <button class="color-preset" data-color="#FD79A8" style="background: #FD79A8"></button>
+                </div>
             </div>
         </div>
         {% endif %}
@@ -267,6 +282,10 @@
 
 <script src="/static/emoji-data.js"></script>
 <style>
+body {
+    font-family: var(--font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+}
+
 :root {
     --bg-primary: #ffffff;
     --bg-secondary: #f8f9fa;
@@ -386,7 +405,7 @@ body {
 }
 
 .nav-button svg {
-    stroke: currentColor;
+    stroke: var(--accent);
 }
 
 /* Simple Settings */
@@ -398,6 +417,12 @@ body {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    transition: all 0.3s ease;
+    transform-origin: top;
+}
+
+.simple-settings.hidden {
+    display: none;
 }
 
 .settings-row {
@@ -407,7 +432,7 @@ body {
 }
 
 .settings-row label {
-    min-width: 100px;
+    min-width: 60px;
     color: var(--text-secondary);
     font-size: 0.9rem;
 }
@@ -417,7 +442,7 @@ body {
     gap: 0.25rem;
 }
 
-.size-btn {
+.font-btn {
     padding: 0.25rem 0.75rem;
     background: transparent;
     border: 1px solid var(--border-color);
@@ -428,23 +453,64 @@ body {
     font-size: 0.85rem;
 }
 
-.size-btn:hover {
+.font-btn:hover {
     border-color: var(--accent);
     color: var(--text-primary);
 }
 
-.size-btn.active {
+.font-btn.active {
     background: var(--accent);
     border-color: var(--accent);
     color: white;
 }
 
 #accent-color {
-    width: 60px;
+    width: 50px;
     height: 32px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     cursor: pointer;
+}
+
+.preset-colors {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.color-preset {
+    width: 24px;
+    height: 24px;
+    border: 2px solid transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.color-preset:hover {
+    transform: scale(1.2);
+    border-color: var(--text-primary);
+}
+
+/* Settings toggle button */
+.settings-toggle {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.settings-toggle:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+}
+
+.settings-toggle svg {
+    stroke: var(--accent);
 }
 
 .theme-toggle {
@@ -461,6 +527,7 @@ body {
 
 .theme-toggle:hover {
     background: var(--bg-tertiary);
+    border-color: var(--accent);
 }
 
 .theme-toggle {
@@ -468,7 +535,7 @@ body {
 }
 
 .theme-toggle svg {
-    stroke: var(--text-secondary);
+    stroke: var(--accent);
 }
 
 .theme-indicator {
@@ -1160,17 +1227,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Simple settings
     const initSettings = () => {
         // Load saved settings
-        const savedSize = localStorage.getItem('fontSize') || 'medium';
+        const savedFont = localStorage.getItem('fontFamily') || 'system';
         const savedAccent = localStorage.getItem('accentColor') || '#1DA1F2';
         
-        // Apply font size
-        document.documentElement.style.setProperty('--font-size-base', 
-            savedSize === 'small' ? '14px' : 
-            savedSize === 'large' ? '18px' : '16px');
+        // Apply font family
+        const fontMap = {
+            'system': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            'mono': 'ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace',
+            'serif': 'ui-serif, Georgia, Cambria, serif',
+            'comic': '"Comic Sans MS", "Comic Sans", cursive'
+        };
+        document.documentElement.style.setProperty('--font-family', fontMap[savedFont] || fontMap.system);
         
         // Update buttons
-        document.querySelectorAll('.size-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.size === savedSize);
+        document.querySelectorAll('.font-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.font === savedFont);
         });
         
         // Apply accent color
@@ -1181,20 +1252,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
     
-    // Font size buttons
-    document.querySelectorAll('.size-btn').forEach(btn => {
+    // Settings toggle
+    const settingsToggle = document.getElementById('settings-toggle');
+    const settingsPanel = document.getElementById('simple-settings');
+    if (settingsToggle && settingsPanel) {
+        settingsToggle.addEventListener('click', () => {
+            settingsPanel.classList.toggle('hidden');
+        });
+    }
+    
+    // Font family buttons
+    document.querySelectorAll('.font-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            const size = btn.dataset.size;
-            localStorage.setItem('fontSize', size);
+            const font = btn.dataset.font;
+            localStorage.setItem('fontFamily', font);
             
             // Update UI
-            document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.font-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             
             // Apply
-            document.documentElement.style.setProperty('--font-size-base',
-                size === 'small' ? '14px' : 
-                size === 'large' ? '18px' : '16px');
+            const fontMap = {
+                'system': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                'mono': 'ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace',
+                'serif': 'ui-serif, Georgia, Cambria, serif',
+                'comic': '"Comic Sans MS", "Comic Sans", cursive'
+            };
+            document.documentElement.style.setProperty('--font-family', fontMap[font] || fontMap.system);
         });
     });
     
@@ -1207,6 +1291,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.documentElement.style.setProperty('--accent', color);
         });
     }
+    
+    // Color presets
+    document.querySelectorAll('.color-preset').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const color = btn.dataset.color;
+            localStorage.setItem('accentColor', color);
+            document.documentElement.style.setProperty('--accent', color);
+            if (accentInput) {
+                accentInput.value = color;
+            }
+        });
+    });
     
     initSettings();
     
