@@ -88,11 +88,10 @@ fn is_admin(did: &str) -> bool {
 /// OAuth client metadata endpoint for production
 #[get("/oauth-client-metadata.json")]
 async fn client_metadata(config: web::Data<config::Config>) -> Result<HttpResponse> {
-    // Note: This also handles /oauth-client-metadata.json?v=2 etc
     let public_url = config.oauth_redirect_base.clone();
 
     let metadata = serde_json::json!({
-        "client_id": format!("{}/oauth-client-metadata.json?v=2", public_url),
+        "client_id": format!("{}/oauth-client-metadata.json", public_url),
         "client_name": "Status Sphere",
         "client_uri": public_url.clone(),
         "redirect_uris": [format!("{}/oauth/callback", public_url)],
@@ -1509,10 +1508,7 @@ async fn main() -> std::io::Result<()> {
 
         let oauth_config = OAuthClientConfig {
             client_metadata: AtprotoClientMetadata {
-                client_id: format!(
-                    "{}/oauth-client-metadata.json?v=2",
-                    config.oauth_redirect_base
-                ),
+                client_id: format!("{}/oauth-client-metadata.json", config.oauth_redirect_base),
                 client_uri: Some(config.oauth_redirect_base.clone()),
                 redirect_uris: vec![format!("{}/oauth/callback", config.oauth_redirect_base)],
                 token_endpoint_auth_method: AuthMethod::None,
