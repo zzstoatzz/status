@@ -88,14 +88,15 @@ fn is_admin(did: &str) -> bool {
 /// OAuth client metadata endpoint for production
 #[get("/oauth-client-metadata.json")]
 async fn client_metadata(config: web::Data<config::Config>) -> Result<HttpResponse> {
+    // Note: This also handles /oauth-client-metadata.json?v=2 etc
     let public_url = config.oauth_redirect_base.clone();
 
     let metadata = serde_json::json!({
-        "client_id": format!("{}/oauth-client-metadata.json", public_url),
+        "client_id": format!("{}/oauth-client-metadata.json?v=2", public_url),
         "client_name": "Status Sphere",
         "client_uri": public_url.clone(),
         "redirect_uris": [format!("{}/oauth/callback", public_url)],
-        "scope": "atproto repo:io.zzstoatzz.status.record rpc:app.bsky.actor.getProfile?aud=did:web:api.bsky.app#bsky_appview",
+        "scope": "atproto repo:io.zzstoatzz.status.record rpc:app.bsky.actor.getProfile?aud=did:web:api.bsky.app#bsky_appview rpc:app.bsky.graph.getFollows?aud=did:web:api.bsky.app",
         "grant_types": ["authorization_code", "refresh_token"],
         "response_types": ["code"],
         "token_endpoint_auth_method": "none",
@@ -239,6 +240,8 @@ async fn login_post(
                             Scope::Unknown("repo:io.zzstoatzz.status.record".to_string()),
                             // Need to read profiles for the feed page
                             Scope::Unknown("rpc:app.bsky.actor.getProfile?aud=did:web:api.bsky.app#bsky_appview".to_string()),
+                            // Need to read following list for following feed
+                            Scope::Unknown("rpc:app.bsky.graph.getFollows?aud=did:web:api.bsky.app".to_string()),
                         ],
                         ..Default::default()
                     },
@@ -696,7 +699,7 @@ async fn get_custom_emojis() -> Result<impl Responder> {
 #[get("/api/following")]
 async fn get_following(
     session: Session,
-    oauth_client: web::Data<OAuthClientType>,
+    _oauth_client: web::Data<OAuthClientType>,
 ) -> Result<impl Responder> {
     // Check if user is logged in
     let did = match session.get::<Did>("did").ok().flatten() {
@@ -708,45 +711,55 @@ async fn get_following(
         }
     };
 
-    // Restore OAuth session
-    let bsky_session = match oauth_client.restore(&did).await {
-        Ok(session) => session,
-        Err(err) => {
-            log::error!("Failed to restore session: {}", err);
-            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Failed to restore session"
-            })));
-        }
-    };
+    // WORKAROUND: Call public API directly for getFollows since OAuth scope isn't working
+    // Both getProfile and getFollows are public endpoints that don't require auth
+    // but when called through OAuth, getFollows requires a scope that doesn't exist yet
 
-    let agent = Agent::new(bsky_session);
-
-    // Fetch follows from Bluesky
     let mut all_follows = Vec::new();
-    let mut cursor = None;
+    let mut cursor: Option<String> = None;
+
+    // Use reqwest to call the public API directly
+    let client = reqwest::Client::new();
 
     loop {
-        let params = atrium_api::app::bsky::graph::get_follows::ParametersData {
-            actor: atrium_api::types::string::AtIdentifier::Did(did.clone()),
-            limit: None, // Use default limit
-            cursor: cursor.clone(),
-        };
+        let mut url = format!(
+            "https://public.api.bsky.app/xrpc/app.bsky.graph.getFollows?actor={}",
+            did.as_str()
+        );
 
-        match agent.api.app.bsky.graph.get_follows(params.into()).await {
+        if let Some(c) = &cursor {
+            url.push_str(&format!("&cursor={}", c));
+        }
+
+        match client.get(&url).send().await {
             Ok(response) => {
-                // Extract DIDs from the follows
-                for follow in &response.follows {
-                    all_follows.push(follow.did.to_string());
-                }
+                match response.json::<serde_json::Value>().await {
+                    Ok(json) => {
+                        // Extract follows
+                        if let Some(follows) = json["follows"].as_array() {
+                            for follow in follows {
+                                if let Some(did_str) = follow["did"].as_str() {
+                                    all_follows.push(did_str.to_string());
+                                }
+                            }
+                        }
 
-                // Check if there are more pages
-                cursor = response.cursor.clone();
-                if cursor.is_none() {
-                    break;
+                        // Check for cursor
+                        cursor = json["cursor"].as_str().map(|s| s.to_string());
+                        if cursor.is_none() {
+                            break;
+                        }
+                    }
+                    Err(err) => {
+                        log::error!("Failed to parse follows response: {}", err);
+                        return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                            "error": "Failed to parse follows"
+                        })));
+                    }
                 }
             }
             Err(err) => {
-                log::error!("Failed to fetch follows: {}", err);
+                log::error!("Failed to fetch follows from public API: {}", err);
                 return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
                     "error": "Failed to fetch follows"
                 })));
@@ -1496,7 +1509,10 @@ async fn main() -> std::io::Result<()> {
 
         let oauth_config = OAuthClientConfig {
             client_metadata: AtprotoClientMetadata {
-                client_id: format!("{}/oauth-client-metadata.json", config.oauth_redirect_base),
+                client_id: format!(
+                    "{}/oauth-client-metadata.json?v=2",
+                    config.oauth_redirect_base
+                ),
                 client_uri: Some(config.oauth_redirect_base.clone()),
                 redirect_uris: vec![format!("{}/oauth/callback", config.oauth_redirect_base)],
                 token_endpoint_auth_method: AuthMethod::None,
