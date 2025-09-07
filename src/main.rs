@@ -881,8 +881,8 @@ async fn status_json(db_pool: web::Data<Arc<Pool>>) -> Result<impl Responder> {
 /// Settings page - user customization
 #[get("/settings")]
 async fn settings(session: Session) -> Result<impl Responder> {
-    // Check if user is logged in
-    let logged_in = session.get::<String>("handle").ok().flatten().is_some();
+    // Check if user is logged in using the correct session key
+    let logged_in = session.get::<Did>("did").ok().flatten().is_some();
     if !logged_in {
         return Ok(HttpResponse::Found()
             .append_header(("Location", "/login"))
