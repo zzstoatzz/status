@@ -95,7 +95,7 @@ async fn client_metadata(config: web::Data<config::Config>) -> Result<HttpRespon
         "client_name": "Status Sphere",
         "client_uri": public_url.clone(),
         "redirect_uris": [format!("{}/oauth/callback", public_url)],
-        "scope": "atproto repo:io.zzstoatzz.status.record rpc:app.bsky.actor.getProfile?aud=did:web:api.bsky.app#bsky_appview",
+        "scope": "atproto repo:io.zzstoatzz.status.record rpc:app.bsky.actor.getProfile?aud=did:web:api.bsky.app#bsky_appview rpc:app.bsky.graph.getFollows?aud=did:web:api.bsky.app",
         "grant_types": ["authorization_code", "refresh_token"],
         "response_types": ["code"],
         "token_endpoint_auth_method": "none",
@@ -239,6 +239,8 @@ async fn login_post(
                             Scope::Unknown("repo:io.zzstoatzz.status.record".to_string()),
                             // Need to read profiles for the feed page
                             Scope::Unknown("rpc:app.bsky.actor.getProfile?aud=did:web:api.bsky.app#bsky_appview".to_string()),
+                            // Need to read following list for following feed
+                            Scope::Unknown("rpc:app.bsky.graph.getFollows?aud=did:web:api.bsky.app".to_string()),
                         ],
                         ..Default::default()
                     },
