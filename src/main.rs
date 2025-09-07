@@ -699,7 +699,7 @@ async fn get_custom_emojis() -> Result<impl Responder> {
 #[get("/api/following")]
 async fn get_following(
     session: Session,
-    oauth_client: web::Data<OAuthClientType>,
+    _oauth_client: web::Data<OAuthClientType>,
 ) -> Result<impl Responder> {
     // Check if user is logged in
     let did = match session.get::<Did>("did").ok().flatten() {
@@ -711,45 +711,55 @@ async fn get_following(
         }
     };
 
-    // Restore OAuth session
-    let bsky_session = match oauth_client.restore(&did).await {
-        Ok(session) => session,
-        Err(err) => {
-            log::error!("Failed to restore session: {}", err);
-            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Failed to restore session"
-            })));
-        }
-    };
+    // WORKAROUND: Call public API directly for getFollows since OAuth scope isn't working
+    // Both getProfile and getFollows are public endpoints that don't require auth
+    // but when called through OAuth, getFollows requires a scope that doesn't exist yet
 
-    let agent = Agent::new(bsky_session);
-
-    // Fetch follows from Bluesky
     let mut all_follows = Vec::new();
-    let mut cursor = None;
+    let mut cursor: Option<String> = None;
+
+    // Use reqwest to call the public API directly
+    let client = reqwest::Client::new();
 
     loop {
-        let params = atrium_api::app::bsky::graph::get_follows::ParametersData {
-            actor: atrium_api::types::string::AtIdentifier::Did(did.clone()),
-            limit: None, // Use default limit
-            cursor: cursor.clone(),
-        };
+        let mut url = format!(
+            "https://public.api.bsky.app/xrpc/app.bsky.graph.getFollows?actor={}",
+            did.as_str()
+        );
 
-        match agent.api.app.bsky.graph.get_follows(params.into()).await {
+        if let Some(c) = &cursor {
+            url.push_str(&format!("&cursor={}", c));
+        }
+
+        match client.get(&url).send().await {
             Ok(response) => {
-                // Extract DIDs from the follows
-                for follow in &response.follows {
-                    all_follows.push(follow.did.to_string());
-                }
+                match response.json::<serde_json::Value>().await {
+                    Ok(json) => {
+                        // Extract follows
+                        if let Some(follows) = json["follows"].as_array() {
+                            for follow in follows {
+                                if let Some(did_str) = follow["did"].as_str() {
+                                    all_follows.push(did_str.to_string());
+                                }
+                            }
+                        }
 
-                // Check if there are more pages
-                cursor = response.cursor.clone();
-                if cursor.is_none() {
-                    break;
+                        // Check for cursor
+                        cursor = json["cursor"].as_str().map(|s| s.to_string());
+                        if cursor.is_none() {
+                            break;
+                        }
+                    }
+                    Err(err) => {
+                        log::error!("Failed to parse follows response: {}", err);
+                        return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                            "error": "Failed to parse follows"
+                        })));
+                    }
                 }
             }
             Err(err) => {
-                log::error!("Failed to fetch follows: {}", err);
+                log::error!("Failed to fetch follows from public API: {}", err);
                 return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
                     "error": "Failed to fetch follows"
                 })));

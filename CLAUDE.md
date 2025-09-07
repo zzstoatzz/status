@@ -1,0 +1,1 @@
+- fly logs is a blocking command, you need to run it in the background
