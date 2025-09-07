@@ -878,6 +878,23 @@ async fn status_json(db_pool: web::Data<Arc<Pool>>) -> Result<impl Responder> {
     Ok(web::Json(response))
 }
 
+/// Settings page - user customization
+#[get("/settings")]
+async fn settings(session: Session) -> Result<impl Responder> {
+    // Check if user is logged in
+    let logged_in = session.get::<String>("handle").ok().flatten().is_some();
+    if !logged_in {
+        return Ok(HttpResponse::Found()
+            .append_header(("Location", "/login"))
+            .finish());
+    }
+
+    let html = std::fs::read_to_string("templates/settings.html")
+        .unwrap_or_else(|_| "Settings page not found".to_string());
+
+    Ok(HttpResponse::Ok().content_type("text/html").body(html))
+}
+
 /// Feed page - shows all users' statuses
 #[get("/feed")]
 async fn feed(
@@ -1624,6 +1641,7 @@ async fn main() -> std::io::Result<()> {
             .service(logout)
             .service(home)
             .service(feed)
+            .service(settings)
             .service(status_json)
             .service(owner_status_json)
             .service(get_custom_emojis)

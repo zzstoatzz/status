@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Status Sphere</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/settings.css">
+    <script src="/static/settings.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="settings-header">
+            <div class="header-content">
+                <a href="/" class="back-link">← back to status</a>
+                <h1>customize your sphere</h1>
+                <button class="save-btn" id="save-settings">save changes</button>
+            </div>
+        </header>
+
+        <div class="settings-container">
+            <nav class="settings-nav">
+                <button class="nav-item active" data-section="appearance">appearance</button>
+                <button class="nav-item" data-section="typography">typography</button>
+                <button class="nav-item" data-section="layout">layout</button>
+                <button class="nav-item" data-section="status">status display</button>
+                <button class="nav-item" data-section="feed">feed</button>
+                <button class="nav-item" data-section="emoji">emoji</button>
+                <button class="nav-item" data-section="effects">effects</button>
+                <button class="nav-item" data-section="background">background</button>
+                <button class="nav-item" data-section="accessibility">accessibility</button>
+                <button class="nav-item" data-section="advanced">advanced</button>
+                <div class="nav-divider"></div>
+                <button class="nav-item" data-section="presets">presets</button>
+                <button class="nav-item reset-btn" id="reset-all">reset all</button>
+            </nav>
+
+            <main class="settings-content">
+                <!-- Appearance Section -->
+                <section class="settings-section active" id="appearance">
+                    <h2>appearance</h2>
+                    
+                    <div class="setting-group">
+                        <label>theme</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="theme" data-value="system">system</button>
+                            <button class="option-btn" data-setting="theme" data-value="light">light</button>
+                            <button class="option-btn" data-setting="theme" data-value="dark">dark</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>accent color</label>
+                        <div class="color-picker-group">
+                            <input type="color" id="accent-color" value="#1DA1F2">
+                            <div class="preset-colors">
+                                <button class="color-preset" data-color="#1DA1F2" style="background: #1DA1F2"></button>
+                                <button class="color-preset" data-color="#FF6B6B" style="background: #FF6B6B"></button>
+                                <button class="color-preset" data-color="#4ECDC4" style="background: #4ECDC4"></button>
+                                <button class="color-preset" data-color="#45B7D1" style="background: #45B7D1"></button>
+                                <button class="color-preset" data-color="#96CEB4" style="background: #96CEB4"></button>
+                                <button class="color-preset" data-color="#FFEAA7" style="background: #FFEAA7"></button>
+                                <button class="color-preset" data-color="#DDA0DD" style="background: #DDA0DD"></button>
+                                <button class="color-preset" data-color="#98D8C8" style="background: #98D8C8"></button>
+                            </div>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="use-system-accent" checked>
+                                <span>use system accent</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>card style</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="layout.cardStyle" data-value="default">default</button>
+                            <button class="option-btn" data-setting="layout.cardStyle" data-value="flat">flat</button>
+                            <button class="option-btn" data-setting="layout.cardStyle" data-value="elevated">elevated</button>
+                            <button class="option-btn" data-setting="layout.cardStyle" data-value="outlined">outlined</button>
+                            <button class="option-btn" data-setting="layout.cardStyle" data-value="glassmorphism">glass</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>shadows</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="colors.shadowIntensity" data-value="none">none</button>
+                            <button class="option-btn" data-setting="colors.shadowIntensity" data-value="subtle">subtle</button>
+                            <button class="option-btn" data-setting="colors.shadowIntensity" data-value="medium">medium</button>
+                            <button class="option-btn" data-setting="colors.shadowIntensity" data-value="strong">strong</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Typography Section -->
+                <section class="settings-section" id="typography">
+                    <h2>typography</h2>
+                    
+                    <div class="setting-group">
+                        <label>font family</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="font.family" data-value="system">system</button>
+                            <button class="option-btn" data-setting="font.family" data-value="mono">mono</button>
+                            <button class="option-btn" data-setting="font.family" data-value="serif">serif</button>
+                            <button class="option-btn" data-setting="font.family" data-value="sans">sans</button>
+                        </div>
+                        <input type="text" class="custom-font-input" placeholder="custom font family" id="custom-font">
+                    </div>
+
+                    <div class="setting-group">
+                        <label>font size</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="font.size" data-value="small">small</button>
+                            <button class="option-btn" data-setting="font.size" data-value="medium">medium</button>
+                            <button class="option-btn" data-setting="font.size" data-value="large">large</button>
+                            <button class="option-btn" data-setting="font.size" data-value="xlarge">x-large</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>font weight</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="font.weight" data-value="light">light</button>
+                            <button class="option-btn" data-setting="font.weight" data-value="normal">normal</button>
+                            <button class="option-btn" data-setting="font.weight" data-value="medium">medium</button>
+                            <button class="option-btn" data-setting="font.weight" data-value="bold">bold</button>
+                            <button class="option-btn" data-setting="font.weight" data-value="black">black</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>line height</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="font.lineHeight" data-value="tight">tight</button>
+                            <button class="option-btn" data-setting="font.lineHeight" data-value="normal">normal</button>
+                            <button class="option-btn" data-setting="font.lineHeight" data-value="relaxed">relaxed</button>
+                            <button class="option-btn" data-setting="font.lineHeight" data-value="loose">loose</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>letter spacing</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="font.letterSpacing" data-value="tight">tight</button>
+                            <button class="option-btn" data-setting="font.letterSpacing" data-value="normal">normal</button>
+                            <button class="option-btn" data-setting="font.letterSpacing" data-value="wide">wide</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Layout Section -->
+                <section class="settings-section" id="layout">
+                    <h2>layout</h2>
+                    
+                    <div class="setting-group">
+                        <label>max width</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="layout.maxWidth" data-value="narrow">narrow</button>
+                            <button class="option-btn" data-setting="layout.maxWidth" data-value="medium">medium</button>
+                            <button class="option-btn" data-setting="layout.maxWidth" data-value="wide">wide</button>
+                            <button class="option-btn" data-setting="layout.maxWidth" data-value="full">full</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>padding</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="layout.padding" data-value="compact">compact</button>
+                            <button class="option-btn" data-setting="layout.padding" data-value="normal">normal</button>
+                            <button class="option-btn" data-setting="layout.padding" data-value="spacious">spacious</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>border radius</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="layout.borderRadius" data-value="none">none</button>
+                            <button class="option-btn" data-setting="layout.borderRadius" data-value="small">small</button>
+                            <button class="option-btn" data-setting="layout.borderRadius" data-value="medium">medium</button>
+                            <button class="option-btn" data-setting="layout.borderRadius" data-value="large">large</button>
+                            <button class="option-btn" data-setting="layout.borderRadius" data-value="round">round</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="compact-mode">
+                            <span>compact mode</span>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Status Display Section -->
+                <section class="settings-section" id="status">
+                    <h2>status display</h2>
+                    
+                    <div class="setting-group">
+                        <label>emoji size</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="status.emojiSize" data-value="small">small</button>
+                            <button class="option-btn" data-setting="status.emojiSize" data-value="medium">medium</button>
+                            <button class="option-btn" data-setting="status.emojiSize" data-value="large">large</button>
+                            <button class="option-btn" data-setting="status.emojiSize" data-value="xlarge">x-large</button>
+                            <button class="option-btn" data-setting="status.emojiSize" data-value="huge">huge</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>text size</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="status.textSize" data-value="small">small</button>
+                            <button class="option-btn" data-setting="status.textSize" data-value="medium">medium</button>
+                            <button class="option-btn" data-setting="status.textSize" data-value="large">large</button>
+                            <button class="option-btn" data-setting="status.textSize" data-value="xlarge">x-large</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>status position</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="status.statusPosition" data-value="left">left</button>
+                            <button class="option-btn" data-setting="status.statusPosition" data-value="center">center</button>
+                            <button class="option-btn" data-setting="status.statusPosition" data-value="right">right</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="show-timestamp" checked>
+                            <span>show timestamp</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="show-username" checked>
+                            <span>show username</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="animate-changes" checked>
+                            <span>animate changes</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="glow-effect">
+                            <span>glow effect</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="pulse-animation">
+                            <span>pulse animation</span>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Feed Section -->
+                <section class="settings-section" id="feed">
+                    <h2>feed</h2>
+                    
+                    <div class="setting-group">
+                        <label>default feed</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="feedPreference" data-value="global">global</button>
+                            <button class="option-btn" data-setting="feedPreference" data-value="following">following</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>card spacing</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="feed.cardSpacing" data-value="tight">tight</button>
+                            <button class="option-btn" data-setting="feed.cardSpacing" data-value="normal">normal</button>
+                            <button class="option-btn" data-setting="feed.cardSpacing" data-value="loose">loose</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>avatar size</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="feed.avatarSize" data-value="small">small</button>
+                            <button class="option-btn" data-setting="feed.avatarSize" data-value="medium">medium</button>
+                            <button class="option-btn" data-setting="feed.avatarSize" data-value="large">large</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>avatar shape</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="feed.avatarShape" data-value="circle">circle</button>
+                            <button class="option-btn" data-setting="feed.avatarShape" data-value="square">square</button>
+                            <button class="option-btn" data-setting="feed.avatarShape" data-value="rounded">rounded</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>columns (wide screens)</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="feed.columns" data-value="1">1</button>
+                            <button class="option-btn" data-setting="feed.columns" data-value="2">2</button>
+                            <button class="option-btn" data-setting="feed.columns" data-value="3">3</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="show-avatars" checked>
+                            <span>show avatars</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="show-handles" checked>
+                            <span>show handles</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="show-feed-timestamps" checked>
+                            <span>show timestamps</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="hover-effects" checked>
+                            <span>hover effects</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="animated-entrance" checked>
+                            <span>animated entrance</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="compact-cards">
+                            <span>compact cards</span>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Emoji Section -->
+                <section class="settings-section" id="emoji">
+                    <h2>emoji</h2>
+                    
+                    <div class="setting-group">
+                        <label>frequent emoji count</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="emoji.frequentCount" data-value="6">6</button>
+                            <button class="option-btn" data-setting="emoji.frequentCount" data-value="8">8</button>
+                            <button class="option-btn" data-setting="emoji.frequentCount" data-value="10">10</button>
+                            <button class="option-btn" data-setting="emoji.frequentCount" data-value="12">12</button>
+                            <button class="option-btn" data-setting="emoji.frequentCount" data-value="16">16</button>
+                            <button class="option-btn" data-setting="emoji.frequentCount" data-value="20">20</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>picker size</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="emoji.pickerSize" data-value="small">small</button>
+                            <button class="option-btn" data-setting="emoji.pickerSize" data-value="medium">medium</button>
+                            <button class="option-btn" data-setting="emoji.pickerSize" data-value="large">large</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>picker position</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="emoji.pickerPosition" data-value="bottom">bottom</button>
+                            <button class="option-btn" data-setting="emoji.pickerPosition" data-value="top">top</button>
+                            <button class="option-btn" data-setting="emoji.pickerPosition" data-value="auto">auto</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>default emoji</label>
+                        <input type="text" id="default-emoji" value="😊" maxlength="2">
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="show-frequent-bar" checked>
+                            <span>show frequent emoji bar</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="sticky-picker">
+                            <span>keep picker open after selection</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="show-recent" checked>
+                            <span>show recent emojis</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="animate-emojis" checked>
+                            <span>animate emojis</span>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Effects Section -->
+                <section class="settings-section" id="effects">
+                    <h2>effects</h2>
+                    
+                    <div class="setting-group">
+                        <label>blur intensity</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="effects.blurIntensity" data-value="light">light</button>
+                            <button class="option-btn" data-setting="effects.blurIntensity" data-value="medium">medium</button>
+                            <button class="option-btn" data-setting="effects.blurIntensity" data-value="heavy">heavy</button>
+                        </div>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="enable-blur">
+                            <span>enable backdrop blur</span>
+                        </label>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>css filters</label>
+                        <div class="slider-group">
+                            <div class="slider-item">
+                                <span>hue</span>
+                                <input type="range" id="filter-hue" min="-180" max="180" value="0">
+                                <span class="slider-value">0°</span>
+                            </div>
+                            <div class="slider-item">
+                                <span>saturation</span>
+                                <input type="range" id="filter-saturate" min="0" max="200" value="100">
+                                <span class="slider-value">100%</span>
+                            </div>
+                            <div class="slider-item">
+                                <span>brightness</span>
+                                <input type="range" id="filter-brightness" min="0" max="200" value="100">
+                                <span class="slider-value">100%</span>
+                            </div>
+                            <div class="slider-item">
+                                <span>contrast</span>
+                                <input type="range" id="filter-contrast" min="0" max="200" value="100">
+                                <span class="slider-value">100%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="enable-parallax">
+                            <span>parallax scrolling</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="enable-particles">
+                            <span>background particles</span>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Background Section -->
+                <section class="settings-section" id="background">
+                    <h2>background</h2>
+                    
+                    <div class="setting-group">
+                        <label>background type</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="background.type" data-value="solid">solid</button>
+                            <button class="option-btn" data-setting="background.type" data-value="gradient">gradient</button>
+                            <button class="option-btn" data-setting="background.type" data-value="pattern">pattern</button>
+                            <button class="option-btn" data-setting="background.type" data-value="image">image</button>
+                            <button class="option-btn" data-setting="background.type" data-value="animated">animated</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group" id="bg-solid-options">
+                        <label>background color</label>
+                        <input type="color" id="bg-solid-color">
+                    </div>
+
+                    <div class="setting-group" id="bg-gradient-options" style="display: none;">
+                        <label>gradient type</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="background.gradient.type" data-value="linear">linear</button>
+                            <button class="option-btn" data-setting="background.gradient.type" data-value="radial">radial</button>
+                            <button class="option-btn" data-setting="background.gradient.type" data-value="conic">conic</button>
+                        </div>
+                        <label>gradient colors</label>
+                        <div class="gradient-colors">
+                            <input type="color" class="gradient-color" value="#667eea">
+                            <input type="color" class="gradient-color" value="#764ba2">
+                            <button class="add-gradient-color">+</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group" id="bg-pattern-options" style="display: none;">
+                        <label>pattern</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="background.pattern" data-value="dots">dots</button>
+                            <button class="option-btn" data-setting="background.pattern" data-value="lines">lines</button>
+                            <button class="option-btn" data-setting="background.pattern" data-value="grid">grid</button>
+                            <button class="option-btn" data-setting="background.pattern" data-value="waves">waves</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group" id="bg-image-options" style="display: none;">
+                        <label>image url</label>
+                        <input type="text" id="bg-image-url" placeholder="https://...">
+                        <label>image settings</label>
+                        <div class="button-group">
+                            <button class="option-btn" data-setting="background.image.size" data-value="cover">cover</button>
+                            <button class="option-btn" data-setting="background.image.size" data-value="contain">contain</button>
+                            <button class="option-btn" data-setting="background.image.size" data-value="auto">auto</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Accessibility Section -->
+                <section class="settings-section" id="accessibility">
+                    <h2>accessibility</h2>
+                    
+                    <div class="setting-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="reduce-motion">
+                            <span>reduce motion</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="high-contrast">
+                            <span>high contrast</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="large-text">
+                            <span>large text</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="focus-indicators" checked>
+                            <span>focus indicators</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="screen-reader-mode">
+                            <span>screen reader mode</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="keyboard-nav" checked>
+                            <span>keyboard navigation</span>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Advanced Section -->
+                <section class="settings-section" id="advanced">
+                    <h2>advanced</h2>
+                    
+                    <div class="setting-group">
+                        <label>custom css</label>
+                        <textarea id="custom-css" rows="10" placeholder="/* your custom CSS here */"></textarea>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="developer-mode">
+                            <span>developer mode</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="performance-mode">
+                            <span>performance mode</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="experimental-features">
+                            <span>experimental features</span>
+                        </label>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>export settings</label>
+                        <button class="export-btn" id="export-settings">download settings</button>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>import settings</label>
+                        <input type="file" id="import-settings" accept=".json">
+                    </div>
+                </section>
+
+                <!-- Presets Section -->
+                <section class="settings-section" id="presets">
+                    <h2>presets</h2>
+                    
+                    <div class="preset-grid">
+                        <button class="preset-card" data-preset="minimal">
+                            <h3>minimal</h3>
+                            <p>clean and distraction-free</p>
+                        </button>
+                        <button class="preset-card" data-preset="vibrant">
+                            <h3>vibrant</h3>
+                            <p>colorful and energetic</p>
+                        </button>
+                        <button class="preset-card" data-preset="dark-mode">
+                            <h3>midnight</h3>
+                            <p>dark theme optimized</p>
+                        </button>
+                        <button class="preset-card" data-preset="retro">
+                            <h3>retro</h3>
+                            <p>nostalgic terminal vibes</p>
+                        </button>
+                        <button class="preset-card" data-preset="glassmorphism">
+                            <h3>glass</h3>
+                            <p>modern translucent design</p>
+                        </button>
+                        <button class="preset-card" data-preset="brutalist">
+                            <h3>brutalist</h3>
+                            <p>bold and unapologetic</p>
+                        </button>
+                        <button class="preset-card" data-preset="pastel">
+                            <h3>pastel</h3>
+                            <p>soft and dreamy</p>
+                        </button>
+                        <button class="preset-card" data-preset="cyberpunk">
+                            <h3>cyberpunk</h3>
+                            <p>neon future aesthetic</p>
+                        </button>
+                    </div>
+                </section>
+            </main>
+
+            <aside class="preview-panel">
+                <h3>live preview</h3>
+                <div class="preview-frame">
+                    <iframe id="preview-iframe" src="/" title="Live Preview"></iframe>
+                </div>
+                <button class="preview-toggle" id="toggle-preview">hide preview</button>
+            </aside>
+        </div>
+    </div>
+
+    <script src="/static/settings-ui.js"></script>
+</body>
+</html>
