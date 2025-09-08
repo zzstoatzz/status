@@ -24,10 +24,7 @@
                 </a>
                 {% if is_owner %}
                 <button class="settings-toggle" id="settings-toggle" aria-label="Settings">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M12 1v6m0 6v6m4.22-13.22l4.24 4.24M18.36 18.36l4.24 4.24M23 12h-6m-6 0H1m4.22 4.22l-4.24 4.24M5.64 5.64L1.4 1.4"></path>
-                    </svg>
+                    <img src="https://api.iconify.design/lucide:settings.svg?color=%23888" width="20" height="20" alt="Settings">
                 </button>
                 <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
                 <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -283,7 +280,7 @@
 <script src="/static/emoji-data.js"></script>
 <style>
 body {
-    font-family: var(--font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+    font-family: var(--font-family) !important;
 }
 
 :root {
@@ -327,7 +324,6 @@ input, button, select, textarea {
 }
 
 body {
-    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", "Source Code Pro", "SF Mono", "Monaco", "Inconsolata", "Consolas", monospace;
     background: var(--bg-primary);
     color: var(--text-primary);
     line-height: 1.6;
@@ -1233,7 +1229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Apply font family
         const fontMap = {
             'system': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-            'mono': 'ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace',
+            'mono': '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
             'serif': 'ui-serif, Georgia, Cambria, serif',
             'comic': '"Comic Sans MS", "Comic Sans", cursive'
         };
@@ -1274,7 +1270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Apply
             const fontMap = {
                 'system': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                'mono': 'ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace',
+                'mono': '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
                 'serif': 'ui-serif, Georgia, Cambria, serif',
                 'comic': '"Comic Sans MS", "Comic Sans", cursive'
             };
