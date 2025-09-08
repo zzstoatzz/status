@@ -7,7 +7,7 @@
         <header class="header">
             <div class="feed-title-wrapper">
                 <h1 id="feed-title">global feed</h1>
-                {% if let Some(Profile {did, display_name}) = profile %}
+                {% if let Some(p) = &profile %}
                 <label class="feed-toggle" for="feed-toggle-input">
                     <input type="checkbox" id="feed-toggle-input" />
                     <span class="toggle-slider"></span>
@@ -21,7 +21,7 @@
                         <polyline points="9 22 9 12 15 12 15 22"></polyline>
                     </svg>
                 </a>
-                {% if let Some(Profile {did, display_name}) = profile %}
+                {% if let Some(p) = &profile %}
                 <button class="settings-toggle" id="settings-toggle" aria-label="Settings">
                     <img src="https://api.iconify.design/lucide:settings.svg?color=%23888" width="20" height="20" alt="Settings">
                 </button>
@@ -47,7 +47,7 @@
         </header>
         
         <!-- Simple Settings (logged in users only) -->
-        {% if let Some(Profile {did, display_name}) = profile %}
+        {% if let Some(p) = &profile %}
         <div class="simple-settings hidden" id="simple-settings">
             <div class="settings-row">
                 <label>font</label>
@@ -74,10 +74,10 @@
         {% endif %}
 
         <!-- Session Info -->
-        {% if let Some(Profile {did, display_name}) = profile %}
+        {% if let Some(p) = &profile %}
         <div class="session-card">
             <div class="session-info">
-                <span>logged in as <strong>{% if let Some(name) = display_name %}{{ name }}{% else %}{{ did }}{% endif %}</strong></span>
+                <span>logged in as <strong>{% if let Some(name) = &p.display_name %}{{ name }}{% else %}{% if let Some(h) = &p.handle %}{{ h }}{% else %}{{ p.did }}{% endif %}{% endif %}</strong></span>
                 <div class="session-actions">
                     <a href="/" class="button button-primary">your status</a>
                     <form action="/logout" method="get" style="display: inline;">
@@ -713,8 +713,24 @@ body {
         padding: 1rem;
     }
     
+    .header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+    
     .header h1 {
         font-size: 1.25rem;
+    }
+    
+    .feed-title-wrapper {
+        justify-content: space-between;
+        width: 100%;
+    }
+    
+    .header-actions {
+        justify-content: flex-end;
+        width: 100%;
     }
     
     .status-item {
@@ -877,7 +893,7 @@ let hasMore = true;
 let followingDids = null;
 let filterActive = false;
 // Store current user's DID to include their own posts in following feed
-const currentUserDid = {% if let Some(Profile {did, display_name}) = profile %}"{{ did }}"{% else %}null{% endif %};
+const currentUserDid = {% if let Some(p) = &profile %}"{{ p.did }}"{% else %}null{% endif %};
 
 // Load more statuses
 const loadMoreStatuses = async () => {

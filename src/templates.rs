@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct Profile {
     pub did: String,
     pub display_name: Option<String>,
+    pub handle: Option<String>,
 }
 
 #[derive(Template)]
