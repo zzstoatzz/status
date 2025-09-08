@@ -77,7 +77,7 @@
         {% if let Some(p) = &profile %}
         <div class="session-card">
             <div class="session-info">
-                <span>logged in as <strong>{% if let Some(name) = &p.display_name %}{{ name }}{% else %}{% if let Some(h) = &p.handle %}{{ h }}{% else %}{{ p.did }}{% endif %}{% endif %}</strong></span>
+                <span>logged in as <strong>{% if let Some(name) = &p.display_name %}{% if !name.is_empty() %}{{ name }}{% else %}{% if let Some(h) = &p.handle %}{{ h }}{% else %}{{ p.did }}{% endif %}{% endif %}{% else %}{% if let Some(h) = &p.handle %}{{ h }}{% else %}{{ p.did }}{% endif %}{% endif %}</strong></span>
                 <div class="session-actions">
                     <a href="/" class="button button-primary">your status</a>
                     <form action="/logout" method="get" style="display: inline;">
