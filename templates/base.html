@@ -25,6 +25,30 @@
     
     <!-- Shared Timestamp Formatter -->
     <script src="/static/timestamps.js"></script>
+    
+    <!-- Shared Settings Module -->
+    <script src="/static/settings.js"></script>
+    
+    <!-- Apply User Settings -->
+    <script>
+        // Apply saved settings immediately to prevent flash
+        (function() {
+            const savedFont = localStorage.getItem('fontFamily') || 'mono';
+            const savedAccent = localStorage.getItem('accentColor') || '#1DA1F2';
+            
+            // Use shared FONT_MAP from settings.js (will be available after load)
+            // For immediate application, we still need local fontMap to prevent flash
+            const fontMap = {
+                'system': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                'mono': '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
+                'serif': 'ui-serif, Georgia, Cambria, serif',
+                'comic': '"Comic Sans MS", "Comic Sans", cursive'
+            };
+            
+            document.documentElement.style.setProperty('--font-family', fontMap[savedFont] || fontMap.mono);
+            document.documentElement.style.setProperty('--accent', savedAccent);
+        })();
+    </script>
 </head>
 <body>
     {% block content %}{% endblock %}
