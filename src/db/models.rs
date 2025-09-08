@@ -1,100 +1,16 @@
 use actix_web::web::Data;
 use async_sqlite::{
-    Pool, rusqlite,
-    rusqlite::{Error, Row},
+    Pool,
+    rusqlite::{Error, Row, types::Type},
 };
 use atrium_api::types::string::Did;
 use chrono::{DateTime, Utc};
-use rusqlite::types::Type;
 use serde::{Deserialize, Serialize};
 use std::{
-    fmt::Debug,
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 
-/// Creates the tables in the db.
-pub async fn create_tables_in_database(pool: &Pool) -> Result<(), async_sqlite::Error> {
-    pool.conn(move |conn| {
-        conn.execute("PRAGMA foreign_keys = ON", []).unwrap();
-
-        // status
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS status (
-            uri TEXT PRIMARY KEY,
-            authorDid TEXT NOT NULL,
-            emoji TEXT NOT NULL,
-            text TEXT,
-            startedAt INTEGER NOT NULL,
-            expiresAt INTEGER,
-            indexedAt INTEGER NOT NULL
-        )",
-            [],
-        )
-        .unwrap();
-
-        // auth_session
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS auth_session (
-            key TEXT PRIMARY KEY,
-            session TEXT NOT NULL
-        )",
-            [],
-        )
-        .unwrap();
-
-        // auth_state
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS auth_state (
-            key TEXT PRIMARY KEY,
-            state TEXT NOT NULL
-        )",
-            [],
-        )
-        .unwrap();
-
-        // user_preferences
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS user_preferences (
-            did TEXT PRIMARY KEY,
-            font_family TEXT DEFAULT 'system',
-            accent_color TEXT DEFAULT '#1DA1F2',
-            updated_at INTEGER NOT NULL
-        )",
-            [],
-        )
-        .unwrap();
-
-        // Note: custom_emojis table removed - we serve emojis directly from static/emojis/ directory
-
-        // Add indexes for performance optimization
-        // Index on startedAt for feed queries (ORDER BY startedAt DESC)
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_status_startedAt ON status(startedAt DESC)",
-            [],
-        )
-        .unwrap();
-
-        // Composite index for user status queries (WHERE authorDid = ? ORDER BY startedAt DESC)
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_status_authorDid_startedAt ON status(authorDid, startedAt DESC)",
-            [],
-        )
-        .unwrap();
-
-        // Add hidden column for moderation (won't error if already exists)
-        let _ = conn.execute(
-            "ALTER TABLE status ADD COLUMN hidden BOOLEAN DEFAULT FALSE",
-            [],
-        );
-
-        Ok(())
-    })
-    .await?;
-    Ok(())
-}
-
-///Status table datatype
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StatusFromDb {
     pub uri: String,
@@ -107,7 +23,6 @@ pub struct StatusFromDb {
     pub handle: Option<String>,
 }
 
-//Status methods
 impl StatusFromDb {
     /// Creates a new [StatusFromDb]
     pub fn new(uri: String, author_did: String, status: String) -> Self {
@@ -125,7 +40,7 @@ impl StatusFromDb {
     }
 
     /// Helper to map from [Row] to [StatusDb]
-    fn map_from_row(row: &Row) -> Result<Self, rusqlite::Error> {
+    pub fn map_from_row(row: &Row) -> Result<Self, async_sqlite::rusqlite::Error> {
         Ok(Self {
             uri: row.get(0)?,
             author_did: row.get(1)?,
@@ -168,7 +83,7 @@ impl StatusFromDb {
         pool.conn(move |conn| {
             conn.execute(
                 "INSERT INTO status (uri, authorDid, emoji, text, startedAt, expiresAt, indexedAt) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                rusqlite::params![
+                async_sqlite::rusqlite::params![
                     &cloned_self.uri,
                     &cloned_self.author_did,
                     &cloned_self.status,  // emoji value
@@ -194,7 +109,7 @@ impl StatusFromDb {
                 true => {
                     let mut update_stmt =
                         conn.prepare("UPDATE status SET emoji = ?2, text = ?3, startedAt = ?4, expiresAt = ?5, indexedAt = ?6 WHERE uri = ?1")?;
-                    update_stmt.execute(rusqlite::params![
+                    update_stmt.execute(async_sqlite::rusqlite::params![
                         &cloned_self.uri,
                         &cloned_self.status,
                         &cloned_self.text,
@@ -207,7 +122,7 @@ impl StatusFromDb {
                 false => {
                     conn.execute(
                         "INSERT INTO status (uri, authorDid, emoji, text, startedAt, expiresAt, indexedAt) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                        rusqlite::params![
+                        async_sqlite::rusqlite::params![
                             &cloned_self.uri,
                             &cloned_self.author_did,
                             &cloned_self.status,  // emoji value
@@ -224,6 +139,7 @@ impl StatusFromDb {
         .await?;
         Ok(())
     }
+
     pub async fn delete_by_uri(pool: &Pool, uri: String) -> Result<(), async_sqlite::Error> {
         pool.conn(move |conn| {
             let mut stmt = conn.prepare("DELETE FROM status WHERE uri = ?1")?;
@@ -266,7 +182,7 @@ impl StatusFromDb {
                     "SELECT * FROM status WHERE (hidden IS NULL OR hidden = FALSE) ORDER BY startedAt DESC LIMIT ?1 OFFSET ?2"
                 )?;
                 let status_iter = stmt
-                    .query_map(rusqlite::params![limit, offset], |row| {
+                    .query_map(async_sqlite::rusqlite::params![limit, offset], |row| {
                         Ok(Self::map_from_row(row).unwrap())
                     })
                     .unwrap();
@@ -293,7 +209,7 @@ impl StatusFromDb {
             stmt.query_row([did.as_str()], Self::map_from_row)
                 .map(Some)
                 .or_else(|err| {
-                    if err == rusqlite::Error::QueryReturnedNoRows {
+                    if err == async_sqlite::rusqlite::Error::QueryReturnedNoRows {
                         Ok(None)
                     } else {
                         Err(err)
@@ -518,34 +434,6 @@ impl AuthState {
     }
 }
 
-// CustomEmoji struct removed - we serve emojis directly from static/emojis/ directory
-
-/// Get the most frequently used emojis from all statuses
-pub async fn get_frequent_emojis(
-    pool: &Pool,
-    limit: usize,
-) -> Result<Vec<String>, async_sqlite::Error> {
-    pool.conn(move |conn| {
-        let mut stmt = conn.prepare(
-            "SELECT emoji, COUNT(*) as count 
-             FROM status 
-             GROUP BY emoji 
-             ORDER BY count DESC 
-             LIMIT ?1",
-        )?;
-
-        let emoji_iter = stmt.query_map([limit], |row| row.get::<_, String>(0))?;
-
-        let mut emojis = Vec::new();
-        for emoji in emoji_iter {
-            emojis.push(emoji?);
-        }
-
-        Ok(emojis)
-    })
-    .await
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserPreferences {
     pub did: String,
@@ -558,7 +446,7 @@ impl Default for UserPreferences {
     fn default() -> Self {
         Self {
             did: String::new(),
-            font_family: "system".to_string(),
+            font_family: "mono".to_string(),
             accent_color: "#1DA1F2".to_string(),
             updated_at: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -566,63 +454,4 @@ impl Default for UserPreferences {
                 .as_secs() as i64,
         }
     }
-}
-
-/// Get user preferences for a given DID
-pub async fn get_user_preferences(
-    pool: &Pool,
-    did: &str,
-) -> Result<UserPreferences, async_sqlite::Error> {
-    let did = did.to_string();
-    pool.conn(move |conn| {
-        let mut stmt = conn.prepare(
-            "SELECT did, font_family, accent_color, updated_at 
-             FROM user_preferences 
-             WHERE did = ?1",
-        )?;
-
-        let result = stmt.query_row([&did], |row| {
-            Ok(UserPreferences {
-                did: row.get(0)?,
-                font_family: row.get(1)?,
-                accent_color: row.get(2)?,
-                updated_at: row.get(3)?,
-            })
-        });
-
-        match result {
-            Ok(prefs) => Ok(prefs),
-            Err(rusqlite::Error::QueryReturnedNoRows) => {
-                // Return default preferences for new users
-                Ok(UserPreferences {
-                    did: did.clone(),
-                    ..Default::default()
-                })
-            }
-            Err(e) => Err(e),
-        }
-    })
-    .await
-}
-
-/// Save user preferences
-pub async fn save_user_preferences(
-    pool: &Pool,
-    prefs: &UserPreferences,
-) -> Result<(), async_sqlite::Error> {
-    let prefs = prefs.clone();
-    pool.conn(move |conn| {
-        conn.execute(
-            "INSERT OR REPLACE INTO user_preferences (did, font_family, accent_color, updated_at) 
-             VALUES (?1, ?2, ?3, ?4)",
-            (
-                &prefs.did,
-                &prefs.font_family,
-                &prefs.accent_color,
-                &prefs.updated_at,
-            ),
-        )?;
-        Ok(())
-    })
-    .await
 }

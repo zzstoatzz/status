@@ -770,7 +770,7 @@ const toggleTheme = () => {
 // Simple settings
 const initSettings = async () => {
     // Try to load from API first, fall back to localStorage
-    let savedFont = localStorage.getItem('fontFamily') || 'system';
+    let savedFont = localStorage.getItem('fontFamily') || 'mono';
     let savedAccent = localStorage.getItem('accentColor') || '#1DA1F2';
     
     // If user is logged in, fetch from API
