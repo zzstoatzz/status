@@ -40,7 +40,7 @@ impl StatusFromDb {
     }
 
     /// Helper to map from [Row] to [StatusDb]
-    pub fn map_from_row(row: &Row) -> Result<Self, async_sqlite::rusqlite::Error> {
+    fn map_from_row(row: &Row) -> Result<Self, async_sqlite::rusqlite::Error> {
         Ok(Self {
             uri: row.get(0)?,
             author_did: row.get(1)?,
