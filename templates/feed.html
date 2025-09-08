@@ -21,6 +21,11 @@
                         <polyline points="9 22 9 12 15 12 15 22"></polyline>
                     </svg>
                 </a>
+                {% if let Some(Profile {did, display_name}) = profile %}
+                <button class="settings-toggle" id="settings-toggle" aria-label="Settings">
+                    <img src="https://api.iconify.design/lucide:settings.svg?color=%23888" width="20" height="20" alt="Settings">
+                </button>
+                {% endif %}
                 <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
                 <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="5"></circle>
@@ -40,6 +45,33 @@
             </button>
             </div>
         </header>
+        
+        <!-- Simple Settings (logged in users only) -->
+        {% if let Some(Profile {did, display_name}) = profile %}
+        <div class="simple-settings hidden" id="simple-settings">
+            <div class="settings-row">
+                <label>font</label>
+                <div class="button-group">
+                    <button class="font-btn active" data-font="system">system</button>
+                    <button class="font-btn" data-font="mono">mono</button>
+                    <button class="font-btn" data-font="serif">serif</button>
+                    <button class="font-btn" data-font="comic">comic</button>
+                </div>
+            </div>
+            <div class="settings-row">
+                <label>accent</label>
+                <input type="color" id="accent-color" value="#1DA1F2">
+                <div class="preset-colors">
+                    <button class="color-preset" data-color="#1DA1F2" style="background: #1DA1F2"></button>
+                    <button class="color-preset" data-color="#FF6B6B" style="background: #FF6B6B"></button>
+                    <button class="color-preset" data-color="#4ECDC4" style="background: #4ECDC4"></button>
+                    <button class="color-preset" data-color="#FFEAA7" style="background: #FFEAA7"></button>
+                    <button class="color-preset" data-color="#A29BFE" style="background: #A29BFE"></button>
+                    <button class="color-preset" data-color="#FD79A8" style="background: #FD79A8"></button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Session Info -->
         {% if let Some(Profile {did, display_name}) = profile %}
@@ -242,7 +274,112 @@ body {
 }
 
 .nav-button svg {
-    stroke: currentColor;
+    stroke: var(--accent);
+}
+
+/* Simple Settings */
+.simple-settings {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    transform-origin: top;
+}
+
+.simple-settings.hidden {
+    display: none;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.settings-row label {
+    min-width: 60px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.button-group {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.font-btn {
+    padding: 0.25rem 0.75rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+}
+
+.font-btn:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.font-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+#accent-color {
+    width: 50px;
+    height: 32px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.preset-colors {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.color-preset {
+    width: 24px;
+    height: 24px;
+    border: 2px solid transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.color-preset:hover {
+    transform: scale(1.2);
+    border-color: var(--text-primary);
+}
+
+/* Settings toggle button */
+.settings-toggle {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.settings-toggle:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+}
+
+.settings-toggle svg {
+    stroke: var(--accent);
 }
 
 .theme-toggle {
@@ -260,10 +397,11 @@ body {
 
 .theme-toggle:hover {
     background: var(--bg-tertiary);
+    border-color: var(--accent);
 }
 
 .theme-toggle svg {
-    stroke: var(--text-secondary);
+    stroke: var(--accent);
 }
 
 .sun-icon, .moon-icon {
@@ -629,6 +767,54 @@ const toggleTheme = () => {
     }
 };
 
+// Simple settings
+const initSettings = async () => {
+    // Try to load from API first, fall back to localStorage
+    let savedFont = localStorage.getItem('fontFamily') || 'system';
+    let savedAccent = localStorage.getItem('accentColor') || '#1DA1F2';
+    
+    // If user is logged in, fetch from API
+    const isLoggedIn = document.querySelector('.settings-toggle');
+    if (isLoggedIn) {
+        try {
+            const response = await fetch('/api/preferences');
+            if (response.ok) {
+                const data = await response.json();
+                if (!data.error) {
+                    savedFont = data.font_family || savedFont;
+                    savedAccent = data.accent_color || savedAccent;
+                    // Sync to localStorage
+                    localStorage.setItem('fontFamily', savedFont);
+                    localStorage.setItem('accentColor', savedAccent);
+                }
+            }
+        } catch (err) {
+            console.log('Using localStorage preferences');
+        }
+    }
+    
+    // Apply font family
+    const fontMap = {
+        'system': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        'mono': '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
+        'serif': 'ui-serif, Georgia, Cambria, serif',
+        'comic': '"Comic Sans MS", "Comic Sans", cursive'
+    };
+    document.documentElement.style.setProperty('--font-family', fontMap[savedFont] || fontMap.system);
+    
+    // Update buttons
+    document.querySelectorAll('.font-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.font === savedFont);
+    });
+    
+    // Apply accent color
+    document.documentElement.style.setProperty('--accent', savedAccent);
+    const accentInput = document.getElementById('accent-color');
+    if (accentInput) {
+        accentInput.value = savedAccent;
+    }
+};
+
 // Timestamp formatting is handled by /static/timestamps.js
 
 // Fetch user's following list
@@ -792,9 +978,90 @@ const checkScroll = () => {
 };
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
+    await initSettings();
     // Timestamps are auto-initialized by timestamps.js
+    
+    // Settings toggle
+    const settingsToggle = document.getElementById('settings-toggle');
+    const settingsPanel = document.getElementById('simple-settings');
+    if (settingsToggle && settingsPanel) {
+        settingsToggle.addEventListener('click', () => {
+            settingsPanel.classList.toggle('hidden');
+        });
+    }
+    
+    // Helper to save preferences to API
+    const savePreferencesToAPI = async (updates) => {
+        try {
+            await fetch('/api/preferences', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+        } catch (err) {
+            console.log('Failed to save preferences to server');
+        }
+    };
+    
+    // Font family buttons
+    document.querySelectorAll('.font-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const font = btn.dataset.font;
+            localStorage.setItem('fontFamily', font);
+            
+            // Update UI
+            document.querySelectorAll('.font-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // Apply
+            const fontMap = {
+                'system': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                'mono': '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
+                'serif': 'ui-serif, Georgia, Cambria, serif',
+                'comic': '"Comic Sans MS", "Comic Sans", cursive'
+            };
+            document.documentElement.style.setProperty('--font-family', fontMap[font] || fontMap.system);
+            
+            // Save to API if logged in
+            if (document.querySelector('.settings-toggle')) {
+                savePreferencesToAPI({ font_family: font });
+            }
+        });
+    });
+    
+    // Accent color
+    const accentInput = document.getElementById('accent-color');
+    if (accentInput) {
+        accentInput.addEventListener('input', () => {
+            const color = accentInput.value;
+            localStorage.setItem('accentColor', color);
+            document.documentElement.style.setProperty('--accent', color);
+            
+            // Save to API if logged in
+            if (document.querySelector('.settings-toggle')) {
+                savePreferencesToAPI({ accent_color: color });
+            }
+        });
+    }
+    
+    // Color presets
+    document.querySelectorAll('.color-preset').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const color = btn.dataset.color;
+            localStorage.setItem('accentColor', color);
+            document.documentElement.style.setProperty('--accent', color);
+            if (accentInput) {
+                accentInput.value = color;
+            }
+            
+            // Save to API if logged in
+            if (document.querySelector('.settings-toggle')) {
+                savePreferencesToAPI({ accent_color: color });
+            }
+        });
+    });
     
     // Theme toggle
     const themeToggle = document.getElementById('theme-toggle');

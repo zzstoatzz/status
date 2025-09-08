@@ -878,6 +878,74 @@ async fn status_json(db_pool: web::Data<Arc<Pool>>) -> Result<impl Responder> {
     Ok(web::Json(response))
 }
 
+/// Get user preferences
+#[get("/api/preferences")]
+async fn get_preferences(
+    session: Session,
+    db_pool: web::Data<Arc<Pool>>,
+) -> Result<impl Responder> {
+    let did = session.get::<Did>("did")?;
+
+    if let Some(did) = did {
+        let prefs = db::get_user_preferences(&db_pool, did.as_str())
+            .await
+            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        Ok(web::Json(serde_json::json!({
+            "font_family": prefs.font_family,
+            "accent_color": prefs.accent_color
+        })))
+    } else {
+        Ok(web::Json(serde_json::json!({
+            "error": "Not authenticated"
+        })))
+    }
+}
+
+#[derive(Deserialize)]
+struct PreferencesUpdate {
+    font_family: Option<String>,
+    accent_color: Option<String>,
+}
+
+/// Save user preferences
+#[post("/api/preferences")]
+async fn save_preferences(
+    session: Session,
+    db_pool: web::Data<Arc<Pool>>,
+    payload: web::Json<PreferencesUpdate>,
+) -> Result<impl Responder> {
+    let did = session.get::<Did>("did")?;
+
+    if let Some(did) = did {
+        let mut prefs = db::get_user_preferences(&db_pool, did.as_str())
+            .await
+            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        if let Some(font) = &payload.font_family {
+            prefs.font_family = font.clone();
+        }
+        if let Some(color) = &payload.accent_color {
+            prefs.accent_color = color.clone();
+        }
+        prefs.updated_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+
+        db::save_user_preferences(&db_pool, &prefs)
+            .await
+            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        Ok(web::Json(serde_json::json!({
+            "success": true
+        })))
+    } else {
+        Ok(web::Json(serde_json::json!({
+            "error": "Not authenticated"
+        })))
+    }
+}
+
 /// Feed page - shows all users' statuses
 #[get("/feed")]
 async fn feed(
@@ -1630,6 +1698,8 @@ async fn main() -> std::io::Result<()> {
             .service(get_frequent_emojis)
             .service(get_following)
             .service(api_feed)
+            .service(get_preferences)
+            .service(save_preferences)
             .service(user_status_page)
             .service(user_status_json)
             .service(status)

@@ -102,7 +102,7 @@
             {% else %}
             <div class="no-status">
                 <span class="status-emoji">💭</span>
-                <p class="status-text">No status set</p>
+                <p class="status-text">no status set</p>
             </div>
             {% endif %}
         </div>
@@ -134,7 +134,7 @@
                             type="text" 
                             name="text" 
                             id="status-text"
-                            placeholder="What's your status?"
+                            placeholder="what's your status?"
                             maxlength="100"
                             value=""
                             autocomplete="off"
@@ -1221,10 +1221,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Timestamps are auto-initialized by timestamps.js
     
     // Simple settings
-    const initSettings = () => {
-        // Load saved settings
-        const savedFont = localStorage.getItem('fontFamily') || 'system';
-        const savedAccent = localStorage.getItem('accentColor') || '#1DA1F2';
+    const initSettings = async () => {
+        // Try to load from API first, fall back to localStorage
+        let savedFont = localStorage.getItem('fontFamily') || 'system';
+        let savedAccent = localStorage.getItem('accentColor') || '#1DA1F2';
+        
+        // If user is logged in, fetch from API
+        const isOwner = document.querySelector('.settings-toggle');
+        if (isOwner) {
+            try {
+                const response = await fetch('/api/preferences');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (!data.error) {
+                        savedFont = data.font_family || savedFont;
+                        savedAccent = data.accent_color || savedAccent;
+                        // Sync to localStorage
+                        localStorage.setItem('fontFamily', savedFont);
+                        localStorage.setItem('accentColor', savedAccent);
+                    }
+                }
+            } catch (err) {
+                console.log('Using localStorage preferences');
+            }
+        }
         
         // Apply font family
         const fontMap = {
@@ -1257,6 +1277,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     
+    // Helper to save preferences to API
+    const savePreferencesToAPI = async (updates) => {
+        try {
+            await fetch('/api/preferences', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+        } catch (err) {
+            console.log('Failed to save preferences to server');
+        }
+    };
+    
     // Font family buttons
     document.querySelectorAll('.font-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1275,6 +1308,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 'comic': '"Comic Sans MS", "Comic Sans", cursive'
             };
             document.documentElement.style.setProperty('--font-family', fontMap[font] || fontMap.system);
+            
+            // Save to API if logged in
+            if (document.querySelector('.settings-toggle')) {
+                savePreferencesToAPI({ font_family: font });
+            }
         });
     });
     
@@ -1285,6 +1323,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const color = accentInput.value;
             localStorage.setItem('accentColor', color);
             document.documentElement.style.setProperty('--accent', color);
+            
+            // Save to API if logged in
+            if (document.querySelector('.settings-toggle')) {
+                savePreferencesToAPI({ accent_color: color });
+            }
         });
     }
     
@@ -1297,10 +1340,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (accentInput) {
                 accentInput.value = color;
             }
+            
+            // Save to API if logged in
+            if (document.querySelector('.settings-toggle')) {
+                savePreferencesToAPI({ accent_color: color });
+            }
         });
     });
     
-    initSettings();
+    await initSettings();
     
     // Load emoji data
     if (window.emojiDataLoader) {
