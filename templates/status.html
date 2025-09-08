@@ -81,10 +81,10 @@
                 <span class="status-emoji">
                     {% if current.status.starts_with("custom:") %}
                         {% let emoji_name = current.status.strip_prefix("custom:").unwrap() %}
-                        <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" class="custom-emoji-display"
+                        <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" title="{{emoji_name}}" class="custom-emoji-display"
                              onerror="this.onerror=null; this.src='/emojis/{{emoji_name}}.gif';">
                     {% else %}
-                        {{ current.status }}
+                        <span title="{{ current.status }}">{{ current.status }}</span>
                     {% endif %}
                 </span>
                 <div class="status-content">
@@ -118,13 +118,13 @@
                                 {% if let Some(current) = current_status.as_ref() %}
                                     {% if current.status.starts_with("custom:") %}
                                         {% let emoji_name = current.status.strip_prefix("custom:").unwrap() %}
-                                        <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" 
+                                        <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" title="{{emoji_name}}"
                                              onerror="this.onerror=null; this.src='/emojis/{{emoji_name}}.gif';">
                                     {% else %}
-                                        {{ current.status }}
+                                        <span title="{{ current.status }}">{{ current.status }}</span>
                                     {% endif %}
                                 {% else %}
-                                    😊
+                                    <span title="happy">😊</span>
                                 {% endif %}
                             </span>
                         </button>
@@ -227,10 +227,10 @@
                 <span class="history-emoji">
                     {% if status.status.starts_with("custom:") %}
                         {% let emoji_name = status.status.strip_prefix("custom:").unwrap() %}
-                        <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" class="custom-emoji-display"
+                        <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" title="{{emoji_name}}" class="custom-emoji-display"
                              onerror="this.onerror=null; this.src='/emojis/{{emoji_name}}.gif';">
                     {% else %}
-                        {{ status.status }}
+                        <span title="{{ status.status }}">{{ status.status }}</span>
                     {% endif %}
                 </span>
                 <div class="history-content">
