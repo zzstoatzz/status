@@ -565,6 +565,7 @@ pub async fn feed(
                                 let profile_data = Profile {
                                     did: profile.did.to_string(),
                                     display_name: profile.display_name.clone(),
+                                    handle: Some(profile.handle.to_string()),
                                 };
                                 Some(profile_data)
                             }
