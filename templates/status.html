@@ -94,7 +94,7 @@
                     <p class="status-meta">
                         <span class="local-time" data-timestamp="{{ current.started_at.to_rfc3339() }}" data-prefix="since"></span>
                         {% if current.expires_at.is_some() && !current.is_expired() %}
-                        • <span class="local-time" data-timestamp="{{ current.expires_at.as_ref().unwrap().to_rfc3339() }}" data-prefix="clears"></span>
+                        • <span class="expires-indicator"><span class="local-time" data-timestamp="{{ current.expires_at.as_ref().unwrap().to_rfc3339() }}" data-prefix="clears"></span></span>
                         {% endif %}
                     </p>
                 </div>
@@ -369,16 +369,36 @@ body {
 .handle-link {
     color: var(--text-secondary);
     text-decoration: none;
-    transition: color 0.2s;
+    transition: all 0.3s ease;
     display: inline-block;
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    position: relative;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+}
+
+.handle-link::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(45deg, var(--accent), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+    filter: blur(8px);
 }
 
 .handle-link:hover {
     color: var(--accent);
+    text-shadow: 0 0 20px rgba(74, 158, 255, 0.3);
+}
+
+.handle-link:hover::before {
+    opacity: 0.3;
 }
 
 .nav-button {
@@ -604,6 +624,17 @@ body {
     gap: 1rem;
 }
 
+@keyframes subtle-pulse {
+    0%, 100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 0 transparent);
+    }
+    50% {
+        transform: scale(1.02);
+        filter: drop-shadow(0 0 12px var(--accent));
+    }
+}
+
 .status-emoji {
     width: 3.5rem;
     height: 3.5rem;
@@ -612,6 +643,11 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
+}
+
+.current-status .status-emoji {
+    animation: subtle-pulse 4s ease-in-out infinite;
 }
 
 .custom-emoji-display {
@@ -642,6 +678,18 @@ body {
     font-size: 0.875rem;
     color: var(--text-secondary);
     margin: 0;
+}
+
+.expires-indicator {
+    color: var(--accent);
+    font-weight: 500;
+    position: relative;
+}
+
+.expires-indicator::before {
+    content: '⏱';
+    margin-right: 0.25rem;
+    opacity: 0.7;
 }
 
 /* Status Editor */
@@ -735,7 +783,8 @@ body {
 
 .clear-after-btn:hover {
     background: var(--bg-tertiary);
-    border-color: var(--text-secondary);
+    border-color: var(--accent);
+    color: var(--accent);
 }
 
 .save-btn {
@@ -747,11 +796,14 @@ body {
     font-size: 0.875rem;
     font-weight: 500;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .save-btn:hover {
     background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .save-btn:disabled {
@@ -898,6 +950,7 @@ body {
 
 .clear-option:hover {
     background: var(--bg-tertiary);
+    color: var(--accent);
 }
 
 .clear-option.active {
