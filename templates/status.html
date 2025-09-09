@@ -1436,10 +1436,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
-    // Set initial active preset
-    updateActivePreset(savedAccent);
-    
+    // Initialize settings first, then set active preset
     await initSettings();
+    
+    // Set initial active preset after settings are loaded
+    const currentAccent = localStorage.getItem('accentColor') || '#1DA1F2';
+    updateActivePreset(currentAccent);
     
     // Load emoji data
     if (window.emojiDataLoader) {
