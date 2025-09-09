@@ -1344,6 +1344,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (accentInput) {
             accentInput.value = savedAccent;
         }
+        
+        // Return the loaded values for use elsewhere
+        return { savedFont, savedAccent };
     };
     
     // Settings toggle
@@ -1437,11 +1440,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     
     // Initialize settings first, then set active preset
-    await initSettings();
+    const { savedFont, savedAccent } = await initSettings();
     
-    // Set initial active preset after settings are loaded
-    const currentAccent = localStorage.getItem('accentColor') || '#1DA1F2';
-    updateActivePreset(currentAccent);
+    // Set initial active preset after settings are loaded with the actual loaded accent
+    updateActivePreset(savedAccent);
     
     // Load emoji data
     if (window.emojiDataLoader) {
