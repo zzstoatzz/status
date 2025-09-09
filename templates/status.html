@@ -24,7 +24,7 @@
                 </a>
                 {% if is_owner %}
                 <button class="settings-toggle" id="settings-toggle" aria-label="Settings">
-                    <img src="https://api.iconify.design/lucide:settings.svg?color=%23888" width="20" height="20" alt="Settings">
+                    <img src="https://api.iconify.design/lucide:settings.svg" width="20" height="20" alt="Settings" class="settings-icon">
                 </button>
                 <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
                 <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -540,10 +540,16 @@ body {
 .settings-toggle:hover {
     background: var(--bg-tertiary);
     border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.1);
 }
 
-.settings-toggle svg {
-    stroke: var(--accent);
+.settings-icon {
+    filter: invert(50%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    transition: filter 0.2s;
+}
+
+.settings-toggle:hover .settings-icon {
+    filter: invert(50%) sepia(100%) saturate(500%) hue-rotate(190deg) brightness(100%) contrast(100%);
 }
 
 .theme-toggle {
