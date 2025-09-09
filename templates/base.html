@@ -28,6 +28,8 @@
     
     <!-- Shared Settings Module -->
     <script src="/static/settings.js"></script>
+    <!-- Markdown link renderer for statuses -->
+    <script src="/static/markdown.js"></script>
     
     <!-- Apply User Settings -->
     <script>
@@ -184,6 +186,14 @@
                     // Open in new tab
                     window.open(issueUrl, '_blank');
                 });
+            }
+        });
+    </script>
+    <script>
+        // Render markdown links in any status/history text on load
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.renderMarkdownLinksIn) {
+                window.renderMarkdownLinksIn(document);
             }
         });
     </script>

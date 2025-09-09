@@ -636,8 +636,8 @@ body {
         filter: drop-shadow(0 0 0 transparent);
     }
     50% {
-        transform: scale(1.018);
-        filter: drop-shadow(0 0 10px var(--accent));
+        transform: scale(1.01);
+        filter: drop-shadow(0 0 6px var(--accent));
     }
 }
 
@@ -674,6 +674,12 @@ body {
     font-size: 1.25rem;
     color: var(--text-primary);
     margin: 0;
+}
+
+.status-text a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
 }
 
 .no-status .status-text {
@@ -1070,6 +1076,12 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.history-text a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
 }
 
 .history-time {
