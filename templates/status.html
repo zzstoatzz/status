@@ -1344,6 +1344,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (accentInput) {
             accentInput.value = savedAccent;
         }
+        
+        // Return the loaded values for use elsewhere
+        return { savedFont, savedAccent };
     };
     
     // Settings toggle
@@ -1436,10 +1439,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
-    // Set initial active preset
-    updateActivePreset(savedAccent);
+    // Initialize settings first, then set active preset
+    const { savedFont, savedAccent } = await initSettings();
     
-    await initSettings();
+    // Set initial active preset after settings are loaded with the actual loaded accent
+    updateActivePreset(savedAccent);
     
     // Load emoji data
     if (window.emojiDataLoader) {
@@ -1489,35 +1493,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Show emoji picker
     if (emojiTrigger && emojiPicker) {
         emojiTrigger.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const wasHidden = emojiPicker.style.display === 'none';
-        emojiPicker.style.display = wasHidden ? 'block' : 'none';
-        clearPicker.style.display = 'none';
-        
-        if (wasHidden) {
-            // Position picker
-            const rect = emojiTrigger.getBoundingClientRect();
-            emojiPicker.style.top = rect.bottom + 'px';
-            emojiPicker.style.left = rect.left + 'px';
+            e.stopPropagation();
+            const wasHidden = emojiPicker.style.display === 'none';
+            emojiPicker.style.display = wasHidden ? 'block' : 'none';
+            clearPicker.style.display = 'none';
             
-            // Clear search and show categories
-            const emojiSearch = document.getElementById('emoji-search');
-            if (emojiSearch) {
-                emojiSearch.value = '';
-                document.getElementById('emoji-categories').classList.remove('hidden');
+            if (wasHidden) {
+                // Position picker
+                const rect = emojiTrigger.getBoundingClientRect();
+                emojiPicker.style.top = rect.bottom + 'px';
+                emojiPicker.style.left = rect.left + 'px';
+                
+                // Clear search and show categories
+                const emojiSearch = document.getElementById('emoji-search');
+                if (emojiSearch) {
+                    emojiSearch.value = '';
+                    document.getElementById('emoji-categories').classList.remove('hidden');
+                }
+                
+                // Load frequent emojis by default (wait for custom emojis to be loaded first)
+                loadCustomEmojis().then(() => {
+                    loadEmojiCategory('frequent');
+                });
+                
+                // Focus search for easy typing
+                setTimeout(() => {
+                    if (emojiSearch) emojiSearch.focus();
+                }, 50);
             }
-            
-            // Load frequent emojis by default (wait for custom emojis to be loaded first)
-            loadCustomEmojis().then(() => {
-                loadEmojiCategory('frequent');
-            });
-            
-            // Focus search for easy typing
-            setTimeout(() => {
-                if (emojiSearch) emojiSearch.focus();
-            }, 50);
-        }
-    });
+        });
     }
     
     // Store custom emojis
@@ -1640,15 +1644,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Show clear picker
     if (clearAfterBtn && clearPicker) {
         clearAfterBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        clearPicker.style.display = clearPicker.style.display === 'none' ? 'block' : 'none';
-        emojiPicker.style.display = 'none';
-        
-        // Position picker
-        const rect = clearAfterBtn.getBoundingClientRect();
-        clearPicker.style.top = rect.bottom + 'px';
-        clearPicker.style.left = rect.left + 'px';
-    });
+            e.stopPropagation();
+            clearPicker.style.display = clearPicker.style.display === 'none' ? 'block' : 'none';
+            emojiPicker.style.display = 'none';
+            
+            // Position picker
+            const rect = clearAfterBtn.getBoundingClientRect();
+            clearPicker.style.top = rect.bottom + 'px';
+            clearPicker.style.left = rect.left + 'px';
+        });
     }
     
     // Custom datetime elements
