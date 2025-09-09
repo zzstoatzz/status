@@ -49,8 +49,143 @@
             document.documentElement.style.setProperty('--accent', savedAccent);
         })();
     </script>
+    
+    <style>
+        /* Bug Report Button Styles */
+        .bug-report-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            background: var(--accent, #1DA1F2);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            z-index: 9999;
+        }
+        
+        .bug-report-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .bug-report-button svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+        
+        .bug-report-tooltip {
+            position: absolute;
+            bottom: 60px;
+            right: 0;
+            background: var(--bg-secondary, #1a1a1a);
+            color: var(--text-primary, #ffffff);
+            border: 1px solid var(--border-color, #2a2a2a);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .bug-report-button:hover .bug-report-tooltip {
+            opacity: 1;
+        }
+        
+        @media (max-width: 640px) {
+            .bug-report-button {
+                width: 40px;
+                height: 40px;
+                bottom: 15px;
+                right: 15px;
+            }
+            
+            .bug-report-button svg {
+                width: 20px;
+                height: 20px;
+            }
+        }
+    </style>
 </head>
 <body>
     {% block content %}{% endblock %}
+    
+    <!-- Bug Report Button -->
+    <button class="bug-report-button" id="bug-report-button" aria-label="Report a bug">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 8h-2.81a5.985 5.985 0 0 0-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5c-.49 0-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8zm-6 8h-4v-2h4v2zm0-4h-4v-2h4v2z"/>
+        </svg>
+        <span class="bug-report-tooltip">report a bug</span>
+    </button>
+    
+    <script>
+        // Bug Report Button Handler
+        document.addEventListener('DOMContentLoaded', function() {
+            const bugButton = document.getElementById('bug-report-button');
+            if (bugButton) {
+                bugButton.addEventListener('click', function() {
+                    // Gather context information
+                    const context = {
+                        page: window.location.pathname,
+                        url: window.location.href,
+                        userAgent: navigator.userAgent,
+                        screenResolution: `${window.screen.width}x${window.screen.height}`,
+                        viewportSize: `${window.innerWidth}x${window.innerHeight}`,
+                        theme: document.documentElement.getAttribute('data-theme') || 'light',
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    // Build issue title and body
+                    const title = '[Bug Report] Issue on ' + context.page;
+                    const body = `## Bug Description
+<!-- Please describe the bug you encountered -->
+
+
+## Steps to Reproduce
+<!-- Please list the steps to reproduce the bug -->
+1. 
+2. 
+3. 
+
+## Expected Behavior
+<!-- What did you expect to happen? -->
+
+
+## Actual Behavior
+<!-- What actually happened? -->
+
+
+## Context Information
+- **Page**: ${context.page}
+- **URL**: ${context.url}
+- **Timestamp**: ${context.timestamp}
+- **Theme**: ${context.theme}
+- **Viewport**: ${context.viewportSize}
+- **Screen**: ${context.screenResolution}
+- **User Agent**: ${context.userAgent}
+
+## Additional Information
+<!-- Any additional information, screenshots, etc. -->
+`;
+                    
+                    // Create GitHub issue URL
+                    const githubRepo = 'https://github.com/zzstoatzz/status.zzstoatzz.io';
+                    const issueUrl = `${githubRepo}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+                    
+                    // Open in new tab
+                    window.open(issueUrl, '_blank');
+                });
+            }
+        });
+    </script>
 </body>
 </html>
