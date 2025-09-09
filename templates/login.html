@@ -166,6 +166,17 @@ body {
 
 .theme-toggle:hover {
     background: var(--bg-tertiary);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.1);
+}
+
+.theme-toggle svg {
+    stroke: var(--text-secondary);
+    transition: stroke 0.2s;
+}
+
+.theme-toggle:hover svg {
+    stroke: var(--accent);
 }
 
 .sun-icon, .moon-icon {
