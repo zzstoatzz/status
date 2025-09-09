@@ -1487,7 +1487,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const expiresSelect = document.getElementById('expires_in');
     
     // Show emoji picker
-    emojiTrigger.addEventListener('click', (e) => {
+    if (emojiTrigger && emojiPicker) {
+        emojiTrigger.addEventListener('click', (e) => {
         e.stopPropagation();
         const wasHidden = emojiPicker.style.display === 'none';
         emojiPicker.style.display = wasHidden ? 'block' : 'none';
@@ -1517,6 +1518,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }, 50);
         }
     });
+    }
     
     // Store custom emojis
     let customEmojis = [];
@@ -1636,7 +1638,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     
     // Show clear picker
-    clearAfterBtn.addEventListener('click', (e) => {
+    if (clearAfterBtn && clearPicker) {
+        clearAfterBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         clearPicker.style.display = clearPicker.style.display === 'none' ? 'block' : 'none';
         emojiPicker.style.display = 'none';
@@ -1646,6 +1649,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         clearPicker.style.top = rect.bottom + 'px';
         clearPicker.style.left = rect.left + 'px';
     });
+    }
     
     // Custom datetime elements
     const customDatetime = document.getElementById('custom-datetime');
