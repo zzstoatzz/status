@@ -655,6 +655,12 @@ body {
     color: var(--text-primary);
 }
 
+.status-text a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
 .status-meta {
     font-size: 0.875rem;
     color: var(--text-tertiary);
@@ -950,6 +956,10 @@ const loadMoreStatuses = async () => {
             `;
             
             statusList.appendChild(statusItem);
+            // Render markdown links in the newly added item
+            if (window.renderMarkdownLinksIn) {
+                window.renderMarkdownLinksIn(statusItem);
+            }
         });
         
         // Re-initialize timestamps for newly added elements
