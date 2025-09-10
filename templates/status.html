@@ -1615,6 +1615,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Load custom emojis on page load
     loadCustomEmojis();
+
+    // Refresh custom emojis when an admin uploads a new one
+    document.addEventListener('custom-emoji-uploaded', async (e) => {
+        await loadCustomEmojis();
+        // If picker visible, refresh current category
+        if (emojiPicker && emojiPicker.style.display !== 'none') {
+            const active = document.querySelector('.emoji-categories .category-btn.active');
+            const cat = active ? active.getAttribute('data-category') : 'frequent';
+            loadEmojiCategory(cat || 'frequent');
+        }
+    });
     
     // Load emoji category
     const loadEmojiCategory = async (category) => {
@@ -2061,11 +2072,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const res = await fetch('/admin/upload-emoji', { method: 'POST', body: fd });
                 const json = await res.json();
                 if (!res.ok || !json.success) {
-                    msg.textContent = json.error || 'upload failed';
+                    if (json && json.code === 'name_exists') {
+                        msg.textContent = 'that name already exists — please pick another';
+                    } else {
+                        msg.textContent = (json && json.error) || 'upload failed';
+                    }
                     return;
                 }
-                msg.textContent = `uploaded: ${json.filename}`;
-                // Optionally refresh emoji list used by picker
+                // Notify listeners (e.g., emoji picker) and close panel
+                document.dispatchEvent(new CustomEvent('custom-emoji-uploaded', { detail: json }));
+                content.style.display = 'none';
+                form.reset();
+                msg.textContent = '';
             } catch (err) {
                 msg.textContent = 'network error';
             }

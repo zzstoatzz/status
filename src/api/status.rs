@@ -907,8 +907,11 @@ pub async fn upload_emoji(
     };
     let ext = file_ext.unwrap_or("png");
 
-    // Sanitize/derive filename
-    let base = desired_name.unwrap_or_else(|| format!("emoji_{}", chrono::Utc::now().timestamp()));
+    // Sanitize/derive filename base
+    let base = desired_name
+        .as_ref()
+        .cloned()
+        .unwrap_or_else(|| format!("emoji_{}", chrono::Utc::now().timestamp()));
     let mut safe: String = base
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
@@ -927,14 +930,37 @@ pub async fn upload_emoji(
         })));
     }
 
+    // If user provided a name explicitly and that base already exists with any supported
+    // extension, reject with a clear error so the UI can prompt to choose a different name.
+    if desired_name.is_some() {
+        let png_path = dir.join(format!("{}.png", safe.to_lowercase()));
+        let gif_path = dir.join(format!("{}.gif", safe.to_lowercase()));
+        if png_path.exists() || gif_path.exists() {
+            return Ok(HttpResponse::Conflict().json(serde_json::json!({
+                "error": "Name already exists. Choose a different name.",
+                "code": "name_exists",
+                "name": safe.to_lowercase(),
+            })));
+        }
+    }
+
     let mut path = dir.join(&filename);
     if path.exists() {
-        for i in 1..1000 {
-            filename = format!("{}-{}.{}", safe.to_lowercase(), i, ext);
-            path = dir.join(&filename);
-            if !path.exists() {
-                break;
+        // Only auto-deconflict when name wasn't provided explicitly
+        if desired_name.is_none() {
+            for i in 1..1000 {
+                filename = format!("{}-{}.{}", safe.to_lowercase(), i, ext);
+                path = dir.join(&filename);
+                if !path.exists() {
+                    break;
+                }
             }
+        } else {
+            return Ok(HttpResponse::Conflict().json(serde_json::json!({
+                "error": "Name already exists. Choose a different name.",
+                "code": "name_exists",
+                "name": safe.to_lowercase(),
+            })));
         }
     }
 
