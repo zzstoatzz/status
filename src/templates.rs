@@ -36,6 +36,7 @@ pub struct StatusTemplate<'a> {
     pub current_status: Option<StatusFromDb>,
     pub history: Vec<StatusFromDb>,
     pub is_owner: bool,
+    pub is_admin: bool,
 }
 
 #[derive(Template)]

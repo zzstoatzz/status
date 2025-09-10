@@ -130,12 +130,14 @@ pub async fn home(
                     vec![]
                 });
 
+            let is_admin_flag = is_admin(did.as_str());
             let html = StatusTemplate {
                 title: "your status",
                 handle,
                 current_status,
                 history,
                 is_owner: true, // They're viewing their own status
+                is_admin: is_admin_flag,
             }
             .render()
             .expect("template should be valid");
@@ -192,6 +194,7 @@ pub async fn home(
                 current_status,
                 history,
                 is_owner: false, // Visitor viewing owner's status
+                is_admin: false,
             }
             .render()
             .expect("template should be valid");
@@ -275,12 +278,17 @@ pub async fn user_status_page(
             vec![]
         });
 
+    let is_admin_flag = match session.get::<String>("did").unwrap_or(None) {
+        Some(d) => is_admin(&d),
+        None => false,
+    };
     let html = StatusTemplate {
         title: &format!("@{} status", handle),
         handle: handle.clone(),
         current_status,
         history,
         is_owner,
+        is_admin: is_admin_flag,
     }
     .render()
     .expect("template should be valid");
