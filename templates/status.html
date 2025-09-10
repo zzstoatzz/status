@@ -1524,6 +1524,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (window.emojiDataLoader) {
         const data = await window.emojiDataLoader.loadEmojiData();
         emojiKeywords = data.emojis;
+        window.__emojiSlugs = data.slugs || {};
+        window.__reservedEmojiNames = new Set(data.reserved || []);
         
         // Load frequent emojis from API
         let frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🔥', '✨', '💯', '🚀', '💪', '🙏', '👏']; // defaults
@@ -1699,9 +1701,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             // Load standard Unicode emojis
             const emojis = emojiData[category] || [];
-            emojiGrid.innerHTML = emojis.map(emoji => 
-                `<button type="button" class="emoji-option" data-emoji="${emoji}">${emoji}</button>`
-            ).join('');
+            emojiGrid.innerHTML = emojis.map(emoji => {
+                const slug = (window.__emojiSlugs && window.__emojiSlugs[emoji]) || '';
+                return `<button type="button" class="emoji-option" data-emoji="${emoji}" data-name="${slug}" title="${slug}">${emoji}</button>`;
+            }).join('');
             
             // Add click handlers for standard emojis
             emojiGrid.querySelectorAll('.emoji-option').forEach(btn => {
@@ -2058,6 +2061,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             msg.textContent = '';
             if (!file.files || file.files.length === 0) {
                 msg.textContent = 'choose a PNG or GIF';
+                return;
+            }
+            // Require a name; prefill from filename if empty
+            if (!name.value.trim().length) {
+                const base = (file.files[0].name || '').replace(/\.[^.]+$/, '');
+                const sanitized = base.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+                name.value = sanitized || '';
+            }
+            if (!name.value.trim().length) {
+                msg.textContent = 'please choose a name';
+                return;
+            }
+            // Client-side reserved check (best-effort)
+            if (window.__reservedEmojiNames && window.__reservedEmojiNames.has(name.value.trim().toLowerCase())) {
+                msg.textContent = 'that name is reserved by a standard emoji';
                 return;
             }
             const f = file.files[0];

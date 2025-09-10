@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::emoji::is_builtin_slug;
 use crate::resolver::HickoryDnsTxtResolver;
 use crate::{
     api::auth::OAuthClientType,
@@ -927,6 +928,15 @@ pub async fn upload_emoji(
         log::error!("Failed to create emoji dir {}: {}", app_config.emoji_dir, e);
         return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
             "error": "Filesystem error"
+        })));
+    }
+
+    // If user provided a name explicitly and it conflicts with a builtin emoji slug, reject
+    if desired_name.is_some() && is_builtin_slug(&safe.to_lowercase()).await {
+        return Ok(HttpResponse::Conflict().json(serde_json::json!({
+            "error": "Name is reserved by a standard emoji.",
+            "code": "name_exists",
+            "name": safe.to_lowercase(),
         })));
     }
 

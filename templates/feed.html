@@ -1292,6 +1292,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                     msg.textContent = 'choose a PNG or GIF';
                     return;
                 }
+                // Require a name; prefill from filename if empty
+                if (!name.value.trim().length) {
+                    const base = (file.files[0].name || '').replace(/\.[^.]+$/, '');
+                    const sanitized = base.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+                    name.value = sanitized || '';
+                }
+                if (!name.value.trim().length) {
+                    msg.textContent = 'please choose a name';
+                    return;
+                }
+                // Client-side reserved check (best-effort)
+                if (window.__reservedEmojiNames && window.__reservedEmojiNames.has(name.value.trim().toLowerCase())) {
+                    msg.textContent = 'that name is reserved by a standard emoji';
+                    return;
+                }
                 const f = file.files[0];
                 if (!['image/png','image/gif'].includes(f.type)) {
                     msg.textContent = 'only PNG or GIF';
