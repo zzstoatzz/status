@@ -472,7 +472,7 @@ impl WebhookConfig {
     pub fn new(user_did: String, webhook_url: String, webhook_secret: String) -> Self {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_else(|_| std::time::Duration::from_secs(0))
             .as_secs() as i64;
         
         Self {
@@ -529,12 +529,12 @@ impl WebhookConfig {
                     let mut update_stmt = conn.prepare(
                         "UPDATE webhook_configs SET webhook_url = ?1, webhook_secret = ?2, enabled = ?3, updated_at = ?4 WHERE id = ?5"
                     )?;
-                    update_stmt.execute([
-                        &cloned_self.webhook_url,
-                        &cloned_self.webhook_secret,
-                        &cloned_self.enabled.to_string(),
-                        &cloned_self.updated_at.to_string(),
-                        &id.to_string(),
+                    update_stmt.execute(async_sqlite::rusqlite::params![
+                        cloned_self.webhook_url,
+                        cloned_self.webhook_secret,
+                        cloned_self.enabled,
+                        cloned_self.updated_at,
+                        id,
                     ])?;
                     Ok(id)
                 }
@@ -542,13 +542,13 @@ impl WebhookConfig {
                     // Insert new
                     conn.execute(
                         "INSERT INTO webhook_configs (user_did, webhook_url, webhook_secret, enabled, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                        [
-                            &cloned_self.user_did,
-                            &cloned_self.webhook_url,
-                            &cloned_self.webhook_secret,
-                            &cloned_self.enabled.to_string(),
-                            &cloned_self.created_at.to_string(),
-                            &cloned_self.updated_at.to_string(),
+                        async_sqlite::rusqlite::params![
+                            cloned_self.user_did,
+                            cloned_self.webhook_url,
+                            cloned_self.webhook_secret,
+                            cloned_self.enabled,
+                            cloned_self.created_at,
+                            cloned_self.updated_at,
                         ],
                     )?;
                     Ok(conn.last_insert_rowid())

@@ -5,7 +5,10 @@ use async_sqlite::Pool;
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}};
+use std::{
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 use uuid::Uuid;
 
 type HmacSha256 = Hmac<Sha256>;
@@ -93,8 +96,9 @@ impl WebhookEvent {
 
 /// Generate HMAC signature for webhook payload
 pub fn generate_signature(secret: &str, timestamp: i64, payload: &str) -> String {
-    let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC can take key of any size");
-    let message = format!("v0:{}:{}", timestamp, payload);
+    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+        .expect("HMAC can take key of any size");
+    let message = format!("v1:{}:{}", timestamp, payload);
     mac.update(message.as_bytes());
     let result = mac.finalize();
     format!("v1={}", hex::encode(result.into_bytes()))
