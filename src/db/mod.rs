@@ -1,7 +1,7 @@
 pub mod models;
 pub mod queries;
 
-pub use models::{AuthSession, AuthState, StatusFromDb};
+pub use models::{AuthSession, AuthState, StatusFromDb, WebhookConfig, WebhookDelivery};
 pub use queries::{get_frequent_emojis, get_user_preferences, save_user_preferences};
 
 use async_sqlite::Pool;
@@ -80,6 +80,62 @@ pub async fn create_tables_in_database(pool: &Pool) -> Result<(), async_sqlite::
             "ALTER TABLE status ADD COLUMN hidden BOOLEAN DEFAULT FALSE",
             [],
         );
+
+        // webhook_configs table for storing webhook configurations
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS webhook_configs (
+            id INTEGER PRIMARY KEY,
+            user_did TEXT NOT NULL,
+            webhook_url TEXT NOT NULL,
+            webhook_secret TEXT NOT NULL,
+            enabled BOOLEAN DEFAULT TRUE,
+            last_delivery_at INTEGER,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            UNIQUE(user_did)
+        )",
+            [],
+        )
+        .unwrap();
+
+        // webhook_deliveries table for tracking delivery history
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS webhook_deliveries (
+            id INTEGER PRIMARY KEY,
+            config_id INTEGER NOT NULL,
+            event_id TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            delivered_at INTEGER NOT NULL,
+            response_status INTEGER,
+            response_body TEXT,
+            retry_count INTEGER DEFAULT 0,
+            next_retry_at INTEGER,
+            success BOOLEAN DEFAULT FALSE,
+            FOREIGN KEY(config_id) REFERENCES webhook_configs(id) ON DELETE CASCADE
+        )",
+            [],
+        )
+        .unwrap();
+
+        // Add indexes for webhook tables
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_config_id ON webhook_deliveries(config_id)",
+            [],
+        )
+        .unwrap();
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_delivered_at ON webhook_deliveries(delivered_at DESC)",
+            [],
+        )
+        .unwrap();
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_event_id ON webhook_deliveries(event_id)",
+            [],
+        )
+        .unwrap();
 
         Ok(())
     })

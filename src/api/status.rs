@@ -2,14 +2,14 @@ use crate::config::Config;
 use crate::emoji::is_builtin_slug;
 use crate::resolver::HickoryDnsTxtResolver;
 use crate::{
-    api::auth::OAuthClientType,
+    api::{auth::OAuthClientType, webhooks},
     config,
-    db::{self, StatusFromDb},
+    db::{self, StatusFromDb, WebhookConfig},
     dev_utils,
     error_handler::AppError,
     lexicons::record::KnownRecord,
     rate_limiter::RateLimiter,
-    templates::{ErrorTemplate, FeedTemplate, Profile, StatusTemplate},
+    templates::{ErrorTemplate, FeedTemplate, Profile, StatusTemplate, WebhookSettingsTemplate},
 };
 use actix_multipart::Multipart;
 use actix_session::Session;
@@ -1073,6 +1073,7 @@ pub async fn clear_status(
     session: Session,
     oauth_client: web::Data<OAuthClientType>,
     db_pool: web::Data<Arc<Pool>>,
+    handle_resolver: web::Data<HandleResolver>,
 ) -> HttpResponse {
     // Check if the user is logged in
     match session.get::<String>("did").unwrap_or(None) {
@@ -1118,9 +1119,33 @@ pub async fn clear_status(
                                         // Also remove from local database
                                         let _ = StatusFromDb::delete_by_uri(
                                             &db_pool,
-                                            current_status.uri,
+                                            current_status.uri.clone(),
                                         )
                                         .await;
+
+                                        // Emit webhook event for status clearing
+                                        let handle = match handle_resolver.resolve(&did).await {
+                                            Ok(did_doc) => did_doc
+                                                .also_known_as
+                                                .and_then(|aka| aka.first().map(|h| h.replace("at://", "")))
+                                                .unwrap_or_else(|| did_string.clone()),
+                                            Err(_) => did_string.clone(),
+                                        };
+
+                                        let webhook_event = webhooks::WebhookEvent::new_status_cleared(
+                                            did_string.clone(),
+                                            handle,
+                                            current_status.uri.clone(),
+                                        );
+
+                                        // Emit webhook event asynchronously
+                                        let db_pool_clone = db_pool.get_ref().clone();
+                                        let user_did_clone = did_string.clone();
+                                        tokio::spawn(async move {
+                                            if let Err(err) = webhooks::emit_webhook_event(&db_pool_clone, &user_did_clone, &webhook_event).await {
+                                                log::error!("Failed to emit webhook event for status clearing: {}", err);
+                                            }
+                                        });
 
                                         Redirect::to("/")
                                             .see_other()
@@ -1172,6 +1197,7 @@ pub async fn delete_status(
     session: Session,
     oauth_client: web::Data<OAuthClientType>,
     db_pool: web::Data<Arc<Pool>>,
+    handle_resolver: web::Data<HandleResolver>,
     req: web::Json<DeleteRequest>,
 ) -> HttpResponse {
     // Check if the user is logged in
@@ -1229,6 +1255,30 @@ pub async fn delete_status(
                                 // Also remove from local database
                                 let _ =
                                     StatusFromDb::delete_by_uri(&db_pool, req.uri.clone()).await;
+
+                                // Emit webhook event for status deletion
+                                let handle = match handle_resolver.resolve(&did).await {
+                                    Ok(did_doc) => did_doc
+                                        .also_known_as
+                                        .and_then(|aka| aka.first().map(|h| h.replace("at://", "")))
+                                        .unwrap_or_else(|| did_string.clone()),
+                                    Err(_) => did_string.clone(),
+                                };
+
+                                let webhook_event = webhooks::WebhookEvent::new_status_cleared(
+                                    did_string.clone(),
+                                    handle,
+                                    req.uri.clone(),
+                                );
+
+                                // Emit webhook event asynchronously
+                                let db_pool_clone = db_pool.get_ref().clone();
+                                let user_did_clone = did_string.clone();
+                                tokio::spawn(async move {
+                                    if let Err(err) = webhooks::emit_webhook_event(&db_pool_clone, &user_did_clone, &webhook_event).await {
+                                        log::error!("Failed to emit webhook event for status deletion: {}", err);
+                                    }
+                                });
 
                                 HttpResponse::Ok().json(serde_json::json!({
                                     "success": true
@@ -1317,6 +1367,49 @@ pub async fn hide_status(
     }
 }
 
+/// Webhook settings page
+#[get("/webhook-settings")]
+pub async fn webhook_settings(
+    session: Session,
+    db_pool: web::Data<Arc<Pool>>,
+    handle_resolver: web::Data<HandleResolver>,
+) -> Result<impl Responder> {
+    let user_did = match session.get::<String>("did").unwrap_or(None) {
+        Some(did) => did,
+        None => {
+            // Redirect to login if not authenticated
+            return Ok(Redirect::to("/login")
+                .see_other()
+                .respond_to(&actix_web::HttpRequest::from_parts(actix_web::http::header::HeaderMap::new(), actix_web::http::Extensions::new()))
+                .map_into_boxed_body());
+        }
+    };
+
+    let did = atrium_api::types::string::Did::new(user_did.clone()).expect("failed to parse did");
+
+    // Get their handle
+    let handle = match handle_resolver.resolve(&did).await {
+        Ok(did_doc) => did_doc
+            .also_known_as
+            .and_then(|aka| aka.first().map(|h| h.replace("at://", "")))
+            .unwrap_or_else(|| user_did.clone()),
+        Err(_) => user_did.clone(),
+    };
+
+    // Get webhook configuration if it exists
+    let webhook_config = WebhookConfig::get_by_user_did(&db_pool, &user_did).await.unwrap_or(None);
+
+    let html = WebhookSettingsTemplate {
+        title: "Webhook Settings",
+        handle,
+        webhook_config,
+    }
+    .render()
+    .expect("template should be valid");
+
+    Ok(web::Html::new(html))
+}
+
 /// Creates a new status
 #[post("/status")]
 pub async fn status(
@@ -1324,6 +1417,7 @@ pub async fn status(
     session: Session,
     oauth_client: web::Data<OAuthClientType>,
     db_pool: web::Data<Arc<Pool>>,
+    handle_resolver: web::Data<HandleResolver>,
     form: web::Form<StatusForm>,
     rate_limiter: web::Data<RateLimiter>,
 ) -> Result<HttpResponse, AppError> {
@@ -1402,6 +1496,34 @@ pub async fn status(
                             }
 
                             let _ = status.save(db_pool).await;
+
+                            // Emit webhook event for status creation
+                            let handle = match handle_resolver.resolve(&did).await {
+                                Ok(did_doc) => did_doc
+                                    .also_known_as
+                                    .and_then(|aka| aka.first().map(|h| h.replace("at://", "")))
+                                    .unwrap_or_else(|| did_string.clone()),
+                                Err(_) => did_string.clone(),
+                            };
+
+                            let webhook_event = webhooks::WebhookEvent::new_status_set(
+                                did_string.clone(),
+                                handle,
+                                form.status.clone(),
+                                form.text.clone(),
+                                expires.map(|e| e.to_string()),
+                                record.uri.clone(),
+                            );
+
+                            // Emit webhook event asynchronously (don't block the response)
+                            let db_pool_clone = db_pool.get_ref().clone();
+                            let user_did_clone = did_string.clone();
+                            tokio::spawn(async move {
+                                if let Err(err) = webhooks::emit_webhook_event(&db_pool_clone, &user_did_clone, &webhook_event).await {
+                                    log::error!("Failed to emit webhook event: {}", err);
+                                }
+                            });
+
                             Ok(Redirect::to("/")
                                 .see_other()
                                 .respond_to(&request)

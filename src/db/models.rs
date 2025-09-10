@@ -455,3 +455,230 @@ impl Default for UserPreferences {
         }
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebhookConfig {
+    pub id: Option<i64>,
+    pub user_did: String,
+    pub webhook_url: String,
+    pub webhook_secret: String,
+    pub enabled: bool,
+    pub last_delivery_at: Option<i64>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+impl WebhookConfig {
+    pub fn new(user_did: String, webhook_url: String, webhook_secret: String) -> Self {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        
+        Self {
+            id: None,
+            user_did,
+            webhook_url,
+            webhook_secret,
+            enabled: true,
+            last_delivery_at: None,
+            created_at: now,
+            updated_at: now,
+        }
+    }
+
+    fn map_from_row(row: &Row) -> Result<Self, Error> {
+        Ok(Self {
+            id: Some(row.get(0)?),
+            user_did: row.get(1)?,
+            webhook_url: row.get(2)?,
+            webhook_secret: row.get(3)?,
+            enabled: row.get(4)?,
+            last_delivery_at: row.get(5)?,
+            created_at: row.get(6)?,
+            updated_at: row.get(7)?,
+        })
+    }
+
+    pub async fn get_by_user_did(pool: &Pool, user_did: &str) -> Result<Option<Self>, async_sqlite::Error> {
+        let user_did = user_did.to_string();
+        pool.conn(move |conn| {
+            let mut stmt = conn.prepare("SELECT * FROM webhook_configs WHERE user_did = ?1")?;
+            stmt.query_row([&user_did], Self::map_from_row)
+                .map(Some)
+                .or_else(|err| {
+                    if err == Error::QueryReturnedNoRows {
+                        Ok(None)
+                    } else {
+                        Err(err)
+                    }
+                })
+        })
+        .await
+    }
+
+    pub async fn save_or_update(&self, pool: &Pool) -> Result<i64, async_sqlite::Error> {
+        let cloned_self = self.clone();
+        pool.conn(move |conn| {
+            let mut stmt = conn.prepare("SELECT id FROM webhook_configs WHERE user_did = ?1")?;
+            let existing_id: Result<i64, _> = stmt.query_row([&cloned_self.user_did], |row| row.get(0));
+            
+            match existing_id {
+                Ok(id) => {
+                    // Update existing
+                    let mut update_stmt = conn.prepare(
+                        "UPDATE webhook_configs SET webhook_url = ?1, webhook_secret = ?2, enabled = ?3, updated_at = ?4 WHERE id = ?5"
+                    )?;
+                    update_stmt.execute([
+                        &cloned_self.webhook_url,
+                        &cloned_self.webhook_secret,
+                        &cloned_self.enabled.to_string(),
+                        &cloned_self.updated_at.to_string(),
+                        &id.to_string(),
+                    ])?;
+                    Ok(id)
+                }
+                Err(Error::QueryReturnedNoRows) => {
+                    // Insert new
+                    conn.execute(
+                        "INSERT INTO webhook_configs (user_did, webhook_url, webhook_secret, enabled, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                        [
+                            &cloned_self.user_did,
+                            &cloned_self.webhook_url,
+                            &cloned_self.webhook_secret,
+                            &cloned_self.enabled.to_string(),
+                            &cloned_self.created_at.to_string(),
+                            &cloned_self.updated_at.to_string(),
+                        ],
+                    )?;
+                    Ok(conn.last_insert_rowid())
+                }
+                Err(e) => Err(e),
+            }
+        })
+        .await
+    }
+
+    pub async fn delete_by_user_did(pool: &Pool, user_did: &str) -> Result<(), async_sqlite::Error> {
+        let user_did = user_did.to_string();
+        pool.conn(move |conn| {
+            let mut stmt = conn.prepare("DELETE FROM webhook_configs WHERE user_did = ?1")?;
+            stmt.execute([&user_did])
+        })
+        .await?;
+        Ok(())
+    }
+
+    pub async fn update_last_delivery(&self, pool: &Pool, delivery_time: i64) -> Result<(), async_sqlite::Error> {
+        let config_id = self.id.ok_or_else(|| async_sqlite::Error::Rusqlite(Error::InvalidColumnType(0, "Config ID is required".to_string(), async_sqlite::rusqlite::types::Type::Integer)))?;
+        pool.conn(move |conn| {
+            let mut stmt = conn.prepare("UPDATE webhook_configs SET last_delivery_at = ?1 WHERE id = ?2")?;
+            stmt.execute([&delivery_time.to_string(), &config_id.to_string()])
+        })
+        .await?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebhookDelivery {
+    pub id: Option<i64>,
+    pub config_id: i64,
+    pub event_id: String,
+    pub event_type: String,
+    pub payload: String,
+    pub delivered_at: i64,
+    pub response_status: Option<i32>,
+    pub response_body: Option<String>,
+    pub retry_count: i32,
+    pub next_retry_at: Option<i64>,
+    pub success: bool,
+}
+
+impl WebhookDelivery {
+    pub fn new(config_id: i64, event_id: String, event_type: String, payload: String) -> Self {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        
+        Self {
+            id: None,
+            config_id,
+            event_id,
+            event_type,
+            payload,
+            delivered_at: now,
+            response_status: None,
+            response_body: None,
+            retry_count: 0,
+            next_retry_at: None,
+            success: false,
+        }
+    }
+
+    fn map_from_row(row: &Row) -> Result<Self, Error> {
+        Ok(Self {
+            id: Some(row.get(0)?),
+            config_id: row.get(1)?,
+            event_id: row.get(2)?,
+            event_type: row.get(3)?,
+            payload: row.get(4)?,
+            delivered_at: row.get(5)?,
+            response_status: row.get(6)?,
+            response_body: row.get(7)?,
+            retry_count: row.get(8)?,
+            next_retry_at: row.get(9)?,
+            success: row.get(10)?,
+        })
+    }
+
+    pub async fn save(&self, pool: &Pool) -> Result<i64, async_sqlite::Error> {
+        let cloned_self = self.clone();
+        pool.conn(move |conn| {
+            conn.execute(
+                "INSERT INTO webhook_deliveries (config_id, event_id, event_type, payload, delivered_at, response_status, response_body, retry_count, next_retry_at, success) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                [
+                    &cloned_self.config_id.to_string(),
+                    &cloned_self.event_id,
+                    &cloned_self.event_type,
+                    &cloned_self.payload,
+                    &cloned_self.delivered_at.to_string(),
+                    &cloned_self.response_status.map(|s| s.to_string()).unwrap_or_default(),
+                    &cloned_self.response_body.unwrap_or_default(),
+                    &cloned_self.retry_count.to_string(),
+                    &cloned_self.next_retry_at.map(|t| t.to_string()).unwrap_or_default(),
+                    &cloned_self.success.to_string(),
+                ],
+            )?;
+            Ok(conn.last_insert_rowid())
+        })
+        .await
+    }
+
+    pub async fn get_recent_deliveries(pool: &Pool, config_id: i64, limit: i32) -> Result<Vec<Self>, async_sqlite::Error> {
+        pool.conn(move |conn| {
+            let mut stmt = conn.prepare(
+                "SELECT * FROM webhook_deliveries WHERE config_id = ?1 ORDER BY delivered_at DESC LIMIT ?2"
+            )?;
+            let delivery_iter = stmt.query_map([&config_id.to_string(), &limit.to_string()], Self::map_from_row)?;
+            let mut deliveries = Vec::new();
+            for delivery in delivery_iter {
+                deliveries.push(delivery?);
+            }
+            Ok(deliveries)
+        })
+        .await
+    }
+
+    pub async fn update_result(&self, pool: &Pool, status: i32, body: Option<String>, success: bool) -> Result<(), async_sqlite::Error> {
+        let delivery_id = self.id.ok_or_else(|| async_sqlite::Error::Rusqlite(Error::InvalidColumnType(0, "Delivery ID is required".to_string(), async_sqlite::rusqlite::types::Type::Integer)))?;
+        let body = body.unwrap_or_default();
+        pool.conn(move |conn| {
+            let mut stmt = conn.prepare("UPDATE webhook_deliveries SET response_status = ?1, response_body = ?2, success = ?3 WHERE id = ?4")?;
+            stmt.execute([&status.to_string(), &body, &success.to_string(), &delivery_id.to_string()])
+        })
+        .await?;
+        Ok(())
+    }
+}

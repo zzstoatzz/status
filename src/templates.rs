@@ -1,6 +1,6 @@
 ///The askama template types for HTML
 ///
-use crate::db::StatusFromDb;
+use crate::db::{StatusFromDb, WebhookConfig};
 use askama::Template;
 use serde::{Deserialize, Serialize};
 
@@ -48,4 +48,13 @@ pub struct FeedTemplate<'a> {
     pub statuses: Vec<StatusFromDb>,
     pub is_admin: bool,
     pub dev_mode: bool,
+}
+
+#[derive(Template)]
+#[template(path = "webhook_settings.html")]
+pub struct WebhookSettingsTemplate<'a> {
+    #[allow(dead_code)]
+    pub title: &'a str,
+    pub handle: String,
+    pub webhook_config: Option<WebhookConfig>,
 }
