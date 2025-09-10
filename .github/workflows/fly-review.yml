@@ -3,6 +3,17 @@ on:
   # Run this workflow on every PR event. Existing review apps will be updated when the PR is updated.
   pull_request:
     types: [opened, reopened, synchronize, closed]
+    paths:
+      - 'src/**'
+      - 'templates/**'
+      - 'static/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'Dockerfile'
+      - 'fly.toml'
+      - 'fly.review.toml'
+      - 'build.rs'
+      - 'sqlx-data.json'
 
 env:
   FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
