@@ -31,6 +31,9 @@ pub struct Config {
 
     /// Dev mode for testing with dummy data
     pub dev_mode: bool,
+
+    /// Directory to serve and manage custom emojis from
+    pub emoji_dir: String,
 }
 
 impl Config {
@@ -60,6 +63,8 @@ impl Config {
                 .unwrap_or_else(|_| "false".to_string())
                 .parse()
                 .unwrap_or(false),
+            // Default to static/emojis for local dev; override in prod to /data/emojis
+            emoji_dir: env::var("EMOJI_DIR").unwrap_or_else(|_| "static/emojis".to_string()),
         })
     }
 }

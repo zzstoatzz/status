@@ -25,6 +25,33 @@ cargo run
 # navigate to http://127.0.0.1:8080
 ```
 
+### custom emojis (no redeploys)
+
+Emojis are now served from a runtime directory configured by `EMOJI_DIR` (defaults to `static/emojis` locally; set to `/data/emojis` on Fly.io). On startup, if the runtime emoji directory is empty, it will be seeded from the bundled `static/emojis`.
+
+- Local dev: add image files to `static/emojis/` (or set `EMOJI_DIR` in `.env`).
+- Production (Fly.io): upload files directly into the mounted volume at `/data/emojis` — no rebuild or redeploy needed.
+
+Examples with Fly CLI:
+
+```bash
+# Open an SSH console to the machine
+fly ssh console -a zzstoatzz-status
+
+# Inside the VM, copy or fetch files into /data/emojis
+mkdir -p /data/emojis
+curl -L -o /data/emojis/my_new_emoji.png https://example.com/my_new_emoji.png
+```
+
+Or from your machine using SFTP:
+
+```bash
+fly ssh sftp -a zzstoatzz-status
+sftp> put ./static/emojis/my_new_emoji.png /data/emojis/
+```
+
+The app serves them at `/emojis/<filename>` and lists them via `/api/custom-emojis`.
+
 ### available commands
 
 we use [just](https://github.com/casey/just) for common tasks:

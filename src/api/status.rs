@@ -1,3 +1,4 @@
+use crate::config::Config;
 use crate::resolver::HickoryDnsTxtResolver;
 use crate::{
     api::auth::OAuthClientType,
@@ -729,7 +730,7 @@ pub async fn get_frequent_emojis(db_pool: web::Data<Arc<Pool>>) -> Result<impl R
 
 /// Get all custom emojis available on the site
 #[get("/api/custom-emojis")]
-pub async fn get_custom_emojis() -> Result<impl Responder> {
+pub async fn get_custom_emojis(app_config: web::Data<Config>) -> Result<impl Responder> {
     use std::fs;
 
     #[derive(Serialize)]
@@ -738,10 +739,10 @@ pub async fn get_custom_emojis() -> Result<impl Responder> {
         filename: String,
     }
 
-    let emojis_dir = "static/emojis";
+    let emojis_dir = app_config.emoji_dir.clone();
     let mut emojis = Vec::new();
 
-    if let Ok(entries) = fs::read_dir(emojis_dir) {
+    if let Ok(entries) = fs::read_dir(&emojis_dir) {
         for entry in entries.flatten() {
             if let Some(filename) = entry.file_name().to_str() {
                 // Only include image files

@@ -10,6 +10,7 @@ primary_region = "ewr"
   DATABASE_URL = "sqlite:///data/status.db"
   ENABLE_FIREHOSE = "true"
   OAUTH_REDIRECT_BASE = "https://status.zzstoatzz.io"
+  EMOJI_DIR = "/data/emojis"
 
 [http_service]
   internal_port = 8080
