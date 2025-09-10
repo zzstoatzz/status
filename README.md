@@ -52,6 +52,27 @@ sftp> put ./static/emojis/my_new_emoji.png /data/emojis/
 
 The app serves them at `/emojis/<filename>` and lists them via `/api/custom-emojis`.
 
+### admin upload endpoint
+
+When logged in as the admin DID, you can upload PNG or GIF emojis without SSH via a simple endpoint:
+
+- Endpoint: `POST /admin/upload-emoji`
+- Auth: session-based; only the admin DID is allowed
+- Form fields (multipart/form-data):
+  - `file`: the image file (PNG or GIF), max 5MB
+  - `name` (optional): base filename (letters, numbers, `-`, `_`) without extension
+
+Example with curl:
+
+```bash
+curl -i -X POST \
+  -F "file=@./static/emojis/sample.png" \
+  -F "name=my_sample" \
+  http://localhost:8080/admin/upload-emoji
+```
+
+Response will include the public URL (e.g., `/emojis/my_sample.png`).
+
 ### available commands
 
 we use [just](https://github.com/casey/just) for common tasks:

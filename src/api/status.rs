@@ -10,6 +10,7 @@ use crate::{
     rate_limiter::RateLimiter,
     templates::{ErrorTemplate, FeedTemplate, Profile, StatusTemplate},
 };
+use actix_multipart::Multipart;
 use actix_session::Session;
 use actix_web::{
     HttpRequest, HttpResponse, Responder, Result, get, post,
@@ -27,6 +28,7 @@ use atrium_identity::{
     handle::{AtprotoHandleResolver, AtprotoHandleResolverConfig},
 };
 use atrium_oauth::DefaultHttpClient;
+use futures_util::TryStreamExt as _;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 
@@ -770,6 +772,177 @@ pub async fn get_custom_emojis(app_config: web::Data<Config>) -> Result<impl Res
     emojis.sort_by(|a, b| a.name.cmp(&b.name));
 
     Ok(HttpResponse::Ok().json(emojis))
+}
+
+/// Admin-only upload of a custom emoji (PNG or GIF)
+#[post("/admin/upload-emoji")]
+pub async fn upload_emoji(
+    session: Session,
+    app_config: web::Data<Config>,
+    mut payload: Multipart,
+) -> Result<impl Responder> {
+    // Require admin
+    let did = match session.get::<String>("did").unwrap_or(None) {
+        Some(d) => d,
+        None => {
+            return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
+                "error": "Not authenticated"
+            })));
+        }
+    };
+    if !is_admin(&did) {
+        return Ok(HttpResponse::Forbidden().json(serde_json::json!({
+            "error": "Admin access required"
+        })));
+    }
+
+    // Parse multipart for optional name and the file
+    let mut desired_name: Option<String> = None;
+    let mut file_bytes: Option<Vec<u8>> = None;
+    let mut file_ext: Option<&'static str> = None; // "png" | "gif"
+
+    const MAX_SIZE: usize = 5 * 1024 * 1024; // 5MB cap
+
+    loop {
+        let mut field = match payload.try_next().await {
+            Ok(Some(f)) => f,
+            Ok(None) => break,
+            Err(e) => {
+                log::warn!("multipart error: {}", e);
+                return Ok(HttpResponse::BadRequest()
+                    .json(serde_json::json!({"error":"Invalid multipart data"})));
+            }
+        };
+        let name = field.name().to_string();
+
+        if name == "name" {
+            // Collect small text field
+            let mut buf = Vec::new();
+            loop {
+                match field.try_next().await {
+                    Ok(Some(chunk)) => {
+                        buf.extend_from_slice(&chunk);
+                        if buf.len() > 1024 {
+                            break;
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(e) => {
+                        log::warn!("multipart read error: {}", e);
+                        return Ok(HttpResponse::BadRequest()
+                            .json(serde_json::json!({"error":"Invalid multipart data"})));
+                    }
+                }
+            }
+            if let Ok(s) = String::from_utf8(buf) {
+                desired_name = Some(s.trim().to_string());
+            }
+            continue;
+        }
+
+        if name == "file" {
+            let ct = field.content_type().cloned();
+            let mut ext_guess: Option<&'static str> = match ct.as_ref().map(|m| m.essence_str()) {
+                Some("image/png") => Some("png"),
+                Some("image/gif") => Some("gif"),
+                _ => None,
+            };
+
+            // Read file bytes with size cap
+            let mut data = Vec::new();
+            loop {
+                match field.try_next().await {
+                    Ok(Some(chunk)) => {
+                        data.extend_from_slice(&chunk);
+                        if data.len() > MAX_SIZE {
+                            return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                                "error": "File too large (max 5MB)"
+                            })));
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(e) => {
+                        log::warn!("file read error: {}", e);
+                        return Ok(HttpResponse::BadRequest()
+                            .json(serde_json::json!({"error":"Invalid file upload"})));
+                    }
+                }
+            }
+
+            // If content-type was ambiguous, try to infer from magic bytes
+            if ext_guess.is_none() && data.len() >= 4 {
+                if data.starts_with(&[0x89, b'P', b'N', b'G']) {
+                    ext_guess = Some("png");
+                } else if data.starts_with(b"GIF87a") || data.starts_with(b"GIF89a") {
+                    ext_guess = Some("gif");
+                }
+            }
+
+            if ext_guess.is_none() {
+                return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                    "error": "Unsupported file type (only PNG or GIF)"
+                })));
+            }
+
+            file_ext = ext_guess;
+            file_bytes = Some(data);
+        }
+    }
+
+    let data = match file_bytes {
+        Some(d) => d,
+        None => {
+            return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "Missing file field"
+            })));
+        }
+    };
+    let ext = file_ext.unwrap_or("png");
+
+    // Sanitize/derive filename
+    let base = desired_name.unwrap_or_else(|| format!("emoji_{}", chrono::Utc::now().timestamp()));
+    let mut safe: String = base
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
+        .collect();
+    if safe.is_empty() {
+        safe = "emoji".to_string();
+    }
+    let mut filename = format!("{}.{}", safe.to_lowercase(), ext);
+
+    // Ensure directory exists and avoid overwrite
+    let dir = std::path::Path::new(&app_config.emoji_dir);
+    if let Err(e) = std::fs::create_dir_all(dir) {
+        log::error!("Failed to create emoji dir {}: {}", app_config.emoji_dir, e);
+        return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+            "error": "Filesystem error"
+        })));
+    }
+
+    let mut path = dir.join(&filename);
+    if path.exists() {
+        for i in 1..1000 {
+            filename = format!("{}-{}.{}", safe.to_lowercase(), i, ext);
+            path = dir.join(&filename);
+            if !path.exists() {
+                break;
+            }
+        }
+    }
+
+    if let Err(e) = std::fs::write(&path, &data) {
+        log::error!("Failed to save emoji to {:?}: {}", path, e);
+        return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+            "error": "Write failed"
+        })));
+    }
+
+    let url = format!("/emojis/{}", filename);
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "filename": filename,
+        "url": url
+    })))
 }
 
 /// Get the DIDs of accounts the logged-in user follows
