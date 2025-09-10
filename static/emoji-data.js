@@ -12,7 +12,9 @@ async function loadEmojiData() {
         console.log(`Loaded ${emojiData.length} emojis from CDN`);
         
         // Transform into a simpler format for our needs
-        const emojis = {};
+        const emojis = {}; // char -> keywords[]
+        const slugs = {};  // char -> slug (first short_name fallback from name)
+        const reserved = new Set(); // all slugs
         const categories = {
             frequent: ['😊', '👍', '❤️', '😂', '🎉', '🔥', '✨', '💯', '🚀', '💪', '🙏', '👏'],
             people: [],
@@ -46,6 +48,18 @@ async function loadEmojiData() {
             }
             
             emojis[char] = keywords;
+
+            // Pick a slug: prefer the first short_name
+            let slug = null;
+            if (emoji.short_names && emoji.short_names.length > 0) {
+                slug = emoji.short_names[0].toLowerCase();
+            } else if (emoji.name) {
+                slug = emoji.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            }
+            if (slug) {
+                slugs[char] = slug;
+                reserved.add(slug);
+            }
             
             // Add to category
             const categoryMap = {
@@ -67,7 +81,7 @@ async function loadEmojiData() {
         });
         
         console.log(`Built emoji database with ${Object.keys(emojis).length} emojis`);
-        return { emojis, categories };
+        return { emojis, categories, slugs, reserved: Array.from(reserved) };
     } catch (error) {
         console.error('Failed to load emoji data:', error);
         // Fallback to a minimal set if the CDN fails
@@ -89,7 +103,15 @@ async function loadEmojiData() {
                 objects: [],
                 symbols: ['❤️'],
                 flags: []
-            }
+            },
+            slugs: {
+                '😊': 'smile',
+                '👍': 'thumbsup',
+                '❤️': 'heart',
+                '😂': 'joy',
+                '🎉': 'tada'
+            },
+            reserved: ['smile','thumbsup','heart','joy','tada']
         };
     }
 }

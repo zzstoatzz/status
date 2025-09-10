@@ -45,6 +45,24 @@
             </button>
             </div>
         </header>
+
+        {% if is_admin %}
+        <!-- Admin Upload (fixed top-left) -->
+        <div class="admin-panel" id="admin-panel">
+            <button class="admin-toggle" id="admin-toggle" title="admin tools" aria-label="admin tools">⚙️</button>
+            <div class="admin-content" id="admin-content" style="display:none;">
+                <div class="admin-section">
+                    <div class="admin-title">upload emoji</div>
+                    <form id="emoji-upload-form">
+                        <input type="text" id="emoji-name" placeholder="name (optional)" maxlength="40" />
+                        <input type="file" id="emoji-file" accept="image/png,image/gif" required />
+                        <button type="submit">upload</button>
+                    </form>
+                    <div class="admin-msg" id="admin-msg" aria-live="polite"></div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
         
         <!-- Simple Settings (logged in users only) -->
         {% if let Some(p) = &profile %}
@@ -738,6 +756,51 @@ body {
         font-size: 1.5rem;
     }
 }
+
+/* Admin panel (top-left) */
+.admin-panel {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 9999;
+}
+.admin-toggle {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 6px 8px;
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+.admin-content {
+    margin-top: 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 10px;
+    width: 240px;
+    box-shadow: var(--shadow-md);
+}
+.admin-title {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+.admin-content input[type="text"],
+.admin-content input[type="file"] {
+    width: 100%;
+    margin-bottom: 8px;
+}
+.admin-content button[type="submit"] {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+}
+.admin-msg { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
 </style>
 
 <script>
@@ -1206,5 +1269,72 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 });
-</script>
+    </script>
+    <script>
+        // Admin upload toggles and submit
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggle = document.getElementById('admin-toggle');
+            const content = document.getElementById('admin-content');
+            const form = document.getElementById('emoji-upload-form');
+            const file = document.getElementById('emoji-file');
+            const name = document.getElementById('emoji-name');
+            const msg = document.getElementById('admin-msg');
+            if (!toggle || !content || !form) return;
+
+            toggle.addEventListener('click', () => {
+                content.style.display = content.style.display === 'none' ? 'block' : 'none';
+            });
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                msg.textContent = '';
+                if (!file.files || file.files.length === 0) {
+                    msg.textContent = 'choose a PNG or GIF';
+                    return;
+                }
+                // Require a name; prefill from filename if empty
+                if (!name.value.trim().length) {
+                    const base = (file.files[0].name || '').replace(/\.[^.]+$/, '');
+                    const sanitized = base.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+                    name.value = sanitized || '';
+                }
+                if (!name.value.trim().length) {
+                    msg.textContent = 'please choose a name';
+                    return;
+                }
+                // Client-side reserved check (best-effort)
+                if (window.__reservedEmojiNames && window.__reservedEmojiNames.has(name.value.trim().toLowerCase())) {
+                    msg.textContent = 'that name is reserved by a standard emoji';
+                    return;
+                }
+                const f = file.files[0];
+                if (!['image/png','image/gif'].includes(f.type)) {
+                    msg.textContent = 'only PNG or GIF';
+                    return;
+                }
+                const fd = new FormData();
+                fd.append('file', f);
+                if (name.value.trim().length) fd.append('name', name.value.trim());
+                try {
+                    const res = await fetch('/admin/upload-emoji', { method: 'POST', body: fd });
+                    const json = await res.json();
+                    if (!res.ok || !json.success) {
+                        if (json && json.code === 'name_exists') {
+                            msg.textContent = 'that name already exists — please pick another';
+                        } else {
+                            msg.textContent = (json && json.error) || 'upload failed';
+                        }
+                        return;
+                    }
+                    // Notify listeners (e.g., emoji picker) and close panel
+                    document.dispatchEvent(new CustomEvent('custom-emoji-uploaded', { detail: json }));
+                    content.style.display = 'none';
+                    form.reset();
+                    msg.textContent = '';
+                } catch (err) {
+                    msg.textContent = 'network error';
+                }
+            });
+        });
+    </script>
 {%endblock content%}

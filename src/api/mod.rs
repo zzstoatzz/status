@@ -28,6 +28,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
         // Emoji API routes
         .service(status::get_frequent_emojis)
         .service(status::get_custom_emojis)
+        .service(status::upload_emoji)
         .service(status::get_following)
         // Status management routes
         .service(status::status)

@@ -31,6 +31,7 @@ mod api;
 mod config;
 mod db;
 mod dev_utils;
+mod emoji;
 mod error_handler;
 mod ingester;
 #[allow(dead_code)]
@@ -190,6 +191,9 @@ async fn main() -> std::io::Result<()> {
     // Create rate limiter - 30 requests per minute per IP
     let rate_limiter = web::Data::new(RateLimiter::new(30, Duration::from_secs(60)));
 
+    // Initialize runtime emoji directory (kept out of main for clarity)
+    emoji::init_runtime_dir(&config);
+
     log::debug!("starting HTTP server at http://{host}:{port}");
     HttpServer::new(move || {
         App::new()
@@ -210,7 +214,12 @@ async fn main() -> std::io::Result<()> {
                     .build(),
             )
             .service(Files::new("/static", "static").show_files_listing())
-            .service(Files::new("/emojis", "static/emojis").show_files_listing())
+            .service(
+                Files::new("/emojis", app_config.emoji_dir.clone())
+                    .use_last_modified(true)
+                    .use_etag(true)
+                    .show_files_listing(),
+            )
             .configure(api::configure_routes)
     })
     .bind((host.as_str(), port))?
@@ -233,7 +242,13 @@ mod tests {
     #[actix_web::test]
     async fn test_custom_emojis_endpoint() {
         // Test that the custom emojis endpoint returns JSON
-        let app = test::init_service(App::new().service(get_custom_emojis)).await;
+        let cfg = crate::config::Config::from_env().expect("load config");
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(cfg))
+                .service(get_custom_emojis),
+        )
+        .await;
 
         let req = test::TestRequest::get()
             .uri("/api/custom-emojis")
