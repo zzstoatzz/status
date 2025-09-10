@@ -1,8 +1,13 @@
 pub mod models;
 pub mod queries;
+pub mod webhooks;
 
 pub use models::{AuthSession, AuthState, StatusFromDb};
 pub use queries::{get_frequent_emojis, get_user_preferences, save_user_preferences};
+pub use webhooks::{
+    Webhook, create_webhook, delete_webhook, get_user_webhooks, rotate_webhook_secret,
+    update_webhook,
+};
 
 use async_sqlite::Pool;
 
@@ -54,6 +59,29 @@ pub async fn create_tables_in_database(pool: &Pool) -> Result<(), async_sqlite::
             accent_color TEXT DEFAULT '#1DA1F2',
             updated_at INTEGER NOT NULL
         )",
+            [],
+        )
+        .unwrap();
+
+        // webhooks
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS webhooks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            did TEXT NOT NULL,
+            url TEXT NOT NULL,
+            secret TEXT NOT NULL,
+            events TEXT DEFAULT '*',
+            active BOOLEAN DEFAULT TRUE,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        )",
+            [],
+        )
+        .unwrap();
+
+        // index for fast lookups by did
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_webhooks_did ON webhooks(did)",
             [],
         )
         .unwrap();

@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod preferences;
 pub mod status;
+pub mod webhooks;
 
 pub use auth::OAuthClientType;
 pub use status::HandleResolver;
@@ -37,5 +38,11 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
         .service(status::hide_status)
         // Preferences routes
         .service(preferences::get_preferences)
-        .service(preferences::save_preferences);
+        .service(preferences::save_preferences)
+        // Webhook routes
+        .service(webhooks::list_webhooks)
+        .service(webhooks::create_webhook)
+        .service(webhooks::update_webhook)
+        .service(webhooks::rotate_secret)
+        .service(webhooks::delete_webhook);
 }

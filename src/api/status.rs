@@ -10,6 +10,7 @@ use crate::{
     lexicons::record::KnownRecord,
     rate_limiter::RateLimiter,
     templates::{ErrorTemplate, FeedTemplate, Profile, StatusTemplate},
+    webhooks::{StatusEvent, send_status_event},
 };
 use actix_multipart::Multipart;
 use actix_session::Session;
@@ -1118,9 +1119,30 @@ pub async fn clear_status(
                                         // Also remove from local database
                                         let _ = StatusFromDb::delete_by_uri(
                                             &db_pool,
-                                            current_status.uri,
+                                            current_status.uri.clone(),
                                         )
                                         .await;
+
+                                        // Fire webhooks asynchronously for cleared status
+                                        {
+                                            let pool = db_pool.get_ref().clone();
+                                            let did_for_event = did_string.clone();
+                                            let uri = current_status.uri.clone();
+                                            tokio::spawn(async move {
+                                                let event = StatusEvent {
+                                                    event: "status.deleted",
+                                                    did: &did_for_event,
+                                                    handle: None,
+                                                    status: None,
+                                                    text: None,
+                                                    uri: Some(&uri),
+                                                    since: None,
+                                                    expires: None,
+                                                };
+                                                send_status_event(pool, &did_for_event, event)
+                                                    .await;
+                                            });
+                                        }
 
                                         Redirect::to("/")
                                             .see_other()
@@ -1229,6 +1251,26 @@ pub async fn delete_status(
                                 // Also remove from local database
                                 let _ =
                                     StatusFromDb::delete_by_uri(&db_pool, req.uri.clone()).await;
+
+                                // Fire webhooks asynchronously for deleted status
+                                {
+                                    let pool = db_pool.get_ref().clone();
+                                    let did_for_event = did_string.clone();
+                                    let uri = req.uri.clone();
+                                    tokio::spawn(async move {
+                                        let event = StatusEvent {
+                                            event: "status.deleted",
+                                            did: &did_for_event,
+                                            handle: None,
+                                            status: None,
+                                            text: None,
+                                            uri: Some(&uri),
+                                            since: None,
+                                            expires: None,
+                                        };
+                                        send_status_event(pool, &did_for_event, event).await;
+                                    });
+                                }
 
                                 HttpResponse::Ok().json(serde_json::json!({
                                     "success": true
@@ -1401,7 +1443,31 @@ pub async fn status(
                                 }
                             }
 
-                            let _ = status.save(db_pool).await;
+                            let _ = status.save(db_pool.clone()).await;
+
+                            // Fire webhooks asynchronously
+                            {
+                                let pool = db_pool.get_ref().clone();
+                                let did_for_event = status.author_did.clone();
+                                let emoji = status.status.clone();
+                                let text = status.text.clone();
+                                let uri = status.uri.clone();
+                                let since = status.started_at.to_rfc3339();
+                                let expires = status.expires_at.map(|e| e.to_rfc3339());
+                                tokio::spawn(async move {
+                                    let event = StatusEvent {
+                                        event: "status.created",
+                                        did: &did_for_event,
+                                        handle: None,
+                                        status: Some(&emoji),
+                                        text: text.as_deref(),
+                                        uri: Some(&uri),
+                                        since: Some(&since),
+                                        expires: expires.as_deref(),
+                                    };
+                                    send_status_event(pool, &did_for_event, event).await;
+                                });
+                            }
                             Ok(Redirect::to("/")
                                 .see_other()
                                 .respond_to(&request)

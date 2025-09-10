@@ -40,6 +40,7 @@ mod rate_limiter;
 mod resolver;
 mod storage;
 mod templates;
+mod webhooks;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
