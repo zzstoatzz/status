@@ -355,9 +355,20 @@ pub async fn feed(
 pub async fn api_feed(
     db_pool: web::Data<Arc<Pool>>,
     handle_resolver: web::Data<HandleResolver>,
+    query: web::Query<std::collections::HashMap<String, String>>,
 ) -> Result<impl Responder> {
-    // Simple paginated feed (offset/limit defaulted)
-    let statuses = StatusFromDb::load_latest_statuses(&db_pool)
+    // Paginated feed
+    let offset = query
+        .get("offset")
+        .and_then(|s| s.parse::<i32>().ok())
+        .unwrap_or(0);
+    let limit = query
+        .get("limit")
+        .and_then(|s| s.parse::<i32>().ok())
+        .unwrap_or(20)
+        .clamp(5, 50);
+
+    let statuses = StatusFromDb::load_statuses_paginated(&db_pool, offset, limit)
         .await
         .unwrap_or_default();
     let mut enriched = Vec::with_capacity(statuses.len());
@@ -371,7 +382,10 @@ pub async fn api_feed(
         }
         enriched.push(s);
     }
-    Ok(web::Json(json!({ "statuses": enriched })))
+    let has_more = (enriched.len() as i32) == limit;
+    Ok(web::Json(
+        json!({ "statuses": enriched, "has_more": has_more, "next_offset": offset + (enriched.len() as i32) }),
+    ))
 }
 
 #[get("/api/frequent-emojis")]
