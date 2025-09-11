@@ -231,7 +231,7 @@ async fn main() -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::status_read::get_custom_emojis;
+    use crate::api::status_read::{api_feed, feed, get_custom_emojis};
     use actix_web::{App, test};
 
     #[actix_web::test]
@@ -257,6 +257,92 @@ mod tests {
 
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success());
+    }
+
+    #[actix_web::test]
+    async fn test_feed_html_has_status_list_container() {
+        use async_sqlite::PoolBuilder;
+        use atrium_identity::did::{
+            CommonDidResolver, CommonDidResolverConfig, DEFAULT_PLC_DIRECTORY_URL,
+        };
+        use atrium_oauth::DefaultHttpClient;
+
+        let cfg = crate::config::Config::from_env().expect("load config");
+        let pool = PoolBuilder::new()
+            .path(":memory:")
+            .open()
+            .await
+            .expect("pool");
+        let arc_pool = std::sync::Arc::new(pool);
+
+        let resolver = CommonDidResolver::new(CommonDidResolverConfig {
+            plc_directory_url: DEFAULT_PLC_DIRECTORY_URL.to_string(),
+            http_client: std::sync::Arc::new(DefaultHttpClient::default()),
+        });
+        let handle_resolver = std::sync::Arc::new(resolver);
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(cfg))
+                .app_data(web::Data::new(arc_pool))
+                .app_data(web::Data::new(handle_resolver))
+                .service(feed),
+        )
+        .await;
+
+        let req = test::TestRequest::get().uri("/feed").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+        let body = test::read_body(resp).await;
+        let html = String::from_utf8(body.to_vec()).expect("utf8");
+        assert!(
+            html.contains("class=\"status-list\""),
+            "feed HTML must include an empty .status-list container for client-side population"
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_api_feed_shape() {
+        use async_sqlite::PoolBuilder;
+        use atrium_identity::did::{
+            CommonDidResolver, CommonDidResolverConfig, DEFAULT_PLC_DIRECTORY_URL,
+        };
+        use atrium_oauth::DefaultHttpClient;
+        use serde_json::Value;
+
+        let pool = PoolBuilder::new()
+            .path(":memory:")
+            .open()
+            .await
+            .expect("pool");
+        let arc_pool = std::sync::Arc::new(pool);
+        let resolver = CommonDidResolver::new(CommonDidResolverConfig {
+            plc_directory_url: DEFAULT_PLC_DIRECTORY_URL.to_string(),
+            http_client: std::sync::Arc::new(DefaultHttpClient::default()),
+        });
+        let handle_resolver = std::sync::Arc::new(resolver);
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(arc_pool))
+                .app_data(web::Data::new(handle_resolver))
+                .service(api_feed),
+        )
+        .await;
+
+        let req = test::TestRequest::get()
+            .uri("/api/feed?offset=0&limit=20")
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+        let body = test::read_body(resp).await;
+        let v: Value = serde_json::from_slice(&body).expect("json");
+        assert!(
+            v.get("statuses").map(|s| s.is_array()).unwrap_or(false),
+            "statuses must be an array"
+        );
+        assert!(v.get("has_more").is_some(), "has_more present");
+        assert!(v.get("next_offset").is_some(), "next_offset present");
     }
 
     #[actix_web::test]
