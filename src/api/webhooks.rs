@@ -99,14 +99,14 @@ pub async fn update_webhook(
     db_pool: web::Data<Arc<Pool>>,
     path: web::Path<i64>,
     payload: web::Json<UpdateWebhookRequest>,
+    app_config: web::Data<Config>,
 ) -> impl Responder {
     match session.get::<Did>("did").unwrap_or(None) {
         Some(did) => {
             let id = path.into_inner();
             if let Some(url) = &payload.url {
-                if Url::parse(url).is_err() {
-                    return HttpResponse::BadRequest()
-                        .json(serde_json::json!({ "error": "Invalid URL" }));
+                if let Err(msg) = validate_url(url, &app_config) {
+                    return HttpResponse::BadRequest().json(serde_json::json!({ "error": msg }));
                 }
             }
             if let Some(events_str) = &payload.events {

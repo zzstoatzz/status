@@ -1,5 +1,6 @@
 use async_sqlite::Pool;
 use hmac::{Hmac, Mac};
+use once_cell::sync::Lazy;
 use reqwest::Client;
 use serde::Serialize;
 use sha2::Sha256;
@@ -42,8 +43,9 @@ fn hmac_sig_hex(secret: &str, ts: &str, payload: &[u8]) -> String {
     hex::encode(mac.finalize().into_bytes())
 }
 
+static HTTP: Lazy<Client> = Lazy::new(Client::new);
+
 pub async fn send_status_event(pool: std::sync::Arc<Pool>, did: &str, event: StatusEvent<'_>) {
-    let client = Client::new();
     let hooks = match get_user_webhooks(&pool, did).await {
         Ok(h) => h,
         Err(e) => {
@@ -66,7 +68,7 @@ pub async fn send_status_event(pool: std::sync::Arc<Pool>, did: &str, event: Sta
         .map(|h| {
             let payload = payload.clone();
             let ts = ts.clone();
-            let client = client.clone();
+            let client = HTTP.clone();
             async move {
                 let sig = hmac_sig_hex(&h.secret, &ts, &payload);
                 let res = client
@@ -83,10 +85,13 @@ pub async fn send_status_event(pool: std::sync::Arc<Pool>, did: &str, event: Sta
                 match res {
                     Ok(resp) => {
                         if !resp.status().is_success() {
+                            let status = resp.status();
+                            let body = resp.text().await.unwrap_or_default();
                             log::warn!(
-                                "webhook delivery failed: {} -> status {}",
+                                "webhook delivery failed: {} -> {} body={}",
                                 &h.url,
-                                resp.status()
+                                status,
+                                body
                             );
                         }
                     }

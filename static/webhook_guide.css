@@ -1,0 +1,5 @@
+.wh-tabs { display: flex; gap: 8px; margin: 10px 0; }
+.wh-tabs button { border: 1px solid var(--border-color, #2a2a2a); background: var(--bg-secondary, #0f0f0f); color: var(--text, #fff); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 12px; }
+.wh-tabs button.active { background: var(--accent, #1DA1F2); color: #000; border-color: var(--accent, #1DA1F2); }
+.wh-snippet { display: none; }
+.wh-snippet.active { display: block; }

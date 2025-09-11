@@ -271,8 +271,14 @@
                     <details class="wh-guide" id="webhook-guide">
                         <summary>Integration guide</summary>
                         <div class="content">
+                            <div id="wh-lang-tabs" class="wh-tabs" role="tablist" aria-label="language selector">
+                                <button type="button" data-lang="node" role="tab" aria-selected="true">Node</button>
+                                <button type="button" data-lang="rust" role="tab">Rust</button>
+                                <button type="button" data-lang="python" role="tab">Python</button>
+                                <button type="button" data-lang="go" role="tab">Go</button>
+                            </div>
                             <div class="wh-grid">
-                                <div>
+                                <div class="wh-snippet" data-lang="node">
                                     <h4>Request</h4>
                                     <ul>
                                         <li>Method: POST</li>
@@ -292,7 +298,7 @@
   "expires": null            // created only
 }</code></pre>
                                 </div>
-                                <div>
+                                <div class="wh-snippet" data-lang="node">
                                     <h4>Verify signature</h4>
                                     <p>Compute HMAC-SHA256 over <code>timestamp + "." + rawBody</code> using your secret. Compare to header (without the <code>sha256=</code> prefix) with constant-time equality, and reject if timestamp is too old (e.g., &gt; 5 minutes).</p>
 <pre><code>// Node (TypeScript)
@@ -308,6 +314,8 @@ function verify(req: any, rawBody: Buffer, secret: string): boolean {
   return crypto.timingSafeEqual(Buffer.from(mac, 'hex'), Buffer.from(sig, 'hex'));
 }
 </code></pre>
+                                </div>
+                                <div class="wh-snippet" data-lang="rust">
 <pre><code>// Rust (axum-ish)
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
@@ -326,9 +334,57 @@ fn verify(ts: &str, sig_hdr: &str, body: &[u8], secret: &str) -> bool {
 }
 </code></pre>
                                 </div>
+                                <div class="wh-snippet" data-lang="python">
+<pre><code># Python (Flask example)
+import hmac, hashlib, time
+from flask import request
+
+def verify(secret: str, raw_body: bytes) -> bool:
+    ts = request.headers.get('X-Status-Webhook-Timestamp')
+    sig_hdr = request.headers.get('X-Status-Webhook-Signature', '')
+    if not ts or not sig_hdr.startswith('sha256='):
+        return False
+    if abs(int(time.time()) - int(ts)) > 300:
+        return False
+    expected = hmac.new(secret.encode(), (ts + '.').encode() + raw_body, hashlib.sha256).hexdigest()
+    actual = sig_hdr[len('sha256='):]
+    return hmac.compare_digest(expected, actual)
+</code></pre>
+                                </div>
+                                <div class="wh-snippet" data-lang="go">
+<pre><code>// Go (net/http)
+package main
+
+import (
+  "crypto/hmac"
+  "crypto/sha256"
+  "encoding/hex"
+  "net/http"
+  "strconv"
+  "time"
+)
+
+func verify(r *http.Request, body []byte, secret string) bool {
+  ts := r.Header.Get("X-Status-Webhook-Timestamp")
+  sig := r.Header.Get("X-Status-Webhook-Signature")
+  if ts == "" || sig == "" { return false }
+  if len(sig) > 7 && sig[:7] == "sha256=" { sig = sig[7:] }
+  tsv, err := strconv.ParseInt(ts, 10, 64)
+  if err != nil || time.Now().Unix()-tsv > 300 || tsv-time.Now().Unix() > 300 { return false }
+  mac := hmac.New(sha256.New, []byte(secret))
+  mac.Write([]byte(ts))
+  mac.Write([]byte("."))
+  mac.Write(body)
+  expected := hex.EncodeToString(mac.Sum(nil))
+  return hmac.Equal([]byte(expected), []byte(sig))
+}
+</code></pre>
+                                </div>
                             </div>
                         </div>
                     </details>
+                    <link rel="stylesheet" href="/static/webhook_guide.css">
+                    <script src="/static/webhook_guide.js"></script>
                 </div>
             </div>
         </div>
