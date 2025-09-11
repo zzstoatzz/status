@@ -360,23 +360,48 @@ pub async fn get_frequent_emojis(db_pool: web::Data<Arc<Pool>>) -> Result<impl R
     let emojis = db::get_frequent_emojis(&db_pool, 20)
         .await
         .unwrap_or_default();
-    Ok(web::Json(json!({ "emojis": emojis })))
+    // Legacy response shape: raw array, not wrapped
+    Ok(web::Json(emojis))
 }
 
 #[get("/api/custom-emojis")]
 pub async fn get_custom_emojis(app_config: web::Data<Config>) -> Result<impl Responder> {
-    // Serve emojis from configured directory
+    // Response shape expected by UI:
+    // [ { "name": "sparkle", "filename": "sparkle.png" }, ... ]
     let dir = app_config.emoji_dir.clone();
-    let entries =
-        std::fs::read_dir(dir).unwrap_or_else(|_| std::fs::read_dir("static/emojis").unwrap());
-    let mut names = vec![];
-    for entry in entries.flatten() {
-        if let Some(stem) = entry.path().file_stem().and_then(|s| s.to_str()) {
-            names.push(stem.to_string());
+    let fs_dir = std::path::Path::new(&dir);
+    let fallback = std::path::Path::new("static/emojis");
+
+    let mut map: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+    let read_dirs = [fs_dir, fallback];
+    for d in read_dirs.iter() {
+        if let Ok(entries) = std::fs::read_dir(d) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if let (Some(stem), Some(ext)) = (p.file_stem(), p.extension()) {
+                    let name = stem.to_string_lossy().to_string();
+                    let ext = ext.to_string_lossy().to_ascii_lowercase();
+                    if ext == "png" || ext == "gif" {
+                        // prefer png over gif if duplicates
+                        let filename = format!("{}.{ext}", name);
+                        map.entry(name)
+                            .and_modify(|v| {
+                                if v.ends_with(".gif") && ext == "png" {
+                                    *v = filename.clone();
+                                }
+                            })
+                            .or_insert(filename);
+                    }
+                }
+            }
         }
     }
-    names.sort();
-    Ok(web::Json(json!({ "custom": names })))
+
+    let custom: Vec<serde_json::Value> = map
+        .into_iter()
+        .map(|(name, filename)| json!({ "name": name, "filename": filename }))
+        .collect();
+    Ok(web::Json(custom))
 }
 
 #[get("/api/following")]
