@@ -171,6 +171,7 @@ impl StatusFromDb {
     }
 
     /// Loads paginated statuses for infinite scrolling
+    #[allow(dead_code)]
     pub async fn load_statuses_paginated(
         pool: &Data<Arc<Pool>>,
         offset: i32,

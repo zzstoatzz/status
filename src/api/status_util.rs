@@ -1,4 +1,18 @@
+use atrium_identity::did::CommonDidResolver;
+use atrium_oauth::DefaultHttpClient;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+
+/// HandleResolver to make it easier to access the OAuthClient in web requests
+pub type HandleResolver = Arc<CommonDidResolver<DefaultHttpClient>>;
+
+/// Admin DID for moderation
+pub const ADMIN_DID: &str = "did:plc:xbtmt2zjwlrfegqvch7fboei"; // zzstoatzz.io
+
+/// Check if a DID is the admin
+pub fn is_admin(did: &str) -> bool {
+    did == ADMIN_DID
+}
 
 /// The post body for changing your status
 #[derive(Serialize, Deserialize, Clone)]

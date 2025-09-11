@@ -3,6 +3,7 @@ use chrono::{Duration, Utc};
 use rand::prelude::*;
 
 /// Generate dummy status data for development testing
+#[allow(dead_code)]
 pub fn generate_dummy_statuses(count: usize) -> Vec<StatusFromDb> {
     let mut rng = thread_rng();
     let mut statuses = Vec::new();
@@ -82,6 +83,7 @@ pub fn generate_dummy_statuses(count: usize) -> Vec<StatusFromDb> {
 }
 
 /// Check if dev mode is requested via query parameter
+#[allow(dead_code)]
 pub fn is_dev_mode_requested(query: &str) -> bool {
     query.contains("dev=true") || query.contains("dev=1")
 }
