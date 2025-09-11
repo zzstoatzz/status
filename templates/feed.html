@@ -122,8 +122,8 @@
                 {% endif %}
             </div>
             
-            {% if !statuses.is_empty() %}
             <div class="status-list">
+            {% if !statuses.is_empty() %}
                 {% for status in statuses %}
                 <div class="status-item" data-did="{{ status.author_did }}">
                     <span class="status-emoji">
@@ -158,13 +158,10 @@
                     </div>
                 </div>
                 {% endfor %}
-            </div>
             {% else %}
-            <div class="empty-state">
-                <span class="empty-emoji">💭</span>
-                <p>no status updates yet</p>
-            </div>
+                <!-- empty at render; JS will populate via /api/feed -->
             {% endif %}
+            </div>
             
             <!-- Loading indicator -->
             <div id="loading-indicator" style="display: none; text-align: center; padding: 2rem;">
@@ -1067,6 +1064,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
     await initSettings();
     // Timestamps are auto-initialized by timestamps.js
+    // Always load initial page of statuses so feed is never empty on first render
+    try { await loadMoreStatuses(); } catch (e) { console.error('initial load failed', e); }
     
     // Settings toggle
     const settingsToggle = document.getElementById('settings-toggle');
