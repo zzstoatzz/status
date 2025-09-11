@@ -10,7 +10,6 @@ use crate::{
     lexicons::record::KnownRecord,
     rate_limiter::RateLimiter,
     templates::{ErrorTemplate, FeedTemplate, Profile, StatusTemplate},
-    webhooks::{StatusEvent, send_status_event},
 };
 use actix_multipart::Multipart;
 use actix_session::Session;
@@ -31,7 +30,7 @@ use atrium_identity::{
 };
 use atrium_oauth::DefaultHttpClient;
 use futures_util::TryStreamExt as _;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
 
 /// HandleResolver to make it easier to access the OAuthClient in web requests
@@ -45,44 +44,7 @@ fn is_admin(did: &str) -> bool {
     did == ADMIN_DID
 }
 
-/// The post body for changing your status
-#[derive(Serialize, Deserialize, Clone)]
-pub struct StatusForm {
-    pub status: String,
-    pub text: Option<String>,
-    pub expires_in: Option<String>, // e.g., "1h", "30m", "1d", etc.
-}
-
-/// The post body for deleting a specific status
-#[derive(Serialize, Deserialize)]
-pub struct DeleteRequest {
-    pub uri: String,
-}
-
-/// Hide/unhide a status (admin only)
-#[derive(Deserialize)]
-pub struct HideStatusRequest {
-    pub uri: String,
-    pub hidden: bool,
-}
-
-/// Parse duration string like "1h", "30m", "1d" into chrono::Duration
-fn parse_duration(duration_str: &str) -> Option<chrono::Duration> {
-    if duration_str.is_empty() {
-        return None;
-    }
-
-    let (num_str, unit) = duration_str.split_at(duration_str.len() - 1);
-    let num: i64 = num_str.parse().ok()?;
-
-    match unit {
-        "m" => Some(chrono::Duration::minutes(num)),
-        "h" => Some(chrono::Duration::hours(num)),
-        "d" => Some(chrono::Duration::days(num)),
-        "w" => Some(chrono::Duration::weeks(num)),
-        _ => None,
-    }
-}
+use crate::api::status_util::{DeleteRequest, HideStatusRequest, StatusForm, parse_duration};
 
 /// Homepage - shows logged-in user's status, or owner's status if not logged in
 #[get("/")]
@@ -1252,17 +1214,8 @@ pub async fn delete_status(
                                     let did_for_event = did_string.clone();
                                     let uri = req.uri.clone();
                                     tokio::spawn(async move {
-                                        let event = StatusEvent {
-                                            event: "status.deleted",
-                                            did: &did_for_event,
-                                            handle: None,
-                                            status: None,
-                                            text: None,
-                                            uri: Some(&uri),
-                                            since: None,
-                                            expires: None,
-                                        };
-                                        send_status_event(pool, &did_for_event, event).await;
+                                        crate::webhooks::emit_deleted(pool, &did_for_event, &uri)
+                                            .await;
                                     });
                                 }
 
