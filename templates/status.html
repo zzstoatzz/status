@@ -271,14 +271,8 @@
                     <details class="wh-guide" id="webhook-guide">
                         <summary>Integration guide</summary>
                         <div class="content">
-                            <div id="wh-lang-tabs" class="wh-tabs" role="tablist" aria-label="language selector">
-                                <button type="button" data-lang="node" role="tab" aria-selected="true">Node</button>
-                                <button type="button" data-lang="rust" role="tab">Rust</button>
-                                <button type="button" data-lang="python" role="tab">Python</button>
-                                <button type="button" data-lang="go" role="tab">Go</button>
-                            </div>
                             <div class="wh-grid">
-                                <div class="wh-snippet" data-lang="node">
+                                <div class="wh-static">
                                     <h4>Request</h4>
                                     <ul>
                                         <li>Method: POST</li>
@@ -298,7 +292,14 @@
   "expires": null            // created only
 }</code></pre>
                                 </div>
-                                <div class="wh-snippet" data-lang="node">
+                                <div class="wh-dynamic">
+                                    <div id="wh-lang-tabs" class="wh-tabs" role="tablist" aria-label="language selector">
+                                        <button type="button" data-lang="node" role="tab" aria-selected="true">Node</button>
+                                        <button type="button" data-lang="rust" role="tab">Rust</button>
+                                        <button type="button" data-lang="python" role="tab">Python</button>
+                                        <button type="button" data-lang="go" role="tab">Go</button>
+                                    </div>
+                                    <div class="wh-snippet" data-lang="node">
                                     <h4>Verify signature</h4>
                                     <p>Compute HMAC-SHA256 over <code>timestamp + "." + rawBody</code> using your secret. Compare to header (without the <code>sha256=</code> prefix) with constant-time equality, and reject if timestamp is too old (e.g., &gt; 5 minutes).</p>
 <pre><code>// Node (TypeScript)
@@ -379,6 +380,7 @@ func verify(r *http.Request, body []byte, secret string) bool {
   return hmac.Equal([]byte(expected), []byte(sig))
 }
 </code></pre>
+                                </div>
                                 </div>
                             </div>
                         </div>
