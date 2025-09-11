@@ -1067,6 +1067,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
     await initSettings();
     // Timestamps are auto-initialized by timestamps.js
+    // Always load initial page of statuses so feed is never empty on first render
+    try { await loadMoreStatuses(); } catch (e) { console.error('initial load failed', e); }
     
     // Settings toggle
     const settingsToggle = document.getElementById('settings-toggle');
