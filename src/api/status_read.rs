@@ -315,16 +315,35 @@ pub async fn status_json(db_pool: web::Data<Arc<Pool>>) -> Result<impl Responder
 pub async fn feed(
     session: Session,
     _db_pool: web::Data<Arc<Pool>>,
-    _handle_resolver: web::Data<HandleResolver>,
+    handle_resolver: web::Data<HandleResolver>,
     app_config: web::Data<Config>,
 ) -> Result<impl Responder> {
-    let did = session.get::<String>("did").unwrap_or(None);
-    let is_admin = did.as_deref().map(is_admin).unwrap_or(false);
+    let did_opt = session.get::<String>("did").unwrap_or(None);
+    let is_admin_flag = did_opt.as_deref().map(is_admin).unwrap_or(false);
+
+    let mut profile: Option<crate::templates::Profile> = None;
+    if let Some(did_str) = did_opt.clone() {
+        let mut handle_opt: Option<String> = None;
+        if let Ok(doc) = handle_resolver
+            .resolve(&atrium_api::types::string::Did::new(did_str.clone()).expect("did"))
+            .await
+        {
+            if let Some(h) = doc.also_known_as.and_then(|aka| aka.first().cloned()) {
+                handle_opt = Some(h.replace("at://", ""));
+            }
+        }
+        profile = Some(crate::templates::Profile {
+            did: did_str,
+            display_name: None,
+            handle: handle_opt,
+        });
+    }
+
     let html = FeedTemplate {
         title: "feed",
-        profile: None,
+        profile,
         statuses: vec![],
-        is_admin,
+        is_admin: is_admin_flag,
         dev_mode: app_config.dev_mode,
     }
     .render()
