@@ -150,6 +150,7 @@ impl StatusFromDb {
     }
 
     /// Loads the last 10 statuses we have saved
+    #[allow(dead_code)]
     pub async fn load_latest_statuses(
         pool: &Data<Arc<Pool>>,
     ) -> Result<Vec<Self>, async_sqlite::Error> {
@@ -171,6 +172,7 @@ impl StatusFromDb {
     }
 
     /// Loads paginated statuses for infinite scrolling
+    #[allow(dead_code)]
     pub async fn load_statuses_paginated(
         pool: &Data<Arc<Pool>>,
         offset: i32,

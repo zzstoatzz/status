@@ -58,8 +58,10 @@ pub fn init_runtime_dir(config: &Config) {
     }
 }
 
+#[allow(dead_code)]
 static BUILTIN_SLUGS: OnceCell<Arc<HashSet<String>>> = OnceCell::new();
 
+#[allow(dead_code)]
 async fn load_builtin_slugs_inner() -> Arc<HashSet<String>> {
     // Fetch emoji data and collect first short_name as slug
     let url = "https://cdn.jsdelivr.net/npm/emoji-datasource@15.1.0/emoji.json";
@@ -98,6 +100,7 @@ async fn load_builtin_slugs_inner() -> Arc<HashSet<String>> {
     Arc::new(set)
 }
 
+#[allow(dead_code)]
 pub async fn is_builtin_slug(name: &str) -> bool {
     let name = name.to_lowercase();
     if let Some(cache) = BUILTIN_SLUGS.get() {

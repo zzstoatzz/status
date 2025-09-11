@@ -965,7 +965,8 @@ const loadMoreStatuses = async () => {
     
     try {
         const response = await fetch(`/api/feed?offset=${offset}&limit=20`);
-        const newStatuses = await response.json();
+        const data = await response.json();
+        const newStatuses = Array.isArray(data) ? data : (data.statuses || []);
         
         if (newStatuses.length === 0) {
             hasMore = false;
@@ -1036,6 +1037,10 @@ const loadMoreStatuses = async () => {
         }
         
         offset += newStatuses.length;
+        if (!Array.isArray(data) && typeof data === 'object') {
+            if (typeof data.next_offset === 'number') offset = data.next_offset;
+            if (typeof data.has_more === 'boolean') hasMore = data.has_more;
+        }
         loadingIndicator.style.display = 'none';
     } catch (error) {
         console.error('Error loading more statuses:', error);
