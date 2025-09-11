@@ -231,7 +231,7 @@ async fn main() -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::status::get_custom_emojis;
+    use crate::api::status_read::get_custom_emojis;
     use actix_web::{App, test};
 
     #[actix_web::test]
