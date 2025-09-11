@@ -1129,18 +1129,12 @@ pub async fn clear_status(
                                             let did_for_event = did_string.clone();
                                             let uri = current_status.uri.clone();
                                             tokio::spawn(async move {
-                                                let event = StatusEvent {
-                                                    event: "status.deleted",
-                                                    did: &did_for_event,
-                                                    handle: None,
-                                                    status: None,
-                                                    text: None,
-                                                    uri: Some(&uri),
-                                                    since: None,
-                                                    expires: None,
-                                                };
-                                                send_status_event(pool, &did_for_event, event)
-                                                    .await;
+                                                crate::webhooks::emit_deleted(
+                                                    pool,
+                                                    &did_for_event,
+                                                    &uri,
+                                                )
+                                                .await;
                                             });
                                         }
 
@@ -1445,27 +1439,12 @@ pub async fn status(
 
                             let _ = status.save(db_pool.clone()).await;
 
-                            // Fire webhooks asynchronously
+                            // Fire webhooks asynchronously (helper keeps this file lean)
                             {
                                 let pool = db_pool.get_ref().clone();
-                                let did_for_event = status.author_did.clone();
-                                let emoji = status.status.clone();
-                                let text = status.text.clone();
-                                let uri = status.uri.clone();
-                                let since = status.started_at.to_rfc3339();
-                                let expires = status.expires_at.map(|e| e.to_rfc3339());
+                                let s = status.clone();
                                 tokio::spawn(async move {
-                                    let event = StatusEvent {
-                                        event: "status.created",
-                                        did: &did_for_event,
-                                        handle: None,
-                                        status: Some(&emoji),
-                                        text: text.as_deref(),
-                                        uri: Some(&uri),
-                                        since: Some(&since),
-                                        expires: expires.as_deref(),
-                                    };
-                                    send_status_event(pool, &did_for_event, event).await;
+                                    crate::webhooks::emit_created(pool, &s).await;
                                 });
                             }
                             Ok(Redirect::to("/")
