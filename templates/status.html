@@ -1632,9 +1632,9 @@ let emojiData = {
 // Initialize on page load
 // Timestamp formatting is handled by /static/timestamps.js
 
+    // Legacy inline JavaScript removed - now handled by external status.js
+    // Emoji data initialization
     document.addEventListener('DOMContentLoaded', async () => {
-    initTheme();
-    // Timestamps are auto-initialized by timestamps.js
     
     // Simple settings
     const initSettings = async () => {
@@ -2417,7 +2417,37 @@ let emojiData = {
 });
 </script>
 <script>
-    // Admin upload toggles and submit
+// Initialize status page with template data
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize theme
+    if (typeof ThemeManager !== 'undefined') {
+        ThemeManager.init();
+    }
+    
+    // Initialize admin panel
+    if (typeof AdminManager !== 'undefined') {
+        AdminManager.init();
+    }
+    
+    // Initialize status page functionality
+    if (typeof StatusManager !== 'undefined') {
+        StatusManager.init();
+    }
+    
+    // Add theme toggle event listener
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle && typeof ThemeManager !== 'undefined') {
+        themeToggle.addEventListener('click', ThemeManager.toggle);
+    }
+    
+    // Load emoji data for picker
+    if (typeof emojiCategories !== 'undefined') {
+        window.emojiCategories = emojiCategories;
+    }
+});
+</script>
+<script>
+    // Admin upload toggles and submit (legacy - to be removed)
     document.addEventListener('DOMContentLoaded', function () {
         const toggle = document.getElementById('admin-toggle');
         const content = document.getElementById('admin-content');
