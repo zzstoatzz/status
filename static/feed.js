@@ -1,4 +1,13 @@
 // Feed Page Functionality
+// IIFE to encapsulate module variables and prevent global namespace pollution
+(() => {
+    // Module-scoped variables
+    let isLoading = false;
+    let offset = 0;
+    let hasMore = true;
+    let followingDids = null;
+    let filterActive = false;
+    let currentUserDid = null;
 
 // Initialize feed settings
 const initFeedSettings = async () => {
@@ -95,16 +104,7 @@ const applyFollowingFilter = (active) => {
     }
 };
 
-// Infinite scroll variables
-let isLoading = false;
-let offset = 0;
-let hasMore = true;
-
-// Following filter variables
-let followingDids = null;
-let filterActive = false;
-// Store current user's DID to include their own posts in following feed
-let currentUserDid = null;
+// Variables already declared at module scope above
 
 // Load more statuses
 const loadMoreStatuses = async () => {
@@ -424,7 +424,8 @@ const initFeedPage = async (initialOffset = 0, userDid = null) => {
     });
 };
 
-// Export for global use
-window.FeedManager = {
-    init: initFeedPage
-};
+    // Export for global use
+    window.FeedManager = {
+        init: initFeedPage
+    };
+})(); // End IIFE

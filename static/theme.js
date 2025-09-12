@@ -2,6 +2,12 @@
 
 // Initialize theme on page load
 const initTheme = () => {
+    // Ensure DOM is ready before manipulating elements
+    if (!document.body) {
+        document.addEventListener('DOMContentLoaded', initTheme);
+        return;
+    }
+    
     const saved = localStorage.getItem('theme');
     const theme = saved || 'system';
     
@@ -15,6 +21,12 @@ const initTheme = () => {
 
 // Toggle between theme modes
 const toggleTheme = () => {
+    // Ensure DOM is ready before manipulating elements
+    if (!document.body) {
+        console.warn('Cannot toggle theme: DOM not ready');
+        return;
+    }
+    
     const saved = localStorage.getItem('theme') || 'system';
     const themes = ['system', 'light', 'dark'];
     const currentIndex = themes.indexOf(saved);
