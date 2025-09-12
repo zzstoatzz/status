@@ -242,11 +242,13 @@ body {
     display: none;
 }
 
+body[data-theme="light"] .sun-icon,
 [data-theme="light"] .sun-icon {
     display: block;
     stroke: #f39c12;
 }
 
+body[data-theme="dark"] .moon-icon,
 [data-theme="dark"] .moon-icon {
     display: block;
     stroke: #8e44ad;
@@ -297,6 +299,7 @@ body {
 .session-actions {
     display: flex;
     gap: 0.5rem;
+    align-items: center;
 }
 
 /* Buttons */
