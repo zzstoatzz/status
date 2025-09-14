@@ -662,7 +662,13 @@ body {
     transition: color 0.2s;
 }
 
-.status-author:hover {
+.status-author:link,
+.status-author:visited {
+    color: var(--text-secondary);
+}
+
+.status-author:hover,
+.status-author:active {
     color: var(--accent);
 }
 
