@@ -599,6 +599,11 @@ body {
     border-radius: var(--radius-sm);
 }
 
+.handle-link:link,
+.handle-link:visited {
+    color: var(--text-secondary);
+}
+
 .handle-link::before {
     content: '';
     position: absolute;
@@ -611,7 +616,8 @@ body {
     filter: blur(8px);
 }
 
-.handle-link:hover {
+.handle-link:hover,
+.handle-link:active {
     color: var(--accent);
     text-shadow: 0 0 12px var(--accent);
 }
