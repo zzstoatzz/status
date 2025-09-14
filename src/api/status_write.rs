@@ -5,8 +5,8 @@ use crate::{
 };
 use actix_multipart::Multipart;
 use actix_session::Session;
-use actix_web::{HttpRequest, HttpResponse, Responder, post, web};
-use async_sqlite::{Pool, rusqlite};
+use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
+use async_sqlite::{rusqlite, Pool};
 use atrium_api::{
     agent::Agent,
     types::string::{Datetime, Did},
@@ -14,7 +14,7 @@ use atrium_api::{
 use futures_util::TryStreamExt as _;
 use std::sync::Arc;
 
-use crate::api::status_util::{HideStatusRequest, StatusForm, parse_duration};
+use crate::api::status_util::{parse_duration, HideStatusRequest, StatusForm};
 
 #[post("/admin/upload-emoji")]
 pub async fn upload_emoji(
@@ -76,10 +76,15 @@ pub async fn upload_emoji(
                     "png"
                 } else if file_bytes.starts_with(&[0x47, 0x49, 0x46]) {
                     "gif"
-                } else if file_bytes.starts_with(b"RIFF") && file_bytes.len() > 12 && &file_bytes[8..12] == b"WEBP" {
+                } else if file_bytes.starts_with(b"RIFF")
+                    && file_bytes.len() > 12
+                    && &file_bytes[8..12] == b"WEBP"
+                {
                     "webp"
                 } else {
-                    return Err(AppError::ValidationError("Unsupported image format. Only PNG, GIF, and WebP are allowed.".into()));
+                    return Err(AppError::ValidationError(
+                        "Unsupported image format. Only PNG, GIF, and WebP are allowed.".into(),
+                    ));
                 }
             }
         }
@@ -89,10 +94,15 @@ pub async fn upload_emoji(
             "png"
         } else if file_bytes.starts_with(&[0x47, 0x49, 0x46]) {
             "gif"
-        } else if file_bytes.starts_with(b"RIFF") && file_bytes.len() > 12 && &file_bytes[8..12] == b"WEBP" {
+        } else if file_bytes.starts_with(b"RIFF")
+            && file_bytes.len() > 12
+            && &file_bytes[8..12] == b"WEBP"
+        {
             "webp"
         } else {
-            return Err(AppError::ValidationError("Unsupported image format. Only PNG, GIF, and WebP are allowed.".into()));
+            return Err(AppError::ValidationError(
+                "Unsupported image format. Only PNG, GIF, and WebP are allowed.".into(),
+            ));
         }
     };
     
@@ -101,7 +111,8 @@ pub async fn upload_emoji(
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| format!("emoji_{}", chrono::Utc::now().timestamp()));
     let file_path = format!("{}/{}.{}", emoji_dir, filename, extension);
-    std::fs::write(&file_path, &file_bytes).map_err(|e| AppError::ValidationError(e.to_string()))?;
+    std::fs::write(&file_path, &file_bytes)
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
     Ok(HttpResponse::Ok().json(serde_json::json!({"ok": true, "name": format!("{}.{}", filename, extension)})))
 }
 
@@ -252,7 +263,8 @@ pub async fn delete_status(
                                 let did_for_event = did_string.clone();
                                 let uri = req.uri.clone();
                                 tokio::spawn(async move {
-                                    crate::webhooks::emit_deleted(pool, &did_for_event, &uri).await;
+                                    crate::webhooks::emit_deleted(pool, &did_for_event, &uri)
+                                        .await;
                                 });
                                 HttpResponse::Ok().json(serde_json::json!({"success":true}))
                             }
@@ -270,10 +282,12 @@ pub async fn delete_status(
                     }
                 }
             } else {
-                HttpResponse::BadRequest().json(serde_json::json!({"error":"Invalid status URI"}))
+                HttpResponse::BadRequest()
+                    .json(serde_json::json!({"error":"Invalid status URI"}))
             }
         }
-        None => HttpResponse::Unauthorized().json(serde_json::json!({"error":"Not authenticated"})),
+        None => HttpResponse::Unauthorized()
+            .json(serde_json::json!({"error":"Not authenticated"})),
     }
 }
 
@@ -301,12 +315,23 @@ pub async fn hide_status(
                 })
                 .await;
             match result {
-                Ok(rows_affected) if rows_affected > 0 => HttpResponse::Ok().json(serde_json::json!({"success":true,"message": if hidden {"Status hidden"} else {"Status unhidden"}})),
-                Ok(_) => HttpResponse::NotFound().json(serde_json::json!({"error":"Status not found"})),
-                Err(err) => { log::error!("Error updating hidden status: {}", err); HttpResponse::InternalServerError().json(serde_json::json!({"error":"Database error"})) }
+                Ok(rows_affected) if rows_affected > 0 => HttpResponse::Ok().json(
+                    serde_json::json!({
+                        "success": true,
+                        "message": if hidden { "Status hidden" } else { "Status unhidden" }
+                    }),
+                ),
+                Ok(_) => HttpResponse::NotFound()
+                    .json(serde_json::json!({"error":"Status not found"})),
+                Err(err) => {
+                    log::error!("Error updating hidden status: {}", err);
+                    HttpResponse::InternalServerError()
+                        .json(serde_json::json!({"error":"Database error"}))
+                }
             }
         }
-        None => HttpResponse::Unauthorized().json(serde_json::json!({"error":"Not authenticated"})),
+        None => HttpResponse::Unauthorized()
+            .json(serde_json::json!({"error":"Not authenticated"})),
     }
 }
 
