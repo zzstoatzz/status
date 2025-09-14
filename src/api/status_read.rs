@@ -414,12 +414,27 @@ pub async fn get_custom_emojis(app_config: web::Data<Config>) -> Result<impl Res
                 if let (Some(stem), Some(ext)) = (p.file_stem(), p.extension()) {
                     let name = stem.to_string_lossy().to_string();
                     let ext = ext.to_string_lossy().to_ascii_lowercase();
-                    if ext == "png" || ext == "gif" {
-                        // prefer png over gif if duplicates
+                    if ext == "png" || ext == "gif" || ext == "webp" {
+                        // prefer png > webp > gif if duplicates
                         let filename = format!("{}.{ext}", name);
                         map.entry(name)
                             .and_modify(|v| {
-                                if v.ends_with(".gif") && ext == "png" {
+                                // Preference order: png > webp > gif
+                                let current_priority = if v.ends_with(".png") {
+                                    3
+                                } else if v.ends_with(".webp") {
+                                    2
+                                } else {
+                                    1 // gif
+                                };
+
+                                let new_priority = match ext.as_str() {
+                                    "png" => 3,
+                                    "webp" => 2,
+                                    _ => 1, // gif
+                                };
+
+                                if new_priority > current_priority {
                                     *v = filename.clone();
                                 }
                             })
