@@ -5,8 +5,8 @@ use crate::{
 };
 use actix_multipart::Multipart;
 use actix_session::Session;
-use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
-use async_sqlite::{rusqlite, Pool};
+use actix_web::{HttpRequest, HttpResponse, Responder, post, web};
+use async_sqlite::{Pool, rusqlite};
 use atrium_api::{
     agent::Agent,
     types::string::{Datetime, Did},
@@ -14,7 +14,7 @@ use atrium_api::{
 use futures_util::TryStreamExt as _;
 use std::sync::Arc;
 
-use crate::api::status_util::{parse_duration, HideStatusRequest, StatusForm};
+use crate::api::status_util::{HideStatusRequest, StatusForm, parse_duration};
 
 #[post("/admin/upload-emoji")]
 pub async fn upload_emoji(
@@ -63,7 +63,7 @@ pub async fn upload_emoji(
         }
     }
     let file_bytes = file_bytes.ok_or_else(|| AppError::ValidationError("No file".into()))?;
-    
+
     // Determine file extension based on content type or file signature
     let extension = if let Some(ct) = content_type.as_ref() {
         match ct.as_str() {
@@ -105,7 +105,7 @@ pub async fn upload_emoji(
             ));
         }
     };
-    
+
     let emoji_dir = app_config.emoji_dir.clone();
     let filename = name
         .filter(|s| !s.is_empty())
@@ -113,7 +113,8 @@ pub async fn upload_emoji(
     let file_path = format!("{}/{}.{}", emoji_dir, filename, extension);
     std::fs::write(&file_path, &file_bytes)
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
-    Ok(HttpResponse::Ok().json(serde_json::json!({"ok": true, "name": format!("{}.{}", filename, extension)})))
+    Ok(HttpResponse::Ok()
+        .json(serde_json::json!({"ok": true, "name": format!("{}.{}", filename, extension)})))
 }
 
 /// Clear the user's status by deleting the ATProto record
@@ -263,8 +264,7 @@ pub async fn delete_status(
                                 let did_for_event = did_string.clone();
                                 let uri = req.uri.clone();
                                 tokio::spawn(async move {
-                                    crate::webhooks::emit_deleted(pool, &did_for_event, &uri)
-                                        .await;
+                                    crate::webhooks::emit_deleted(pool, &did_for_event, &uri).await;
                                 });
                                 HttpResponse::Ok().json(serde_json::json!({"success":true}))
                             }
@@ -282,12 +282,10 @@ pub async fn delete_status(
                     }
                 }
             } else {
-                HttpResponse::BadRequest()
-                    .json(serde_json::json!({"error":"Invalid status URI"}))
+                HttpResponse::BadRequest().json(serde_json::json!({"error":"Invalid status URI"}))
             }
         }
-        None => HttpResponse::Unauthorized()
-            .json(serde_json::json!({"error":"Not authenticated"})),
+        None => HttpResponse::Unauthorized().json(serde_json::json!({"error":"Not authenticated"})),
     }
 }
 
@@ -315,14 +313,15 @@ pub async fn hide_status(
                 })
                 .await;
             match result {
-                Ok(rows_affected) if rows_affected > 0 => HttpResponse::Ok().json(
-                    serde_json::json!({
+                Ok(rows_affected) if rows_affected > 0 => {
+                    HttpResponse::Ok().json(serde_json::json!({
                         "success": true,
                         "message": if hidden { "Status hidden" } else { "Status unhidden" }
-                    }),
-                ),
-                Ok(_) => HttpResponse::NotFound()
-                    .json(serde_json::json!({"error":"Status not found"})),
+                    }))
+                }
+                Ok(_) => {
+                    HttpResponse::NotFound().json(serde_json::json!({"error":"Status not found"}))
+                }
                 Err(err) => {
                     log::error!("Error updating hidden status: {}", err);
                     HttpResponse::InternalServerError()
@@ -330,8 +329,7 @@ pub async fn hide_status(
                 }
             }
         }
-        None => HttpResponse::Unauthorized()
-            .json(serde_json::json!({"error":"Not authenticated"})),
+        None => HttpResponse::Unauthorized().json(serde_json::json!({"error":"Not authenticated"})),
     }
 }
 
