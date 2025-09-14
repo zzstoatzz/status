@@ -54,12 +54,12 @@ The app serves them at `/emojis/<filename>` and lists them via `/api/custom-emoj
 
 ### admin upload endpoint
 
-When logged in as the admin DID, you can upload PNG or GIF emojis without SSH via a simple endpoint:
+When logged in as the admin DID, you can upload PNG, GIF, or WebP emojis without SSH via a simple endpoint:
 
 - Endpoint: `POST /admin/upload-emoji`
 - Auth: session-based; only the admin DID is allowed
 - Form fields (multipart/form-data):
-  - `file`: the image file (PNG or GIF), max 5MB
+  - `file`: the image file (PNG, GIF, or WebP), max 5MB
   - `name` (optional): base filename (letters, numbers, `-`, `_`) without extension
 
 Example with curl:

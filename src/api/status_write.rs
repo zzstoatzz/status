@@ -27,6 +27,7 @@ pub async fn upload_emoji(
     }
     let mut name: Option<String> = None;
     let mut file_bytes: Option<Vec<u8>> = None;
+    let mut content_type: Option<String> = None;
     while let Some(item) = payload
         .try_next()
         .await
@@ -46,6 +47,10 @@ pub async fn upload_emoji(
             }
             name = Some(String::from_utf8_lossy(&buf).trim().to_string());
         } else if field_name == "file" {
+            // Capture content type if available
+            if let Some(ct) = field.content_type() {
+                content_type = Some(ct.to_string());
+            }
             let mut buf = Vec::new();
             while let Some(chunk) = field
                 .try_next()
@@ -58,14 +63,46 @@ pub async fn upload_emoji(
         }
     }
     let file_bytes = file_bytes.ok_or_else(|| AppError::ValidationError("No file".into()))?;
-    // Basic validation omitted for brevity
+    
+    // Determine file extension based on content type or file signature
+    let extension = if let Some(ct) = content_type.as_ref() {
+        match ct.as_str() {
+            "image/png" => "png",
+            "image/gif" => "gif",
+            "image/webp" => "webp",
+            _ => {
+                // Fallback to detecting by file signature
+                if file_bytes.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
+                    "png"
+                } else if file_bytes.starts_with(&[0x47, 0x49, 0x46]) {
+                    "gif"
+                } else if file_bytes.starts_with(b"RIFF") && file_bytes.len() > 12 && &file_bytes[8..12] == b"WEBP" {
+                    "webp"
+                } else {
+                    return Err(AppError::ValidationError("Unsupported image format. Only PNG, GIF, and WebP are allowed.".into()));
+                }
+            }
+        }
+    } else {
+        // Detect by file signature if no content type
+        if file_bytes.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
+            "png"
+        } else if file_bytes.starts_with(&[0x47, 0x49, 0x46]) {
+            "gif"
+        } else if file_bytes.starts_with(b"RIFF") && file_bytes.len() > 12 && &file_bytes[8..12] == b"WEBP" {
+            "webp"
+        } else {
+            return Err(AppError::ValidationError("Unsupported image format. Only PNG, GIF, and WebP are allowed.".into()));
+        }
+    };
+    
     let emoji_dir = app_config.emoji_dir.clone();
     let filename = name
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| format!("emoji_{}", chrono::Utc::now().timestamp()));
-    let path_png = format!("{}/{}.png", emoji_dir, filename);
-    std::fs::write(&path_png, &file_bytes).map_err(|e| AppError::ValidationError(e.to_string()))?;
-    Ok(HttpResponse::Ok().json(serde_json::json!({"ok": true, "name": filename})))
+    let file_path = format!("{}/{}.{}", emoji_dir, filename, extension);
+    std::fs::write(&file_path, &file_bytes).map_err(|e| AppError::ValidationError(e.to_string()))?;
+    Ok(HttpResponse::Ok().json(serde_json::json!({"ok": true, "name": format!("{}.{}", filename, extension)})))
 }
 
 /// Clear the user's status by deleting the ATProto record
