@@ -1318,8 +1318,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     return;
                 }
                 const f = file.files[0];
-                if (!['image/png','image/gif'].includes(f.type)) {
-                    msg.textContent = 'only PNG or GIF';
+                if (!['image/png','image/gif','image/webp'].includes(f.type)) {
+                    msg.textContent = 'only PNG, GIF, or WebP';
                     return;
                 }
                 const fd = new FormData();
