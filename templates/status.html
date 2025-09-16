@@ -2154,7 +2154,7 @@ let emojiData = {
             });
         }
 
-        loadCustomEmojis().then(() => {
+        ensureCustomEmojis({ showLoading: false, showErrors: false }).then(() => {
             loadEmojiCategory('frequent');
         });
 
@@ -2215,13 +2215,6 @@ let emojiData = {
             if (e.target === emojiPickerOverlay) {
                 closeEmojiPicker();
             }
-        });
-    }
-    
-    // Prevent clicks inside the picker from bubbling to the overlay
-    if (emojiPicker) {
-        emojiPicker.addEventListener('click', (e) => {
-            e.stopPropagation();
         });
     }
     
