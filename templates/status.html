@@ -190,29 +190,40 @@
             </form>
         </div>
 
-        <!-- Emoji Picker (hidden by default) -->
-        <div class="emoji-picker" id="emoji-picker" style="display: none;">
-            <div class="emoji-search-container">
-                <input type="text" 
-                       id="emoji-search" 
-                       class="emoji-search" 
-                       placeholder="Search emojis..." 
-                       autocomplete="off">
-            </div>
-            <div class="emoji-categories" id="emoji-categories">
-                <button class="category-btn active" data-category="frequent">Frequent</button>
-                <button class="category-btn" data-category="custom">Custom</button>
-                <button class="category-btn" data-category="people">People</button>
-                <button class="category-btn" data-category="nature">Nature</button>
-                <button class="category-btn" data-category="food">Food</button>
-                <button class="category-btn" data-category="activity">Activity</button>
-                <button class="category-btn" data-category="travel">Travel</button>
-                <button class="category-btn" data-category="objects">Objects</button>
-                <button class="category-btn" data-category="symbols">Symbols</button>
-                <button class="category-btn" data-category="flags">Flags</button>
-            </div>
-            <div class="emoji-grid" id="emoji-grid">
-                <!-- Will be populated by JavaScript -->
+        <!-- Emoji Picker Modal -->
+        <div class="emoji-picker-overlay hidden" id="emoji-picker-overlay" aria-hidden="true">
+            <div class="emoji-picker" id="emoji-picker" role="dialog" aria-modal="true" aria-labelledby="emoji-picker-title">
+                <div class="emoji-picker-header">
+                    <div>
+                        <h2 id="emoji-picker-title">pick an emoji</h2>
+                        <p class="emoji-picker-subtitle">custom and unicode options side by side</p>
+                    </div>
+                    <button type="button" class="emoji-picker-close" id="emoji-picker-close" aria-label="close emoji picker">✕</button>
+                </div>
+                <div class="emoji-search-container">
+                    <input type="text" 
+                           id="emoji-search" 
+                           class="emoji-search" 
+                           placeholder="Search emojis..." 
+                           autocomplete="off">
+                </div>
+                <div class="emoji-picker-body">
+                    <div class="emoji-categories" id="emoji-categories">
+                        <button type="button" class="category-btn active" data-category="frequent">Frequent</button>
+                        <button type="button" class="category-btn" data-category="custom">Custom</button>
+                        <button type="button" class="category-btn" data-category="people">People</button>
+                        <button type="button" class="category-btn" data-category="nature">Nature</button>
+                        <button type="button" class="category-btn" data-category="food">Food</button>
+                        <button type="button" class="category-btn" data-category="activity">Activity</button>
+                        <button type="button" class="category-btn" data-category="travel">Travel</button>
+                        <button type="button" class="category-btn" data-category="objects">Objects</button>
+                        <button type="button" class="category-btn" data-category="symbols">Symbols</button>
+                        <button type="button" class="category-btn" data-category="flags">Flags</button>
+                    </div>
+                    <div class="emoji-grid" id="emoji-grid">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -457,6 +468,12 @@ body {
     font-family: var(--font-family) !important;
 }
 
+body.modal-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+}
+
 :root {
     --bg-primary: #ffffff;
     --bg-secondary: #f8f9fa;
@@ -607,6 +624,10 @@ body {
 .handle-link::before {
     content: '';
     position: absolute;
+    top: -2px;
+    right: -2px;
+    bottom: -2px;
+    left: -2px;
     inset: -2px;
     border-radius: var(--radius-sm);
     background: linear-gradient(45deg, var(--accent), transparent);
@@ -1049,112 +1070,250 @@ body {
 }
 
 /* Emoji Picker */
+.emoji-picker-overlay {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    inset: 0; /* Modern browsers */
+    background: rgba(6, 6, 8, 0.75);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(1rem, 6vw, 2.5rem);
+    z-index: 1400;
+}
+
+.emoji-picker-overlay.hidden {
+    display: none;
+}
+
 .emoji-picker {
-    position: absolute;
+    position: relative;
+    z-index: 1;
+    width: min(960px, 94vw);
+    height: min(90vh, 820px);
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius);
-    padding: 1rem;
-    box-shadow: var(--shadow-md);
-    width: 320px;
-    max-height: 400px;
-    overflow-y: auto;
-    z-index: 1000;
+    border-radius: clamp(var(--radius), 2vw, 24px);
+    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.45);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding: clamp(1.25rem, 5vw, 2.5rem);
+    overflow: hidden;
+}
+
+
+.emoji-picker-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.emoji-picker-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--text-primary);
+}
+
+.emoji-picker-subtitle {
+    margin: 0.25rem 0 0;
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
+}
+
+.emoji-picker-close {
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border-radius: 999px;
+    width: 2.25rem;
+    height: 2.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.emoji-picker-close:hover,
+.emoji-picker-close:focus-visible {
+    color: white;
+    background: var(--accent);
+    border-color: transparent;
+    outline: none;
 }
 
 .emoji-search-container {
-    margin-bottom: 1rem;
+    margin: 0;
 }
 
 .emoji-search {
     width: 100%;
-    padding: 0.5rem 0.75rem;
+    padding: 0.75rem 1rem;
     background: var(--bg-primary);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius);
     color: var(--text-primary);
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     outline: none;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .emoji-search:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.1);
+    box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.12);
 }
 
 .emoji-search::placeholder {
     color: var(--text-tertiary);
 }
 
+.emoji-picker-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 0;
+}
+
 .emoji-categories {
     display: flex;
-    gap: 0.25rem;
-    margin-bottom: 1rem;
+    gap: 0.75rem;
     overflow-x: auto;
     padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    scrollbar-width: none;
 }
 
 .emoji-categories.hidden {
     display: none;
 }
 
-.category-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
-    cursor: pointer;
-    white-space: nowrap;
-    border-radius: var(--radius-sm);
-    transition: all 0.2s;
+.emoji-categories::-webkit-scrollbar {
+    display: none;
 }
 
-.category-btn:hover {
-    background: var(--bg-tertiary);
+.category-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    padding: 0.4rem 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+    border-radius: 999px;
+    transition: all 0.2s ease;
+}
+
+.category-btn:hover,
+.category-btn:focus-visible {
+    border-color: var(--accent);
+    color: var(--accent);
+    outline: none;
 }
 
 .category-btn.active {
     background: var(--accent);
     color: white;
+    border-color: transparent;
 }
 
 .emoji-grid {
+    flex: 1;
     display: grid;
-    grid-template-columns: repeat(auto-fill, 2rem);
-    gap: 0.25rem;
-    justify-content: start;
+    grid-template-columns: repeat(auto-fill, minmax(min(84px, 18vw), 1fr));
+    gap: 0.75rem;
+    padding-right: 0.25rem;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.emoji-grid::-webkit-scrollbar {
+    display: none;
 }
 
 .emoji-option {
     background: transparent;
     border: none;
-    font-size: 1.5rem;
-    padding: 0.25rem;
+    font-size: 2.4rem;
     cursor: pointer;
-    border-radius: var(--radius-sm);
-    transition: background 0.2s;
+    transition: transform 0.15s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2rem;
-    height: 2rem;
+    width: 100%;
+    aspect-ratio: 1;
 }
 
 .emoji-option:hover {
-    background: var(--bg-tertiary);
+    transform: translateY(-3px) scale(1.05);
 }
 
-/* Custom emoji styles */
-.emoji-option.custom-emoji {
-    padding: 0.125rem;
+.emoji-option:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 6px;
+    border-radius: 16px;
 }
 
 .emoji-option.custom-emoji img {
-    width: 1.75rem;
-    height: 1.75rem;
+    width: 75%;
+    height: 75%;
     object-fit: contain;
+}
+
+.emoji-grid-placeholder,
+.emoji-loading-message {
+    text-align: center;
+    color: var(--text-tertiary);
+    padding: 2rem 1rem;
+    font-size: 0.95rem;
+}
+
+.emoji-picker-overlay::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+}
+
+@media (max-width: 640px) {
+    .emoji-picker-overlay {
+        padding: 0;
+        align-items: stretch;
+    }
+
+    .emoji-picker {
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        border-radius: 0;
+        padding: 1.5rem 1rem;
+        gap: 1rem;
+    }
+
+    .emoji-grid {
+        grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+        gap: 0.5rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .emoji-picker-overlay {
+        backdrop-filter: none;
+        background: rgba(6, 6, 8, 0.85);
+    }
+
+    .emoji-picker,
+    .emoji-option {
+        transition: none;
+    }
 }
 
 /* Clear Picker */
@@ -1477,7 +1636,11 @@ body {
 .webhook-modal.hidden { display: none; }
 .webhook-modal {
     position: fixed;
-    inset: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    inset: 0; /* Modern browsers */
     background: rgba(0,0,0,0.6);
     z-index: 1000;
     display: flex;
@@ -1937,180 +2100,323 @@ let emojiData = {
     
     // Emoji picker
     const emojiTrigger = document.getElementById('emoji-trigger');
+    const emojiPickerOverlay = document.getElementById('emoji-picker-overlay');
     const emojiPicker = document.getElementById('emoji-picker');
+    const emojiPickerClose = document.getElementById('emoji-picker-close');
     const emojiGrid = document.getElementById('emoji-grid');
     const selectedEmoji = document.getElementById('selected-emoji');
     const statusInput = document.getElementById('status-input');
-    
+    const emojiSearch = document.getElementById('emoji-search');
+    const emojiCategories = document.getElementById('emoji-categories');
+    let lastFocusBeforeEmojiPicker = null;
+    let scrollPosition = 0;
+    let isScrollLocked = false;
+    let keydownBound = false;
+
     // Clear time picker
     const clearAfterBtn = document.getElementById('clear-after-btn');
     const clearPicker = document.getElementById('clear-picker');
     const clearText = document.getElementById('clear-text');
     const expiresSelect = document.getElementById('expires_in');
+
+    const isEmojiPickerOpen = () => emojiPickerOverlay && !emojiPickerOverlay.classList.contains('hidden');
+
+    const handleKeydown = (e) => {
+        if (e.key === 'Escape' && isEmojiPickerOpen()) {
+            closeEmojiPicker();
+        }
+    };
     
+    // Clean up event listener on page unload
+    window.addEventListener('beforeunload', () => {
+        if (keydownBound) {
+            document.removeEventListener('keydown', handleKeydown);
+            keydownBound = false;
+        }
+    });
+
+    const openEmojiPicker = () => {
+        if (!emojiPickerOverlay || !emojiPicker) return;
+
+        lastFocusBeforeEmojiPicker = document.activeElement;
+        scrollPosition = window.scrollY || document.documentElement.scrollTop || 0;
+
+        emojiPickerOverlay.classList.remove('hidden');
+        emojiPickerOverlay.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+        document.body.style.top = `-${scrollPosition}px`;
+        isScrollLocked = true;
+        if (clearPicker) clearPicker.style.display = 'none';
+
+        if (emojiSearch) {
+            emojiSearch.value = '';
+            if (emojiCategories) emojiCategories.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                try { emojiSearch.focus(); } catch (_) {}
+            });
+        }
+
+        ensureCustomEmojis({ showLoading: false, showErrors: false }).then(() => {
+            loadEmojiCategory('frequent');
+        });
+
+        if (!keydownBound) {
+            document.addEventListener('keydown', handleKeydown);
+            keydownBound = true;
+        }
+    };
+
+    const closeEmojiPicker = () => {
+        if (!emojiPickerOverlay) return;
+        emojiPickerOverlay.classList.add('hidden');
+        emojiPickerOverlay.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+        document.body.style.top = '';
+        if (isScrollLocked) {
+            window.scrollTo(0, scrollPosition);
+        }
+        scrollPosition = 0;
+        isScrollLocked = false;
+        if (lastFocusBeforeEmojiPicker && typeof lastFocusBeforeEmojiPicker.focus === 'function') {
+            const focusTarget = lastFocusBeforeEmojiPicker;
+            requestAnimationFrame(() => {
+                try { focusTarget.focus(); } catch (_) {}
+            });
+        }
+        lastFocusBeforeEmojiPicker = null;
+
+        if (keydownBound) {
+            document.removeEventListener('keydown', handleKeydown);
+            keydownBound = false;
+        }
+    };
+
     // Show emoji picker
-    if (emojiTrigger && emojiPicker) {
+    if (emojiTrigger && emojiPickerOverlay) {
         emojiTrigger.addEventListener('click', (e) => {
+            e.preventDefault();
             e.stopPropagation();
-            const wasHidden = emojiPicker.style.display === 'none';
-            emojiPicker.style.display = wasHidden ? 'block' : 'none';
-            clearPicker.style.display = 'none';
-            
-            if (wasHidden) {
-                // Position picker
-                const rect = emojiTrigger.getBoundingClientRect();
-                emojiPicker.style.top = rect.bottom + 'px';
-                emojiPicker.style.left = rect.left + 'px';
-                
-                // Clear search and show categories
-                const emojiSearch = document.getElementById('emoji-search');
-                if (emojiSearch) {
-                    emojiSearch.value = '';
-                    document.getElementById('emoji-categories').classList.remove('hidden');
-                }
-                
-                // Load frequent emojis by default (wait for custom emojis to be loaded first)
-                loadCustomEmojis().then(() => {
-                    loadEmojiCategory('frequent');
-                });
-                
-                // Focus search for easy typing
-                setTimeout(() => {
-                    if (emojiSearch) emojiSearch.focus();
-                }, 50);
+            if (isEmojiPickerOpen()) {
+                closeEmojiPicker();
+            } else {
+                openEmojiPicker();
+            }
+        });
+    }
+
+    if (emojiPickerClose) {
+        emojiPickerClose.addEventListener('click', (e) => {
+            e.preventDefault();
+            closeEmojiPicker();
+        });
+    }
+
+    if (emojiPickerOverlay) {
+        emojiPickerOverlay.addEventListener('click', (e) => {
+            // Only close if clicking the overlay itself, not the picker content
+            if (e.target === emojiPickerOverlay) {
+                closeEmojiPicker();
             }
         });
     }
     
-    // Store custom emojis
+    // Emoji data caches
     let customEmojis = [];
-    
-    // Load custom emojis from API
-    const loadCustomEmojis = async () => {
+    let customEmojiMap = new Map();
+    let customEmojiFetchPromise = null;
+    let searchDebounce;
+    const SEARCH_DEBOUNCE_MS = 120;
+
+    const showGridMessage = (message, className = 'emoji-grid-placeholder') => {
+        if (!emojiGrid) return;
+        const placeholder = document.createElement('div');
+        placeholder.className = className;
+        placeholder.textContent = message;
+        emojiGrid.replaceChildren(placeholder);
+    };
+
+    const createCustomEmojiButton = (emoji) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'emoji-option custom-emoji';
+        button.dataset.emoji = `custom:${emoji.name}`;
+        button.dataset.name = emoji.name;
+
+        const img = document.createElement('img');
+        img.src = `/emojis/${emoji.filename}`;
+        img.alt = emoji.name;
+        img.title = emoji.name;
+        button.appendChild(img);
+        return button;
+    };
+
+    const createStandardEmojiButton = (emoji, title = '') => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'emoji-option';
+        button.dataset.emoji = emoji;
+        if (title) {
+            button.dataset.name = title;
+            button.title = title;
+        }
+        button.textContent = emoji;
+        return button;
+    };
+
+    const renderEmojiButtons = (buttons) => {
+        if (!emojiGrid) return;
+        const fragment = document.createDocumentFragment();
+        buttons.forEach(btn => fragment.appendChild(btn));
+        emojiGrid.replaceChildren(fragment);
+    };
+
+    const fetchCustomEmojis = async () => {
+        const response = await fetch('/api/custom-emojis');
+        const data = await response.json();
+        if (!Array.isArray(data)) {
+            throw new Error('Invalid custom emoji payload');
+        }
+        customEmojis = data;
+        customEmojiMap = new Map(data.map(emoji => [emoji.name, emoji]));
+        return customEmojis;
+    };
+
+    const ensureCustomEmojis = async ({ showLoading = false, showErrors = true } = {}) => {
+        if (customEmojis.length) return customEmojis;
+        if (showLoading) {
+            showGridMessage('loading custom emojis…', 'emoji-loading-message');
+        }
+        if (!customEmojiFetchPromise) {
+            customEmojiFetchPromise = fetchCustomEmojis()
+                .catch(err => {
+                    console.error('Failed to load custom emojis:', err);
+                    customEmojis = [];
+                    customEmojiMap = new Map();
+                    if (showErrors) {
+                        showGridMessage('failed to load custom emojis');
+                    }
+                    throw err;
+                })
+                .finally(() => {
+                    customEmojiFetchPromise = null;
+                });
+        }
         try {
-            const response = await fetch('/api/custom-emojis');
-            customEmojis = await response.json();
-        } catch (e) {
-            console.error('Failed to load custom emojis:', e);
+            await customEmojiFetchPromise;
+        } catch (_) {
+            return [];
         }
         return customEmojis;
     };
-    
-    // Load custom emojis on page load
-    loadCustomEmojis();
 
-    // Refresh custom emojis when an admin uploads a new one
-    document.addEventListener('custom-emoji-uploaded', async (e) => {
-        await loadCustomEmojis();
-        // If picker visible, refresh current category
-        if (emojiPicker && emojiPicker.style.display !== 'none') {
-            const active = document.querySelector('.emoji-categories .category-btn.active');
-            const cat = active ? active.getAttribute('data-category') : 'frequent';
-            loadEmojiCategory(cat || 'frequent');
-        }
-    });
-    
-    // Load emoji category
-    const loadEmojiCategory = async (category) => {
-        if (category === 'frequent') {
-            // For frequent tab, we need to handle both regular and custom emojis
-            const emojis = emojiData[category] || [];
-            let html = '';
-            
-            for (const emoji of emojis) {
-                if (emoji.startsWith('custom:')) {
-                    // This is a custom emoji
-                    const emojiName = emoji.replace('custom:', '');
-                    // Find the custom emoji data
-                    const customEmoji = customEmojis.find(e => e.name === emojiName);
-                    if (customEmoji) {
-                        html += `<button type="button" class="emoji-option custom-emoji" data-emoji="${emoji}" data-name="${emojiName}">
-                            <img src="/emojis/${customEmoji.filename}" alt="${emojiName}" title="${emojiName}">
-                        </button>`;
-                    }
-                } else {
-                    // Regular Unicode emoji
-                    html += `<button type="button" class="emoji-option" data-emoji="${emoji}">${emoji}</button>`;
-                }
-            }
-            
-            emojiGrid.innerHTML = html;
-            
-            // Add click handlers for both types
-            emojiGrid.querySelectorAll('.emoji-option').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const emoji = btn.getAttribute('data-emoji');
-                    
-                    if (emoji.startsWith('custom:')) {
-                        const img = btn.querySelector('img');
-                        selectedEmoji.innerHTML = `<img src="${img.src}" alt="${img.alt}" style="width: 100%; height: 100%; object-fit: contain;">`;
-                    } else {
-                        selectedEmoji.textContent = emoji;
-                    }
-                    
-                    statusInput.value = emoji;
-                    emojiPicker.style.display = 'none';
-                    checkForChanges();
-                });
-            });
-        } else if (category === 'custom') {
-            // Load custom image emojis
-            if (customEmojis.length === 0) {
-                await loadCustomEmojis();
-            }
-            
-            emojiGrid.innerHTML = customEmojis.map(emoji => 
-                `<button type="button" class="emoji-option custom-emoji" data-emoji="custom:${emoji.name}" data-name="${emoji.name}">
-                    <img src="/emojis/${emoji.filename}" alt="${emoji.name}" title="${emoji.name}">
-                </button>`
-            ).join('');
-            
-            // Add click handlers for custom emojis
-            emojiGrid.querySelectorAll('.custom-emoji').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const emojiName = btn.getAttribute('data-name');
-                    const emojiValue = btn.getAttribute('data-emoji');
-                    const img = btn.querySelector('img');
-                    
-                    // Display the image in the selected emoji area
-                    selectedEmoji.innerHTML = `<img src="${img.src}" alt="${img.alt}" style="width: 100%; height: 100%; object-fit: contain;">`;
-                    statusInput.value = emojiValue;
-                    emojiPicker.style.display = 'none';
-                    checkForChanges();
-                });
-            });
-        } else {
-            // Load standard Unicode emojis
-            const emojis = emojiData[category] || [];
-            emojiGrid.innerHTML = emojis.map(emoji => {
-                const slug = (window.__emojiSlugs && window.__emojiSlugs[emoji]) || '';
-                return `<button type="button" class="emoji-option" data-emoji="${emoji}" data-name="${slug}" title="${slug}">${emoji}</button>`;
-            }).join('');
-            
-            // Add click handlers for standard emojis
-            emojiGrid.querySelectorAll('.emoji-option').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const emoji = e.target.getAttribute('data-emoji');
-                    selectedEmoji.textContent = emoji;
-                    statusInput.value = emoji;
-                    emojiPicker.style.display = 'none';
-                    checkForChanges();
-                });
-            });
-        }
-        
-        // Update active category
+    // Quietly preload custom emojis so the custom tab feels instant
+    ensureCustomEmojis({ showLoading: false, showErrors: false }).catch(() => {});
+
+    const updateActiveCategory = (category) => {
         document.querySelectorAll('.category-btn').forEach(btn => {
             btn.classList.toggle('active', btn.getAttribute('data-category') === category);
         });
     };
-    
+
+    const loadEmojiCategory = async (category) => {
+        if (!emojiGrid) return;
+
+        const buttons = [];
+        const emojis = emojiData[category] || [];
+
+        if (category === 'frequent') {
+            if (emojis.some(emoji => emoji.startsWith('custom:'))) {
+                await ensureCustomEmojis({ showLoading: false, showErrors: false });
+            }
+            for (const emoji of emojis) {
+                if (emoji.startsWith('custom:')) {
+                    const name = emoji.replace('custom:', '');
+                    const custom = customEmojiMap.get(name);
+                    if (custom) {
+                        buttons.push(createCustomEmojiButton(custom));
+                    }
+                } else {
+                    const slug = (window.__emojiSlugs && window.__emojiSlugs[emoji]) || '';
+                    buttons.push(createStandardEmojiButton(emoji, slug));
+                }
+            }
+        } else if (category === 'custom') {
+            const data = await ensureCustomEmojis({ showLoading: true });
+            if (!data.length) {
+                showGridMessage('no custom emojis yet');
+                updateActiveCategory(category);
+                return;
+            }
+            for (const emoji of data) {
+                buttons.push(createCustomEmojiButton(emoji));
+            }
+        } else {
+            for (const emoji of emojis) {
+                const slug = (window.__emojiSlugs && window.__emojiSlugs[emoji]) || '';
+                buttons.push(createStandardEmojiButton(emoji, slug));
+            }
+        }
+
+        if (buttons.length) {
+            renderEmojiButtons(buttons);
+        } else if (category === 'custom') {
+            showGridMessage('no custom emojis yet');
+        } else {
+            showGridMessage('no emojis in this category');
+        }
+
+        updateActiveCategory(category);
+    };
+
+    const applyEmojiSelection = (button) => {
+        if (!button || !selectedEmoji || !statusInput) return;
+        const emojiValue = button.getAttribute('data-emoji');
+        if (!emojiValue) return;
+
+        selectedEmoji.innerHTML = '';
+        if (button.classList.contains('custom-emoji')) {
+            const img = button.querySelector('img');
+            if (img) {
+                const previewImg = document.createElement('img');
+                previewImg.src = img.src;
+                previewImg.alt = img.alt;
+                previewImg.title = img.title || img.alt || '';
+                previewImg.style.width = '100%';
+                previewImg.style.height = '100%';
+                previewImg.style.objectFit = 'contain';
+                selectedEmoji.appendChild(previewImg);
+            }
+        } else {
+            selectedEmoji.textContent = emojiValue;
+        }
+
+        statusInput.value = emojiValue;
+        if (emojiSearch) {
+            emojiSearch.value = '';
+        }
+        if (emojiCategories) {
+            emojiCategories.classList.remove('hidden');
+        }
+        closeEmojiPicker();
+        checkForChanges();
+    };
+
+    if (emojiGrid) {
+        emojiGrid.addEventListener('click', (e) => {
+            const button = e.target.closest('.emoji-option');
+            if (!button || !emojiGrid.contains(button)) return;
+            e.preventDefault();
+            applyEmojiSelection(button);
+        });
+    }
+
     // Category buttons
     document.querySelectorAll('.category-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            loadEmojiCategory(btn.getAttribute('data-category'));
+        btn.addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation(); // Prevent event bubbling that might close the modal
+            const category = btn.getAttribute('data-category');
+            await loadEmojiCategory(category);
         });
     });
     
@@ -2119,7 +2425,7 @@ let emojiData = {
         clearAfterBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             clearPicker.style.display = clearPicker.style.display === 'none' ? 'block' : 'none';
-            emojiPicker.style.display = 'none';
+            closeEmojiPicker();
             
             // Position picker
             const rect = clearAfterBtn.getBoundingClientRect();
@@ -2228,124 +2534,79 @@ let emojiData = {
     
     // Close pickers on outside click
     document.addEventListener('click', (e) => {
-        if (!emojiPicker.contains(e.target) && e.target !== emojiTrigger) {
-            emojiPicker.style.display = 'none';
-        }
-        if (!clearPicker.contains(e.target) && e.target !== clearAfterBtn) {
+        if (clearPicker && !clearPicker.contains(e.target) && e.target !== clearAfterBtn) {
             clearPicker.style.display = 'none';
         }
     });
     
     // Search emoji function
-    const searchEmojis = (query) => {
+    const searchEmojis = async (rawQuery) => {
+        if (!emojiGrid) return;
+        const query = (rawQuery || '').trim();
+
         if (!query) {
-            document.getElementById('emoji-categories').classList.remove('hidden');
-            loadEmojiCategory('frequent');
+            if (emojiCategories) emojiCategories.classList.remove('hidden');
+            await loadEmojiCategory('frequent');
             return;
         }
-        
-        // Hide categories when searching
-        document.getElementById('emoji-categories').classList.add('hidden');
-        
+
+        if (emojiCategories) emojiCategories.classList.add('hidden');
+
         const lowerQuery = query.toLowerCase();
-        const results = [];
-        const customResults = [];
-        
-        // Search through emoji keywords
-        for (const [emoji, keywords] of Object.entries(emojiKeywords)) {
-            // Check if emoji itself matches
-            if (emoji.includes(query)) {
-                results.push(emoji);
-                continue;
+        const buttons = [];
+        const seen = new Set();
+
+        await ensureCustomEmojis({ showLoading: false, showErrors: false });
+
+        for (const emoji of customEmojis) {
+            if (emoji.name.toLowerCase().includes(lowerQuery)) {
+                buttons.push(createCustomEmojiButton(emoji));
+                seen.add(`custom:${emoji.name}`);
+                if (buttons.length >= 80) break;
             }
-            
-            // Check keywords
-            for (const keyword of keywords) {
-                if (keyword.includes(lowerQuery)) {
-                    results.push(emoji);
-                    break;
+        }
+
+        if (buttons.length < 80) {
+            for (const [emoji, keywords] of Object.entries(emojiKeywords)) {
+                if (seen.has(emoji)) continue;
+                if (emoji.includes(query) || keywords.some(keyword => keyword.includes(lowerQuery))) {
+                    buttons.push(createStandardEmojiButton(emoji));
+                    seen.add(emoji);
+                    if (buttons.length >= 80) break;
                 }
             }
         }
-        
-        // Also add any emojis from all categories that aren't in keywords
-        const allCategoryEmojis = Object.values(emojiData).flat();
-        for (const emoji of allCategoryEmojis) {
-            if (!emojiKeywords[emoji] && !results.includes(emoji)) {
-                // For emojis without keywords, just do a basic include check
-                if (emoji.includes(query)) {
-                    results.push(emoji);
+
+        if (buttons.length < 80) {
+            outer: for (const categoryEmojis of Object.values(emojiData)) {
+                for (const emoji of categoryEmojis) {
+                    if (seen.has(emoji)) continue;
+                    if (emoji.includes(query)) {
+                        buttons.push(createStandardEmojiButton(emoji));
+                        seen.add(emoji);
+                        if (buttons.length >= 80) break outer;
+                    }
                 }
             }
         }
-        
-        // Search through custom emojis by name
-        for (const customEmoji of customEmojis) {
-            if (customEmoji.name.toLowerCase().includes(lowerQuery)) {
-                customResults.push(customEmoji);
-            }
-        }
-        
-        // Remove duplicates and limit results
-        const uniqueResults = [...new Set(results)].slice(0, 50);
-        const uniqueCustomResults = customResults.slice(0, 50);
-        
-        // Display results - combine regular and custom emojis
-        let resultsHtml = '';
-        
-        // Add custom emoji results first
-        if (uniqueCustomResults.length > 0) {
-            resultsHtml += uniqueCustomResults.map(emoji => 
-                `<button type="button" class="emoji-option custom-emoji" data-emoji="custom:${emoji.name}" data-name="${emoji.name}">
-                    <img src="/emojis/${emoji.filename}" alt="${emoji.name}" title="${emoji.name}">
-                </button>`
-            ).join('');
-        }
-        
-        // Add regular emoji results
-        if (uniqueResults.length > 0) {
-            resultsHtml += uniqueResults.map(emoji => 
-                `<button type="button" class="emoji-option" data-emoji="${emoji}">${emoji}</button>`
-            ).join('');
-        }
-        
-        if (resultsHtml) {
-            emojiGrid.innerHTML = resultsHtml;
+
+        if (buttons.length) {
+            renderEmojiButtons(buttons);
         } else {
-            emojiGrid.innerHTML = '<div style="text-align: center; color: var(--text-tertiary); padding: 2rem;">No emojis found</div>';
+            showGridMessage('No emojis found');
         }
-        
-        // Add click handlers for both regular and custom emojis
-        emojiGrid.querySelectorAll('.emoji-option').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const emojiValue = btn.getAttribute('data-emoji');
-                
-                if (btn.classList.contains('custom-emoji')) {
-                    // Handle custom emoji
-                    const img = btn.querySelector('img');
-                    selectedEmoji.innerHTML = `<img src="${img.src}" alt="${img.alt}" style="width: 100%; height: 100%; object-fit: contain;">`;
-                } else {
-                    // Handle regular emoji
-                    selectedEmoji.textContent = emojiValue;
-                }
-                
-                statusInput.value = emojiValue;
-                emojiPicker.style.display = 'none';
-                checkForChanges();
-                // Clear search when emoji is selected
-                document.getElementById('emoji-search').value = '';
-            });
-        });
     };
-    
+
     // Emoji search input handler
-    const emojiSearch = document.getElementById('emoji-search');
     if (emojiSearch) {
         emojiSearch.addEventListener('input', (e) => {
-            searchEmojis(e.target.value);
+            const value = e.target.value;
+            if (searchDebounce) clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(() => {
+                searchEmojis(value);
+            }, SEARCH_DEBOUNCE_MS);
         });
-        
+
         // Focus search when picker opens
         emojiSearch.addEventListener('focus', () => {
             if (!emojiSearch.value) {
