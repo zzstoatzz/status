@@ -1091,6 +1091,8 @@ body {
 }
 
 .emoji-picker {
+    position: relative;
+    z-index: 1;
     width: min(960px, 94vw);
     height: min(90vh, 820px);
     background: var(--bg-secondary);
@@ -2165,8 +2167,6 @@ let emojiData = {
     };
 
     const closeEmojiPicker = () => {
-        console.log('closeEmojiPicker called');
-        console.trace();
         if (!emojiPickerOverlay) return;
         emojiPickerOverlay.classList.add('hidden');
         emojiPickerOverlay.setAttribute('aria-hidden', 'true');
@@ -2213,10 +2213,8 @@ let emojiData = {
 
     if (emojiPickerOverlay) {
         emojiPickerOverlay.addEventListener('click', (e) => {
-            console.log('Overlay click handler:', e.target, e.target === emojiPickerOverlay);
             // Only close if clicking the overlay itself, not the picker content
             if (e.target === emojiPickerOverlay) {
-                console.log('Closing from overlay click');
                 closeEmojiPicker();
             }
         });
@@ -2405,9 +2403,7 @@ let emojiData = {
 
     if (emojiGrid) {
         emojiGrid.addEventListener('click', (e) => {
-            console.log('EmojiGrid click:', e.target);
             const button = e.target.closest('.emoji-option');
-            console.log('Found button:', button);
             if (!button || !emojiGrid.contains(button)) return;
             e.preventDefault();
             applyEmojiSelection(button);
