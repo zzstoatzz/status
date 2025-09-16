@@ -470,6 +470,8 @@ body {
 
 body.modal-open {
     overflow: hidden;
+    position: fixed;
+    width: 100%;
 }
 
 :root {
@@ -1066,6 +1068,10 @@ body {
 /* Emoji Picker */
 .emoji-picker-overlay {
     position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     inset: 0;
     background: rgba(6, 6, 8, 0.75);
     backdrop-filter: blur(6px);
@@ -1175,9 +1181,14 @@ body {
     overflow-x: auto;
     padding-bottom: 0.5rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    scrollbar-width: none;
 }
 
 .emoji-categories.hidden {
+    display: none;
+}
+
+.emoji-categories::-webkit-scrollbar {
     display: none;
 }
 
@@ -1209,10 +1220,15 @@ body {
 .emoji-grid {
     flex: 1;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(84px, 18vw), 1fr));
     gap: 0.75rem;
     padding-right: 0.25rem;
     overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.emoji-grid::-webkit-scrollbar {
+    display: none;
 }
 
 .emoji-option {
@@ -1244,6 +1260,15 @@ body {
     object-fit: contain;
 }
 
+.emoji-picker-overlay::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+}
+
 @media (max-width: 640px) {
     .emoji-picker-overlay {
         padding: 0;
@@ -1262,6 +1287,18 @@ body {
     .emoji-grid {
         grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
         gap: 0.5rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .emoji-picker-overlay {
+        backdrop-filter: none;
+        background: rgba(6, 6, 8, 0.85);
+    }
+
+    .emoji-picker,
+    .emoji-option {
+        transition: none;
     }
 }
 
@@ -2051,39 +2088,56 @@ let emojiData = {
     const emojiGrid = document.getElementById('emoji-grid');
     const selectedEmoji = document.getElementById('selected-emoji');
     const statusInput = document.getElementById('status-input');
+    const emojiSearch = document.getElementById('emoji-search');
+    const emojiCategories = document.getElementById('emoji-categories');
     let lastFocusBeforeEmojiPicker = null;
-    
+    let scrollPosition = 0;
+    let isScrollLocked = false;
+    let keydownBound = false;
+
     // Clear time picker
     const clearAfterBtn = document.getElementById('clear-after-btn');
     const clearPicker = document.getElementById('clear-picker');
     const clearText = document.getElementById('clear-text');
     const expiresSelect = document.getElementById('expires_in');
-    
+
     const isEmojiPickerOpen = () => emojiPickerOverlay && !emojiPickerOverlay.classList.contains('hidden');
+
+    const handleKeydown = (e) => {
+        if (e.key === 'Escape' && isEmojiPickerOpen()) {
+            closeEmojiPicker();
+        }
+    };
 
     const openEmojiPicker = () => {
         if (!emojiPickerOverlay || !emojiPicker) return;
 
         lastFocusBeforeEmojiPicker = document.activeElement;
+        scrollPosition = window.scrollY || document.documentElement.scrollTop || 0;
 
         emojiPickerOverlay.classList.remove('hidden');
         emojiPickerOverlay.setAttribute('aria-hidden', 'false');
         document.body.classList.add('modal-open');
+        document.body.style.top = `-${scrollPosition}px`;
+        isScrollLocked = true;
         if (clearPicker) clearPicker.style.display = 'none';
 
-        const emojiSearch = document.getElementById('emoji-search');
         if (emojiSearch) {
             emojiSearch.value = '';
-            const categories = document.getElementById('emoji-categories');
-            if (categories) categories.classList.remove('hidden');
-            setTimeout(() => {
-                if (emojiSearch) emojiSearch.focus();
-            }, 60);
+            if (emojiCategories) emojiCategories.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                try { emojiSearch.focus(); } catch (_) {}
+            });
         }
 
         loadCustomEmojis().then(() => {
             loadEmojiCategory('frequent');
         });
+
+        if (!keydownBound) {
+            document.addEventListener('keydown', handleKeydown);
+            keydownBound = true;
+        }
     };
 
     const closeEmojiPicker = () => {
@@ -2091,13 +2145,24 @@ let emojiData = {
         emojiPickerOverlay.classList.add('hidden');
         emojiPickerOverlay.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('modal-open');
+        document.body.style.top = '';
+        if (isScrollLocked) {
+            window.scrollTo(0, scrollPosition);
+        }
+        scrollPosition = 0;
+        isScrollLocked = false;
         if (lastFocusBeforeEmojiPicker && typeof lastFocusBeforeEmojiPicker.focus === 'function') {
             const focusTarget = lastFocusBeforeEmojiPicker;
-            setTimeout(() => {
+            requestAnimationFrame(() => {
                 try { focusTarget.focus(); } catch (_) {}
-            }, 50);
+            });
         }
         lastFocusBeforeEmojiPicker = null;
+
+        if (keydownBound) {
+            document.removeEventListener('keydown', handleKeydown);
+            keydownBound = false;
+        }
     };
 
     // Show emoji picker
@@ -2127,12 +2192,6 @@ let emojiData = {
             }
         });
     }
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && isEmojiPickerOpen()) {
-            closeEmojiPicker();
-        }
-    });
     
     // Store custom emojis
     let customEmojis = [];
@@ -2187,25 +2246,6 @@ let emojiData = {
             }
             
             emojiGrid.innerHTML = html;
-            
-            // Add click handlers for both types
-            emojiGrid.querySelectorAll('.emoji-option').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const emoji = btn.getAttribute('data-emoji');
-                    
-                    if (emoji.startsWith('custom:')) {
-                        const img = btn.querySelector('img');
-                        selectedEmoji.innerHTML = `<img src="${img.src}" alt="${img.alt}" style="width: 100%; height: 100%; object-fit: contain;">`;
-                    } else {
-                        selectedEmoji.textContent = emoji;
-                    }
-                    
-                    statusInput.value = emoji;
-                    closeEmojiPicker();
-                    checkForChanges();
-                });
-            });
         } else if (category === 'custom') {
             // Load custom image emojis
             if (customEmojis.length === 0) {
@@ -2217,22 +2257,6 @@ let emojiData = {
                     <img src="/emojis/${emoji.filename}" alt="${emoji.name}" title="${emoji.name}">
                 </button>`
             ).join('');
-            
-            // Add click handlers for custom emojis
-            emojiGrid.querySelectorAll('.custom-emoji').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const emojiName = btn.getAttribute('data-name');
-                    const emojiValue = btn.getAttribute('data-emoji');
-                    const img = btn.querySelector('img');
-                    
-                    // Display the image in the selected emoji area
-                    selectedEmoji.innerHTML = `<img src="${img.src}" alt="${img.alt}" style="width: 100%; height: 100%; object-fit: contain;">`;
-                    statusInput.value = emojiValue;
-                    closeEmojiPicker();
-                    checkForChanges();
-                });
-            });
         } else {
             // Load standard Unicode emojis
             const emojis = emojiData[category] || [];
@@ -2240,17 +2264,6 @@ let emojiData = {
                 const slug = (window.__emojiSlugs && window.__emojiSlugs[emoji]) || '';
                 return `<button type="button" class="emoji-option" data-emoji="${emoji}" data-name="${slug}" title="${slug}">${emoji}</button>`;
             }).join('');
-            
-            // Add click handlers for standard emojis
-            emojiGrid.querySelectorAll('.emoji-option').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const emoji = e.target.getAttribute('data-emoji');
-                    selectedEmoji.textContent = emoji;
-                    statusInput.value = emoji;
-                    closeEmojiPicker();
-                    checkForChanges();
-                });
-            });
         }
         
         // Update active category
@@ -2259,6 +2272,44 @@ let emojiData = {
         });
     };
     
+    const applyEmojiSelection = (button) => {
+        if (!button || !selectedEmoji || !statusInput) return;
+        const emojiValue = button.getAttribute('data-emoji');
+        if (!emojiValue) return;
+
+        if (button.classList.contains('custom-emoji')) {
+            const img = button.querySelector('img');
+            if (img) {
+                selectedEmoji.innerHTML = '';
+                const previewImg = document.createElement('img');
+                previewImg.src = img.src;
+                previewImg.alt = img.alt;
+                previewImg.title = img.title || img.alt || '';
+                previewImg.style.width = '100%';
+                previewImg.style.height = '100%';
+                previewImg.style.objectFit = 'contain';
+                selectedEmoji.appendChild(previewImg);
+            }
+        } else {
+            selectedEmoji.textContent = emojiValue;
+        }
+
+        statusInput.value = emojiValue;
+        if (emojiSearch) emojiSearch.value = '';
+        if (emojiCategories) emojiCategories.classList.remove('hidden');
+        closeEmojiPicker();
+        checkForChanges();
+    };
+
+    if (emojiGrid) {
+        emojiGrid.addEventListener('click', (e) => {
+            const button = e.target.closest('.emoji-option');
+            if (!button || !emojiGrid.contains(button)) return;
+            e.preventDefault();
+            applyEmojiSelection(button);
+        });
+    }
+
     // Category buttons
     document.querySelectorAll('.category-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -2388,13 +2439,13 @@ let emojiData = {
     // Search emoji function
     const searchEmojis = (query) => {
         if (!query) {
-            document.getElementById('emoji-categories').classList.remove('hidden');
+            if (emojiCategories) emojiCategories.classList.remove('hidden');
             loadEmojiCategory('frequent');
             return;
         }
         
         // Hide categories when searching
-        document.getElementById('emoji-categories').classList.add('hidden');
+        if (emojiCategories) emojiCategories.classList.add('hidden');
         
         const lowerQuery = query.toLowerCase();
         const results = [];
@@ -2463,33 +2514,9 @@ let emojiData = {
         } else {
             emojiGrid.innerHTML = '<div style="text-align: center; color: var(--text-tertiary); padding: 2rem;">No emojis found</div>';
         }
-        
-        // Add click handlers for both regular and custom emojis
-        emojiGrid.querySelectorAll('.emoji-option').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const emojiValue = btn.getAttribute('data-emoji');
-                
-                if (btn.classList.contains('custom-emoji')) {
-                    // Handle custom emoji
-                    const img = btn.querySelector('img');
-                    selectedEmoji.innerHTML = `<img src="${img.src}" alt="${img.alt}" style="width: 100%; height: 100%; object-fit: contain;">`;
-                } else {
-                    // Handle regular emoji
-                    selectedEmoji.textContent = emojiValue;
-                }
-                
-                statusInput.value = emojiValue;
-                closeEmojiPicker();
-                checkForChanges();
-                // Clear search when emoji is selected
-                document.getElementById('emoji-search').value = '';
-            });
-        });
     };
     
     // Emoji search input handler
-    const emojiSearch = document.getElementById('emoji-search');
     if (emojiSearch) {
         emojiSearch.addEventListener('input', (e) => {
             searchEmojis(e.target.value);
