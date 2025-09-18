@@ -22,8 +22,15 @@ pub async fn upload_emoji(
     mut payload: Multipart,
     app_config: web::Data<Config>,
 ) -> Result<impl Responder, AppError> {
-    if session.get::<String>("did").unwrap_or(None).is_none() {
-        return Ok(HttpResponse::Unauthorized().body("Not authenticated"));
+    let did = session.get::<String>("did").unwrap_or(None);
+    log::info!("Emoji upload attempt from user: {:?}", did);
+
+    if did.is_none() {
+        log::warn!("Emoji upload rejected: not authenticated");
+        return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
+            "error": "Not authenticated",
+            "success": false
+        })));
     }
     let mut name: Option<String> = None;
     let mut file_bytes: Option<Vec<u8>> = None;
@@ -62,7 +69,24 @@ pub async fn upload_emoji(
             file_bytes = Some(buf);
         }
     }
-    let file_bytes = file_bytes.ok_or_else(|| AppError::ValidationError("No file".into()))?;
+    let file_bytes = file_bytes.ok_or_else(|| {
+        log::error!("Emoji upload failed: no file provided");
+        AppError::ValidationError("No file provided".into())
+    })?;
+
+    log::info!("Processing upload: file size = {} bytes", file_bytes.len());
+
+    // Check file size (5MB limit)
+    if file_bytes.len() > 5 * 1024 * 1024 {
+        log::warn!(
+            "Emoji upload rejected: file too large ({} bytes)",
+            file_bytes.len()
+        );
+        return Err(AppError::ValidationError(format!(
+            "File too large: {}MB (max 5MB)",
+            file_bytes.len() / (1024 * 1024)
+        )));
+    }
 
     // Determine file extension based on content type or file signature
     let extension = if let Some(ct) = content_type.as_ref() {
@@ -82,9 +106,14 @@ pub async fn upload_emoji(
                 {
                     "webp"
                 } else {
-                    return Err(AppError::ValidationError(
-                        "Unsupported image format. Only PNG, GIF, and WebP are allowed.".into(),
-                    ));
+                    log::warn!(
+                        "Emoji upload rejected: unknown format (content-type: {})",
+                        ct
+                    );
+                    return Err(AppError::ValidationError(format!(
+                        "Unsupported image format ({}). Only PNG, GIF, and WebP are allowed.",
+                        ct
+                    )));
                 }
             }
         }
@@ -100,8 +129,10 @@ pub async fn upload_emoji(
         {
             "webp"
         } else {
+            log::warn!("Emoji upload rejected: unknown format (no signature match)");
             return Err(AppError::ValidationError(
-                "Unsupported image format. Only PNG, GIF, and WebP are allowed.".into(),
+                "Unsupported image format (unable to detect). Only PNG, GIF, and WebP are allowed."
+                    .into(),
             ));
         }
     };
@@ -110,11 +141,54 @@ pub async fn upload_emoji(
     let filename = name
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| format!("emoji_{}", chrono::Utc::now().timestamp()));
+
+    log::info!(
+        "Saving emoji: name = '{}', extension = '{}'",
+        filename,
+        extension
+    );
+
+    // Ensure emoji directory exists
+    if let Err(e) = std::fs::create_dir_all(&emoji_dir) {
+        log::error!("Failed to create emoji directory '{}': {}", emoji_dir, e);
+        return Err(AppError::InternalError(format!(
+            "Failed to prepare upload directory: {}",
+            e
+        )));
+    }
+
     let file_path = format!("{}/{}.{}", emoji_dir, filename, extension);
-    std::fs::write(&file_path, &file_bytes)
-        .map_err(|e| AppError::ValidationError(e.to_string()))?;
-    Ok(HttpResponse::Ok()
-        .json(serde_json::json!({"ok": true, "name": format!("{}.{}", filename, extension)})))
+
+    // Check if file already exists
+    if std::path::Path::new(&file_path).exists() {
+        log::warn!(
+            "Emoji upload rejected: file already exists at '{}'",
+            file_path
+        );
+        return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+            "error": format!("An emoji named '{}' already exists", filename),
+            "code": "name_exists",
+            "success": false
+        })));
+    }
+
+    match std::fs::write(&file_path, &file_bytes) {
+        Ok(_) => {
+            log::info!("Successfully saved emoji to '{}'", file_path);
+            Ok(HttpResponse::Ok().json(serde_json::json!({
+                "ok": true,
+                "success": true,
+                "name": format!("{}.{}", filename, extension)
+            })))
+        }
+        Err(e) => {
+            log::error!("Failed to write emoji file to '{}': {}", file_path, e);
+            Err(AppError::InternalError(format!(
+                "Failed to save file: {}",
+                e
+            )))
+        }
+    }
 }
 
 /// Clear the user's status by deleting the ATProto record

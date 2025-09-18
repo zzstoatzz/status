@@ -2470,31 +2470,62 @@ let emojiData = {
                 return;
             }
             const f = file.files[0];
+            console.log('Upload attempt - file type:', f.type, 'file name:', f.name, 'file size:', f.size);
+            
+            // Check file size (5MB limit)
+            if (f.size > 5 * 1024 * 1024) {
+                msg.textContent = `file too large: ${(f.size / (1024*1024)).toFixed(1)}MB (max 5MB)`;
+                console.error('File too large:', f.size, 'bytes');
+                return;
+            }
+            
             if (!['image/png','image/gif','image/webp'].includes(f.type)) {
-                msg.textContent = 'only PNG, GIF, or WebP';
+                msg.textContent = `unsupported format: ${f.type || 'unknown'} (only PNG, GIF, or WebP)`;
+                console.error('Unsupported file type:', f.type);
                 return;
             }
             const fd = new FormData();
             fd.append('file', f);
             if (name.value.trim().length) fd.append('name', name.value.trim());
             try {
+                console.log('Uploading emoji...', name.value ? `name: ${name.value}` : 'no name specified');
                 const res = await fetch('/admin/upload-emoji', { method: 'POST', body: fd });
-                const json = await res.json();
+                
+                // Try to parse as JSON, but handle text responses too
+                let json;
+                const contentType = res.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    json = await res.json();
+                } else {
+                    // If not JSON, get text and wrap it
+                    const text = await res.text();
+                    console.error('Non-JSON response:', text);
+                    json = { error: text, success: false };
+                }
+                
+                console.log('Upload response:', { status: res.status, ok: res.ok, json });
+                
                 if (!res.ok || !json.success) {
                     if (json && json.code === 'name_exists') {
                         msg.textContent = 'that name already exists — please pick another';
                     } else {
-                        msg.textContent = (json && json.error) || 'upload failed';
+                        // Show detailed error message
+                        const errorMsg = (json && json.error) || `upload failed (${res.status})`;
+                        msg.textContent = errorMsg;
+                        console.error('Upload failed:', errorMsg, json);
                     }
                     return;
                 }
+                
+                console.log('Upload successful:', json);
                 // Notify listeners (e.g., emoji picker) and close panel
                 document.dispatchEvent(new CustomEvent('custom-emoji-uploaded', { detail: json }));
                 content.style.display = 'none';
                 form.reset();
                 msg.textContent = '';
             } catch (err) {
-                msg.textContent = 'network error';
+                console.error('Upload error:', err);
+                msg.textContent = `error: ${err.message || 'network error'}`;
             }
         });
     });
