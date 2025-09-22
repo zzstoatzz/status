@@ -4,9 +4,11 @@
 {% block og_url %}/@{{ handle }}{% endblock %}
 {% block og_title %}@{{ handle }}'s status{% endblock %}
 {% block og_description %}{% if let Some(current) = current_status %}{{ current.status }} {% if current.text.is_some() %}{{ current.text.as_ref().unwrap() }}{% endif %}{% else %}no status currently set{% endif %}{% endblock %}
+{% block og_image %}https://status.zzstoatzz.io/@{{ handle }}/og-image.svg{% endblock %}
 {% block twitter_url %}/@{{ handle }}{% endblock %}
 {% block twitter_title %}@{{ handle }}'s status{% endblock %}
 {% block twitter_description %}{% if let Some(current) = current_status %}{{ current.status }} {% if current.text.is_some() %}{{ current.text.as_ref().unwrap() }}{% endif %}{% else %}no status currently set{% endif %}{% endblock %}
+{% block twitter_image %}https://status.zzstoatzz.io/@{{ handle }}/og-image.svg{% endblock %}
 
 {% block content %}
 <div id="root">
@@ -129,6 +131,20 @@
             {% endif %}
         </div>
 
+        <!-- Share Button -->
+        {% if current_status.is_some() %}
+        <div class="share-section">
+            <button type="button" class="share-btn" id="share-btn" aria-label="Share status">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                    <polyline points="16 6 12 2 8 6"></polyline>
+                    <line x1="12" y1="2" x2="12" y2="15"></line>
+                </svg>
+                <span>Share Status</span>
+            </button>
+        </div>
+        {% endif %}
+
         {% if is_owner %}
         <!-- Status Editor -->
         <div class="status-editor">
@@ -249,6 +265,88 @@
             <a href="/logout" class="logout-link">log out</a>
         </div>
         {% endif %}
+
+        <!-- Share Modal -->
+        <div class="share-modal-overlay hidden" id="share-modal-overlay" aria-hidden="true">
+            <div class="share-modal" id="share-modal" role="dialog" aria-modal="true" aria-labelledby="share-modal-title">
+                <div class="share-modal-header">
+                    <h2 id="share-modal-title">share your status</h2>
+                    <button type="button" class="share-modal-close" id="share-modal-close" aria-label="close share modal">✕</button>
+                </div>
+                <div class="share-modal-body">
+                    <!-- Share URL with copy button -->
+                    <div class="share-url-section">
+                        <label for="share-url">Share Link</label>
+                        <div class="share-url-group">
+                            <input type="text" id="share-url" class="share-url-input" readonly value="https://status.zzstoatzz.io/@{{ handle }}">
+                            <button type="button" id="copy-url-btn" class="copy-url-btn" aria-label="Copy link">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                                <span>Copy</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Platform share buttons -->
+                    <div class="share-platforms">
+                        <h3>Share to:</h3>
+                        <div class="platform-grid">
+                            <button type="button" class="platform-btn" id="share-bsky" data-platform="bsky">
+                                <span class="platform-icon">🦋</span>
+                                <span>BlueSky</span>
+                            </button>
+                            <button type="button" class="platform-btn" id="share-twitter" data-platform="twitter">
+                                <span class="platform-icon">𝕏</span>
+                                <span>Twitter/X</span>
+                            </button>
+                            <button type="button" class="platform-btn" id="share-sms" data-platform="sms">
+                                <span class="platform-icon">💬</span>
+                                <span>Text Message</span>
+                            </button>
+                            <button type="button" class="platform-btn" id="share-email" data-platform="email">
+                                <span class="platform-icon">✉️</span>
+                                <span>Email</span>
+                            </button>
+                            <button type="button" class="platform-btn" id="share-mastodon" data-platform="mastodon">
+                                <span class="platform-icon">🐘</span>
+                                <span>Mastodon</span>
+                            </button>
+                            <button type="button" class="platform-btn" id="share-native" data-platform="native">
+                                <span class="platform-icon">📲</span>
+                                <span>More...</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Preview section -->
+                    <div class="share-preview">
+                        <h3>Preview:</h3>
+                        <div class="preview-card">
+                            <div class="preview-emoji">
+                                {% if let Some(current) = current_status %}
+                                    {% if current.status.starts_with("custom:") %}
+                                        {% let emoji_name = current.status.strip_prefix("custom:").unwrap() %}
+                                        <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" class="custom-emoji-preview">
+                                    {% else %}
+                                        {{ current.status }}
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                            <div class="preview-content">
+                                <div class="preview-handle">@{{ handle }}</div>
+                                {% if let Some(current) = current_status %}
+                                    {% if current.text.is_some() %}
+                                    <div class="preview-text">{{ current.text.as_ref().unwrap() }}</div>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Webhook Full-Page Modal -->
         <div id="webhook-modal" class="webhook-modal hidden" aria-hidden="true">
@@ -948,6 +1046,247 @@ body {
     content: '⏱';
     margin-right: 0.25rem;
     opacity: 0.7;
+}
+
+/* Share Section */
+.share-section {
+    display: flex;
+    justify-content: center;
+    margin: 1.5rem 0;
+}
+
+.share-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.share-btn:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Share Modal */
+.share-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    backdrop-filter: blur(4px);
+}
+
+.share-modal-overlay.hidden {
+    display: none;
+}
+
+.share-modal {
+    background: var(--bg-primary);
+    border-radius: var(--radius);
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.share-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.share-modal-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.share-modal-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0.25rem;
+    transition: color 0.2s;
+}
+
+.share-modal-close:hover {
+    color: var(--text-primary);
+}
+
+.share-modal-body {
+    padding: 1.5rem;
+}
+
+.share-url-section {
+    margin-bottom: 2rem;
+}
+
+.share-url-section label {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.share-url-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.share-url-input {
+    flex: 1;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    font-family: var(--font-family);
+}
+
+.copy-url-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-primary);
+}
+
+.copy-url-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+}
+
+.copy-url-btn.copied {
+    background: #28a745;
+    color: white;
+    border-color: #28a745;
+}
+
+.share-platforms {
+    margin-bottom: 2rem;
+}
+
+.share-platforms h3 {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+}
+
+.platform-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.75rem;
+}
+
+.platform-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-primary);
+}
+
+.platform-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.platform-icon {
+    font-size: 1.5rem;
+}
+
+.share-preview {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.share-preview h3 {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+}
+
+.preview-card {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+}
+
+.preview-emoji {
+    font-size: 2.5rem;
+    line-height: 1;
+}
+
+.custom-emoji-preview {
+    width: 2.5rem;
+    height: 2.5rem;
+    object-fit: contain;
+}
+
+.preview-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.preview-handle {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.preview-text {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
 }
 
 /* Status Editor */
@@ -2693,6 +3032,145 @@ let emojiData = {
     });
 });
 </script>
+
+<script>
+// Share functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const shareBtn = document.getElementById('share-btn');
+    const shareModal = document.getElementById('share-modal-overlay');
+    const shareModalClose = document.getElementById('share-modal-close');
+    const copyBtn = document.getElementById('copy-url-btn');
+    const shareUrlInput = document.getElementById('share-url');
+
+    if (!shareBtn || !shareModal) return;
+
+    // Open share modal
+    shareBtn.addEventListener('click', () => {
+        shareModal.classList.remove('hidden');
+        shareModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+    });
+
+    // Close share modal
+    const closeShareModal = () => {
+        shareModal.classList.add('hidden');
+        shareModal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+    };
+
+    shareModalClose.addEventListener('click', closeShareModal);
+
+    shareModal.addEventListener('click', (e) => {
+        if (e.target === shareModal) {
+            closeShareModal();
+        }
+    });
+
+    // Escape key to close
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !shareModal.classList.contains('hidden')) {
+            closeShareModal();
+        }
+    });
+
+    // Copy URL functionality
+    if (copyBtn && shareUrlInput) {
+        copyBtn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(shareUrlInput.value);
+                copyBtn.classList.add('copied');
+                const originalHTML = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Copied!</span>';
+                setTimeout(() => {
+                    copyBtn.classList.remove('copied');
+                    copyBtn.innerHTML = originalHTML;
+                }, 2000);
+            } catch (err) {
+                // Fallback for older browsers
+                shareUrlInput.select();
+                document.execCommand('copy');
+                copyBtn.classList.add('copied');
+                const originalHTML = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Copied!</span>';
+                setTimeout(() => {
+                    copyBtn.classList.remove('copied');
+                    copyBtn.innerHTML = originalHTML;
+                }, 2000);
+            }
+        });
+    }
+
+    // Platform share buttons
+    const platformButtons = document.querySelectorAll('.platform-btn');
+    platformButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const platform = btn.dataset.platform;
+            const url = shareUrlInput.value;
+            const handle = '{{ handle }}';
+            let statusText = '';
+            {% if let Some(current) = current_status %}
+                statusText = '{{ current.status }}';
+                {% if current.text.is_some() %}
+                    statusText += ' {{ current.text.as_ref().unwrap() }}';
+                {% endif %}
+            {% endif %}
+
+            const shareText = `Check out @${handle}'s status: ${statusText}`;
+
+            switch(platform) {
+                case 'bsky':
+                    // BlueSky share
+                    window.open(`https://bsky.app/intent/compose?text=${encodeURIComponent(shareText + '\n' + url)}`, '_blank');
+                    break;
+                case 'twitter':
+                    // Twitter/X share
+                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(url)}`, '_blank');
+                    break;
+                case 'sms':
+                    // SMS share - works on mobile
+                    if (/Android|iPhone/i.test(navigator.userAgent)) {
+                        window.location.href = `sms:?body=${encodeURIComponent(shareText + '\n' + url)}`;
+                    } else {
+                        // Fallback for desktop - copy to clipboard
+                        navigator.clipboard.writeText(shareText + '\n' + url);
+                        alert('Status link copied to clipboard!');
+                    }
+                    break;
+                case 'email':
+                    // Email share
+                    window.location.href = `mailto:?subject=${encodeURIComponent(`@${handle}'s status`)}&body=${encodeURIComponent(shareText + '\n\n' + url)}`;
+                    break;
+                case 'mastodon':
+                    // Mastodon share - prompt for instance
+                    const instance = prompt('Enter your Mastodon instance (e.g., mastodon.social):');
+                    if (instance) {
+                        const mastodonUrl = `https://${instance}/share?text=${encodeURIComponent(shareText + '\n' + url)}`;
+                        window.open(mastodonUrl, '_blank');
+                    }
+                    break;
+                case 'native':
+                    // Use Web Share API if available
+                    if (navigator.share) {
+                        navigator.share({
+                            title: `@${handle}'s status`,
+                            text: shareText,
+                            url: url
+                        }).catch(err => {
+                            // User cancelled or error
+                            console.log('Share cancelled or failed:', err);
+                        });
+                    } else {
+                        // Fallback - copy to clipboard
+                        navigator.clipboard.writeText(url);
+                        alert('Status link copied to clipboard!');
+                    }
+                    break;
+            }
+        });
+    });
+});
+</script>
+
 <script>
     // Admin upload toggles and submit
     document.addEventListener('DOMContentLoaded', function () {

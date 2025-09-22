@@ -446,3 +446,96 @@ pub async fn get_following(
     // Placeholder: follow list disabled here to keep module slim
     Ok(web::Json(json!({ "follows": [] })))
 }
+
+/// Generate an SVG Open Graph image for a user's status
+#[get("/@{handle}/og-image.svg")]
+pub async fn user_og_image(
+    handle: web::Path<String>,
+    db_pool: web::Data<Arc<Pool>>,
+) -> Result<impl Responder> {
+    let handle = handle.into_inner();
+    let atproto_handle_resolver = AtprotoHandleResolver::new(AtprotoHandleResolverConfig {
+        dns_txt_resolver: HickoryDnsTxtResolver::default(),
+        http_client: Arc::new(DefaultHttpClient::default()),
+    });
+
+    let handle_obj = atrium_api::types::string::Handle::new(handle.clone()).ok();
+    let did = if let Some(h) = handle_obj {
+        atproto_handle_resolver.resolve(&h).await.ok()
+    } else {
+        None
+    };
+
+    let current_status = if let Some(did) = did {
+        StatusFromDb::my_status(&db_pool, &did)
+            .await
+            .unwrap_or(None)
+            .and_then(|s| {
+                if let Some(expires_at) = s.expires_at {
+                    if chrono::Utc::now() > expires_at {
+                        return None;
+                    }
+                }
+                Some(s)
+            })
+    } else {
+        None
+    };
+
+    // Generate SVG with status
+    let (emoji, text) = if let Some(status) = current_status {
+        let emoji = if status.status.starts_with("custom:") {
+            // For custom emojis, we'll use a placeholder emoji in the SVG
+            "✨".to_string()
+        } else {
+            status.status
+        };
+        (emoji, status.text.unwrap_or_default())
+    } else {
+        ("💭".to_string(), "no status set".to_string())
+    };
+
+    let svg = format!(r#"<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#0a0a0a"/>
+
+  <!-- Gradient background -->
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a1a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0a0a0a;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#grad)"/>
+
+  <!-- Status card container -->
+  <rect x="100" y="165" width="1000" height="300" rx="20" fill="#1a1a1a" stroke="#2a2a2a" stroke-width="2"/>
+
+  <!-- Emoji (larger and centered) -->
+  <text x="300" y="340" font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif"
+        font-size="120" text-anchor="middle" dominant-baseline="middle">{}</text>
+
+  <!-- Handle -->
+  <text x="450" y="280" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-size="36" fill="#ffffff" font-weight="600">@{}</text>
+
+  <!-- Status text -->
+  <text x="450" y="340" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-size="28" fill="#adb5bd">{}</text>
+
+  <!-- Domain watermark -->
+  <text x="600" y="550" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-size="20" fill="#6c757d" text-anchor="middle">status.zzstoatzz.io</text>
+</svg>"#,
+        emoji,
+        handle,
+        if text.len() > 60 {
+            format!("{}...", &text[..60])
+        } else {
+            text
+        }
+    );
+
+    Ok(web::HttpResponse::Ok()
+        .content_type("image/svg+xml")
+        .body(svg))
+}
