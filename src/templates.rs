@@ -40,6 +40,21 @@ pub struct StatusTemplate<'a> {
 }
 
 #[derive(Template)]
+#[template(path = "status_share.html")]
+pub struct StatusShareTemplate<'a> {
+    #[allow(dead_code)]
+    pub title: &'a str,
+    pub status: StatusFromDb,
+    pub canonical_url: String,
+    pub display_handle: String,
+    pub meta_title: String,
+    pub meta_description: String,
+    pub share_text: String,
+    pub profile_href: String,
+    pub share_path: String,
+}
+
+#[derive(Template)]
 #[template(path = "feed.html")]
 pub struct FeedTemplate<'a> {
     #[allow(dead_code)]
