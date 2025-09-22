@@ -118,7 +118,7 @@
                         {% if current.expires_at.is_some() && !current.is_expired() %}
                         • <span class="expires-indicator"><span class="local-time" data-timestamp="{{ current.expires_at.as_ref().unwrap().to_rfc3339() }}" data-prefix="clears"></span></span>
                         {% endif %}
-                        • <button type="button" class="share-trigger share-inline" data-share-path="/s/{{ current.share_token() }}" data-share-title="{{ current.share_title() }}" data-share-text="{{ current.share_text() }}" aria-label="Share this status">
+                        • <button type="button" class="share-trigger share-inline" data-share-path="{{ current.share_path() }}" data-share-title="{{ current.share_title() }}" data-share-text="{{ current.share_text() }}" aria-label="Share this status">
                             <svg class="share-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/>
                                 <polyline points="16 6 12 2 8 6"/>
@@ -432,7 +432,7 @@ func verify(r *http.Request, body []byte, secret string) bool {
                     {% endif %}
                     <span class="history-time local-time" data-timestamp="{{ status.started_at.to_rfc3339() }}" data-format="compact"></span>
                 </div>
-                <button type="button" class="history-share share-trigger" data-share-path="/s/{{ status.share_token() }}" data-share-title="{{ status.share_title() }}" data-share-text="{{ status.share_text() }}" title="Share this status">
+                <button type="button" class="history-share share-trigger" data-share-path="{{ status.share_path() }}" data-share-title="{{ status.share_title() }}" data-share-text="{{ status.share_text() }}" title="Share this status">
                     <svg class="share-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/>
                         <polyline points="16 6 12 2 8 6"/>

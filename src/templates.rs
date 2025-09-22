@@ -51,6 +51,7 @@ pub struct StatusShareTemplate<'a> {
     pub meta_description: String,
     pub share_text: String,
     pub profile_href: String,
+    pub share_path: String,
 }
 
 #[derive(Template)]

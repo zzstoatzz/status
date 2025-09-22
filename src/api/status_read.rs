@@ -14,7 +14,6 @@ use atrium_api::types::string::Did;
 use atrium_common::resolver::Resolver;
 use atrium_identity::handle::{AtprotoHandleResolver, AtprotoHandleResolverConfig};
 use atrium_oauth::DefaultHttpClient;
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde_json::json;
 use std::sync::Arc;
 
@@ -213,46 +212,15 @@ pub async fn user_status_page(
 }
 
 /// Public share page for a specific status
-#[get("/s/{token}")]
+#[get("/s/{did}/{rkey}")]
 pub async fn status_share_page(
     req: HttpRequest,
-    token: web::Path<String>,
+    params: web::Path<(String, String)>,
     db_pool: web::Data<Arc<Pool>>,
     handle_resolver: web::Data<HandleResolver>,
 ) -> Result<impl Responder> {
-    let share_token = token.into_inner();
-
-    let uri_bytes = match URL_SAFE_NO_PAD.decode(share_token.as_bytes()) {
-        Ok(bytes) => bytes,
-        Err(err) => {
-            log::warn!("Failed to decode share token {}: {}", share_token, err);
-            let html = ErrorTemplate {
-                title: "Invalid share link",
-                error: "That share link is not valid.",
-            }
-            .render()
-            .expect("template should be valid");
-            return Ok(HttpResponse::NotFound()
-                .content_type("text/html; charset=utf-8")
-                .body(html));
-        }
-    };
-
-    let uri = match String::from_utf8(uri_bytes) {
-        Ok(uri) => uri,
-        Err(err) => {
-            log::warn!("Share token did not decode to UTF-8: {}", err);
-            let html = ErrorTemplate {
-                title: "Invalid share link",
-                error: "That share link is not valid.",
-            }
-            .render()
-            .expect("template should be valid");
-            return Ok(HttpResponse::NotFound()
-                .content_type("text/html; charset=utf-8")
-                .body(html));
-        }
-    };
+    let (did, rkey) = params.into_inner();
+    let uri = format!("at://{}/io.zzstoatzz.status.record/{}", did, rkey);
 
     let mut status = match StatusFromDb::load_by_uri(&db_pool, &uri).await {
         Ok(Some(status)) => status,
@@ -313,7 +281,8 @@ pub async fn status_share_page(
         .unwrap_or_else(|| format!("https://bsky.app/profile/{}", status.author_did));
 
     let info = req.connection_info();
-    let canonical_url = format!("{}://{}/s/{}", info.scheme(), info.host(), share_token);
+    let canonical_url = format!("{}://{}/s/{}/{}", info.scheme(), info.host(), did, rkey);
+    let share_path = format!("/s/{}/{}", did, rkey);
 
     let html = StatusShareTemplate {
         title: "status",
@@ -324,6 +293,7 @@ pub async fn status_share_page(
         meta_description,
         share_text,
         profile_href,
+        share_path,
     }
     .render()
     .expect("template should be valid");

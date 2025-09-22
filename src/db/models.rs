@@ -4,7 +4,6 @@ use async_sqlite::{
     rusqlite::{Error, Row, types::Type},
 };
 use atrium_api::types::string::Did;
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -313,9 +312,15 @@ impl StatusFromDb {
             .unwrap_or_else(|| self.share_title())
     }
 
-    /// Generates a share-safe token for embedding in URLs
-    pub fn share_token(&self) -> String {
-        URL_SAFE_NO_PAD.encode(self.uri.as_bytes())
+    /// Returns the record key component of the ATProto URI (rkey)
+    pub fn record_key(&self) -> Option<String> {
+        self.uri.rsplit_once('/').map(|(_, rkey)| rkey.to_string())
+    }
+
+    /// Generates the relative share path used by the UI (e.g. `/s/did:plc:abc/rkey`)
+    pub fn share_path(&self) -> String {
+        let rkey = self.record_key().unwrap_or_default();
+        format!("/s/{}/{}", self.author_did, rkey)
     }
 }
 

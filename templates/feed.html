@@ -151,7 +151,7 @@
                                 • expired
                                 {% endif %}
                             {% endif %}
-                            • <button type="button" class="share-trigger feed-share" data-share-path="/s/{{ status.share_token() }}" data-share-title="{{ status.share_title() }}" data-share-text="{{ status.share_text() }}" aria-label="Share this status">
+                            • <button type="button" class="share-trigger feed-share" data-share-path="{{ status.share_path() }}" data-share-title="{{ status.share_title() }}" data-share-text="{{ status.share_text() }}" aria-label="Share this status">
                                 <svg class="share-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/>
                                     <polyline points="16 6 12 2 8 6"/>
@@ -1091,10 +1091,20 @@ const loadMoreStatuses = async () => {
             
             const displayName = status.handle || status.author_did;
             const profileUrl = status.handle ? `/@${status.handle}` : `https://bsky.app/profile/${status.author_did}`;
-            const shareToken = typeof btoa === 'function'
-                ? btoa(status.uri).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
-                : '';
-            const sharePath = shareToken ? `/s/${shareToken}` : status.uri;
+            const sharePath = (() => {
+                if (!status.uri) {
+                    return null;
+                }
+                const parts = status.uri.split('/');
+                if (parts.length >= 5) {
+                    const didPart = parts[2];
+                    const rkeyPart = parts[4];
+                    if (didPart && rkeyPart) {
+                        return `/s/${didPart}/${rkeyPart}`;
+                    }
+                }
+                return null;
+            })();
             const emojiLabelForShare = status.status.startsWith('custom:')
                 ? `:${status.status.substring(7)}:`
                 : status.status;
@@ -1117,7 +1127,7 @@ const loadMoreStatuses = async () => {
 
             const metaDiv = statusItem.querySelector('.status-meta');
             if (metaDiv) {
-                if (shareToken) {
+                if (sharePath) {
                     metaDiv.appendChild(document.createTextNode(' • '));
                     const shareBtn = document.createElement('button');
                     shareBtn.type = 'button';
