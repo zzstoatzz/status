@@ -122,7 +122,7 @@
                 {% endif %}
             </div>
             
-            <div class="status-list">
+            <div class="status-list" data-is-admin="{{ is_admin }}">
             {% if !statuses.is_empty() %}
                 {% for status in statuses %}
                 <div class="status-item" data-did="{{ status.author_did }}">
@@ -151,6 +151,14 @@
                                 • expired
                                 {% endif %}
                             {% endif %}
+                            • <button type="button" class="share-trigger feed-share" data-share-path="/s/{{ status.share_token() }}" data-share-title="{{ status.share_title() }}" data-share-text="{{ status.share_text() }}" aria-label="Share this status">
+                                <svg class="share-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/>
+                                    <polyline points="16 6 12 2 8 6"/>
+                                    <line x1="12" y1="2" x2="12" y2="15"/>
+                                </svg>
+                                <span class="share-label">share</span>
+                            </button>
                             {% if is_admin %}
                             • <button class="hide-button" data-uri="{{ status.uri }}" style="color: var(--text-tertiary); background: none; border: none; cursor: pointer; text-decoration: underline;">hide</button>
                             {% endif %}
@@ -687,6 +695,34 @@ body {
     color: var(--text-tertiary);
 }
 
+.share-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: none;
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.2s ease;
+}
+
+.share-trigger .share-icon {
+    width: 14px;
+    height: 14px;
+}
+
+.share-trigger:hover,
+.share-trigger:focus-visible {
+    color: var(--accent);
+    outline: none;
+}
+
+.feed-share {
+    color: var(--text-tertiary);
+}
+
 /* Empty State */
 .empty-state {
     text-align: center;
@@ -951,6 +987,49 @@ const applyFollowingFilter = (active) => {
 let isLoading = false;
 let offset = {% if !statuses.is_empty() %}{{ statuses.len() }}{% else %}0{% endif %};
 let hasMore = true;
+const statusListElement = document.querySelector('.status-list');
+const isAdminUser = statusListElement && statusListElement.dataset.isAdmin === 'true';
+
+const attachHideHandler = (button) => {
+    if (!isAdminUser || !button || button.dataset.hideBound === 'true') {
+        return;
+    }
+    button.dataset.hideBound = 'true';
+    button.addEventListener('click', async (event) => {
+        event.preventDefault();
+        const uri = button.dataset.uri;
+        if (!uri) {
+            return;
+        }
+        if (!confirm('Hide this status from the global feed?')) {
+            return;
+        }
+        try {
+            const response = await fetch('/admin/hide-status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    uri,
+                    hidden: true,
+                }),
+            });
+            const result = await response.json();
+            if (response.ok) {
+                const statusItem = button.closest('.status-item');
+                if (statusItem) {
+                    statusItem.style.display = 'none';
+                }
+            } else {
+                alert(result.error || 'Failed to hide status');
+            }
+        } catch (error) {
+            console.error('Error hiding status:', error);
+            alert('Failed to hide status');
+        }
+    });
+};
 
 // Following filter variables
 let followingDids = null;
@@ -978,7 +1057,11 @@ const loadMoreStatuses = async () => {
             return;
         }
         
-        const statusList = document.querySelector('.status-list');
+        const statusList = statusListElement;
+        if (!statusList) {
+            loadingIndicator.style.display = 'none';
+            return;
+        }
         
         // Render new statuses
         newStatuses.forEach(status => {
@@ -1007,7 +1090,17 @@ const loadMoreStatuses = async () => {
             }
             
             const displayName = status.handle || status.author_did;
-            const profileUrl = status.handle ? `/@${status.handle}` : '#';
+            const profileUrl = status.handle ? `/@${status.handle}` : `https://bsky.app/profile/${status.author_did}`;
+            const shareToken = typeof btoa === 'function'
+                ? btoa(status.uri).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+                : '';
+            const sharePath = shareToken ? `/s/${shareToken}` : status.uri;
+            const emojiLabelForShare = status.status.startsWith('custom:')
+                ? `:${status.status.substring(7)}:`
+                : status.status;
+            const shareTitle = `${emojiLabelForShare} @${displayName}`;
+            const shareTextSnippet = status.text ? String(status.text).trim() : '';
+            const shareTextValue = shareTextSnippet.length > 0 ? `${shareTitle} — ${shareTextSnippet}` : shareTitle;
             
             statusItem.innerHTML = `
                 <span class="status-emoji">${emojiHtml}</span>
@@ -1021,6 +1114,44 @@ const loadMoreStatuses = async () => {
                     </div>
                 </div>
             `;
+
+            const metaDiv = statusItem.querySelector('.status-meta');
+            if (metaDiv) {
+                if (shareToken) {
+                    metaDiv.appendChild(document.createTextNode(' • '));
+                    const shareBtn = document.createElement('button');
+                    shareBtn.type = 'button';
+                    shareBtn.className = 'share-trigger feed-share';
+                    shareBtn.dataset.sharePath = sharePath;
+                    shareBtn.dataset.shareTitle = shareTitle;
+                    shareBtn.dataset.shareText = shareTextValue;
+                    shareBtn.setAttribute('aria-label', 'Share this status');
+                    shareBtn.innerHTML = `
+                        <svg class="share-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"></path>
+                            <polyline points="16 6 12 2 8 6"></polyline>
+                            <line x1="12" y1="2" x2="12" y2="15"></line>
+                        </svg>
+                        <span class="share-label">share</span>
+                    `;
+                    metaDiv.appendChild(shareBtn);
+                }
+
+                if (isAdminUser) {
+                    metaDiv.appendChild(document.createTextNode(' • '));
+                    const hideBtn = document.createElement('button');
+                    hideBtn.className = 'hide-button';
+                    hideBtn.dataset.uri = status.uri;
+                    hideBtn.textContent = 'hide';
+                    hideBtn.style.color = 'var(--text-tertiary)';
+                    hideBtn.style.background = 'none';
+                    hideBtn.style.border = 'none';
+                    hideBtn.style.cursor = 'pointer';
+                    hideBtn.style.textDecoration = 'underline';
+                    metaDiv.appendChild(hideBtn);
+                    attachHideHandler(hideBtn);
+                }
+            }
             
             statusList.appendChild(statusItem);
             // Render markdown links in the newly added item
@@ -1243,41 +1374,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Timestamps auto-update via timestamps.js
     
     // Admin hide button functionality
-    document.querySelectorAll('.hide-button').forEach(button => {
-        button.addEventListener('click', async (e) => {
-            const uri = e.target.dataset.uri;
-            if (!uri) return;
-            
-            if (!confirm('Hide this status from the global feed?')) {
-                return;
-            }
-            
-            try {
-                const response = await fetch('/admin/hide-status', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ 
-                        uri: uri,
-                        hidden: true 
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (response.ok) {
-                    // Remove the status from the feed
-                    e.target.closest('.status-item').style.display = 'none';
-                } else {
-                    alert(result.error || 'Failed to hide status');
-                }
-            } catch (error) {
-                console.error('Error hiding status:', error);
-                alert('Failed to hide status');
-            }
-        });
-    });
+    document.querySelectorAll('.hide-button').forEach(attachHideHandler);
 });
     </script>
     <script>

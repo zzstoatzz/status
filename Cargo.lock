@@ -2360,6 +2360,7 @@ dependencies = [
  "atrium-common",
  "atrium-identity",
  "atrium-oauth",
+ "base64 0.22.1",
  "chrono",
  "dotenv",
  "env_logger",

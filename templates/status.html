@@ -118,6 +118,14 @@
                         {% if current.expires_at.is_some() && !current.is_expired() %}
                         • <span class="expires-indicator"><span class="local-time" data-timestamp="{{ current.expires_at.as_ref().unwrap().to_rfc3339() }}" data-prefix="clears"></span></span>
                         {% endif %}
+                        • <button type="button" class="share-trigger share-inline" data-share-path="/s/{{ current.share_token() }}" data-share-title="{{ current.share_title() }}" data-share-text="{{ current.share_text() }}" aria-label="Share this status">
+                            <svg class="share-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/>
+                                <polyline points="16 6 12 2 8 6"/>
+                                <line x1="12" y1="2" x2="12" y2="15"/>
+                            </svg>
+                            <span class="share-label">share</span>
+                        </button>
                     </p>
                 </div>
             </div>
@@ -424,6 +432,14 @@ func verify(r *http.Request, body []byte, secret string) bool {
                     {% endif %}
                     <span class="history-time local-time" data-timestamp="{{ status.started_at.to_rfc3339() }}" data-format="compact"></span>
                 </div>
+                <button type="button" class="history-share share-trigger" data-share-path="/s/{{ status.share_token() }}" data-share-title="{{ status.share_title() }}" data-share-text="{{ status.share_text() }}" title="Share this status">
+                    <svg class="share-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/>
+                        <polyline points="16 6 12 2 8 6"/>
+                        <line x1="12" y1="2" x2="12" y2="15"/>
+                    </svg>
+                    <span class="share-label">share</span>
+                </button>
                 {% if is_owner %}
                 <button type="button" class="history-delete" data-uri="{{ status.uri }}" title="Delete this status">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -936,6 +952,43 @@ body {
     font-size: 0.875rem;
     color: var(--text-secondary);
     margin: 0;
+}
+
+.share-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: none;
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.share-trigger .share-icon {
+    width: 14px;
+    height: 14px;
+}
+
+.share-trigger .share-label {
+    text-transform: lowercase;
+}
+
+.share-trigger:hover,
+.share-trigger:focus-visible {
+    color: var(--accent);
+    outline: none;
+}
+
+.share-inline {
+    color: var(--text-secondary);
+}
+
+.share-inline:hover,
+.share-inline:focus-visible {
+    color: var(--accent);
 }
 
 .expires-indicator {
@@ -1471,6 +1524,30 @@ body {
 .history-time {
     color: var(--text-tertiary);
     font-size: 0.75rem;
+}
+
+.history-share {
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    opacity: 0;
+    transition: all 0.2s;
+}
+
+.history-item:hover .history-share,
+.history-share:focus-visible {
+    opacity: 1;
+    color: var(--text-secondary);
+}
+
+.history-share:hover {
+    color: var(--accent);
 }
 
 .history-delete {
