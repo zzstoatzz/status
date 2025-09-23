@@ -11,7 +11,6 @@ primary_region = "ewr"
   ENABLE_FIREHOSE = "true"
   DEV_MODE = "true"
   # OAUTH_REDIRECT_BASE will be set dynamically by the workflow
-  # APP_URL will be set dynamically by the workflow
 
 [http_service]
   internal_port = 8080
