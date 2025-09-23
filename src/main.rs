@@ -156,6 +156,15 @@ async fn main() -> std::io::Result<()> {
                     // Using granular scope for status records only
                     // This replaces TransitionGeneric with specific permissions
                     Scope::Unknown("repo:io.zzstoatzz.status.record".to_string()),
+                    // Need to read profiles for the feed page
+                    Scope::Unknown(
+                        "rpc:app.bsky.actor.getProfile?aud=did:web:api.bsky.app#bsky_appview"
+                            .to_string(),
+                    ),
+                    // Need to read following list for following feed
+                    Scope::Unknown(
+                        "rpc:app.bsky.graph.getFollows?aud=did:web:api.bsky.app".to_string(),
+                    ),
                 ]),
             },
             keys: None,
