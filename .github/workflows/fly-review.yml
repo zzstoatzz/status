@@ -47,6 +47,7 @@ jobs:
           # Use smaller resources for review apps
           vmsize: shared-cpu-1x
           memory: 256
-          # Set OAUTH_REDIRECT_BASE dynamically for OAuth redirects
+          # Set OAUTH_REDIRECT_BASE and APP_URL dynamically for OAuth redirects
           secrets: |
             OAUTH_REDIRECT_BASE=https://zzstoatzz-status-pr-${{ github.event.number }}.fly.dev
+            APP_URL=https://zzstoatzz-status-pr-${{ github.event.number }}.fly.dev
