@@ -64,6 +64,7 @@ pub async fn oauth_callback(
     request: HttpRequest,
     params: web::Query<OAuthCallbackParams>,
     oauth_client: web::Data<OAuthClientType>,
+    config: web::Data<config::Config>,
     session: Session,
 ) -> HttpResponse {
     // Check if there's an OAuth error from BlueSky
@@ -109,7 +110,13 @@ pub async fn oauth_callback(
             match agent.did().await {
                 Some(did) => {
                     session.insert("did", did).unwrap();
-                    Redirect::to("/")
+                    // Redirect back to main app domain after successful auth
+                    let redirect_to = if config.oauth_redirect_base != config.app_url {
+                        config.app_url.clone()
+                    } else {
+                        "/".to_string()
+                    };
+                    Redirect::to(redirect_to)
                         .see_other()
                         .respond_to(&request)
                         .map_into_boxed_body()
@@ -136,14 +143,34 @@ pub async fn oauth_callback(
 
 /// Takes you to the login page
 #[get("/login")]
-pub async fn login() -> Result<impl Responder> {
+pub async fn login(
+    request: HttpRequest,
+    config: web::Data<config::Config>,
+) -> Result<HttpResponse> {
+    // Check if we're on the main app domain and redirect to auth domain
+    if let Some(host) = request.headers().get("host") {
+        if let Ok(host_str) = host.to_str() {
+            // Extract just the host from the app_url
+            if let Ok(app_url) = url::Url::parse(&config.app_url) {
+                if let Some(app_host) = app_url.host_str() {
+                    if host_str.starts_with(app_host)
+                        && config.oauth_redirect_base != config.app_url
+                    {
+                        let redirect_url = format!("{}/login", config.oauth_redirect_base);
+                        return Ok(HttpResponse::Found()
+                            .append_header(("Location", redirect_url))
+                            .finish());
+                    }
+                }
+            }
+        }
+    }
+
     let html = LoginTemplate {
         title: "Log in",
         error: None,
     };
-    Ok(web::Html::new(
-        html.render().expect("template should be valid"),
-    ))
+    Ok(HttpResponse::Ok().body(html.render().expect("template should be valid")))
 }
 
 /// Logs you out by destroying your cookie on the server and web browser

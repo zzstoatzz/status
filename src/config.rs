@@ -14,8 +14,11 @@ pub struct Config {
     /// Database URL (defaults to local SQLite)
     pub database_url: String,
 
-    /// OAuth redirect base URL
+    /// OAuth redirect base URL (auth domain)
     pub oauth_redirect_base: String,
+
+    /// Main app URL (status domain)
+    pub app_url: String,
 
     /// Server host
     pub server_host: String,
@@ -49,6 +52,7 @@ impl Config {
                 .unwrap_or_else(|_| "sqlite://./statusphere.sqlite3".to_string()),
             oauth_redirect_base: env::var("OAUTH_REDIRECT_BASE")
                 .unwrap_or_else(|_| "http://localhost:8080".to_string()),
+            app_url: env::var("APP_URL").unwrap_or_else(|_| "http://localhost:8080".to_string()),
             server_host: env::var("SERVER_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()),
             server_port: env::var("SERVER_PORT")
                 .unwrap_or_else(|_| "8080".to_string())
