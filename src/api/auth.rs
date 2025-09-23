@@ -64,6 +64,7 @@ pub async fn oauth_callback(
     request: HttpRequest,
     params: web::Query<OAuthCallbackParams>,
     oauth_client: web::Data<OAuthClientType>,
+    config: web::Data<config::Config>,
     session: Session,
 ) -> HttpResponse {
     // Check if there's an OAuth error from BlueSky
@@ -109,7 +110,13 @@ pub async fn oauth_callback(
             match agent.did().await {
                 Some(did) => {
                     session.insert("did", did).unwrap();
-                    Redirect::to("/")
+                    // Redirect back to main app domain after successful auth
+                    let redirect_to = if config.uses_separate_auth_domain() {
+                        config.app_url.clone()
+                    } else {
+                        "/".to_string()
+                    };
+                    Redirect::to(redirect_to)
                         .see_other()
                         .respond_to(&request)
                         .map_into_boxed_body()
@@ -136,14 +143,20 @@ pub async fn oauth_callback(
 
 /// Takes you to the login page
 #[get("/login")]
-pub async fn login() -> Result<impl Responder> {
+pub async fn login(config: web::Data<config::Config>) -> Result<HttpResponse> {
+    // If we're using a separate auth domain, redirect to it
+    if config.uses_separate_auth_domain() {
+        let redirect_url = format!("{}/login", config.oauth_redirect_base);
+        return Ok(HttpResponse::Found()
+            .append_header(("Location", redirect_url))
+            .finish());
+    }
+
     let html = LoginTemplate {
         title: "Log in",
         error: None,
     };
-    Ok(web::Html::new(
-        html.render().expect("template should be valid"),
-    ))
+    Ok(HttpResponse::Ok().body(html.render().expect("template should be valid")))
 }
 
 /// Logs you out by destroying your cookie on the server and web browser
