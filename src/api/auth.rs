@@ -111,7 +111,7 @@ pub async fn oauth_callback(
                 Some(did) => {
                     session.insert("did", did).unwrap();
                     // Redirect back to main app domain after successful auth
-                    let redirect_to = if config.oauth_redirect_base != config.app_url {
+                    let redirect_to = if config.uses_separate_auth_domain() {
                         config.app_url.clone()
                     } else {
                         "/".to_string()
@@ -143,27 +143,13 @@ pub async fn oauth_callback(
 
 /// Takes you to the login page
 #[get("/login")]
-pub async fn login(
-    request: HttpRequest,
-    config: web::Data<config::Config>,
-) -> Result<HttpResponse> {
-    // Check if we're on the main app domain and redirect to auth domain
-    if let Some(host) = request.headers().get("host") {
-        if let Ok(host_str) = host.to_str() {
-            // Extract just the host from the app_url
-            if let Ok(app_url) = url::Url::parse(&config.app_url) {
-                if let Some(app_host) = app_url.host_str() {
-                    if host_str.starts_with(app_host)
-                        && config.oauth_redirect_base != config.app_url
-                    {
-                        let redirect_url = format!("{}/login", config.oauth_redirect_base);
-                        return Ok(HttpResponse::Found()
-                            .append_header(("Location", redirect_url))
-                            .finish());
-                    }
-                }
-            }
-        }
+pub async fn login(config: web::Data<config::Config>) -> Result<HttpResponse> {
+    // If we're using a separate auth domain, redirect to it
+    if config.uses_separate_auth_domain() {
+        let redirect_url = format!("{}/login", config.oauth_redirect_base);
+        return Ok(HttpResponse::Found()
+            .append_header(("Location", redirect_url))
+            .finish());
     }
 
     let html = LoginTemplate {
