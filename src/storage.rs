@@ -16,8 +16,6 @@ use thiserror::Error;
 pub enum SqliteStoreError {
     #[error("Invalid session")]
     InvalidSession,
-    #[error("No session found")]
-    NoSessionFound,
     #[error("Database error: {0}")]
     DatabaseError(async_sqlite::Error),
 }
@@ -49,7 +47,7 @@ where
                     .map_err(|_| SqliteStoreError::InvalidSession)?;
                 Ok(Some(deserialized_session))
             }
-            Ok(None) => Err(SqliteStoreError::NoSessionFound),
+            Ok(None) => Ok(None),
             Err(db_error) => {
                 log::error!("Database error: {db_error}");
                 Err(SqliteStoreError::DatabaseError(db_error))
@@ -110,7 +108,7 @@ where
                     .map_err(|_| SqliteStoreError::InvalidSession)?;
                 Ok(Some(deserialized_state))
             }
-            Ok(None) => Err(SqliteStoreError::NoSessionFound),
+            Ok(None) => Ok(None),
             Err(db_error) => {
                 log::error!("Database error: {db_error}");
                 Err(SqliteStoreError::DatabaseError(db_error))
