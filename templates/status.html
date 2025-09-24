@@ -103,8 +103,9 @@
                 <span class="status-emoji">
                     {% if current.status.starts_with("custom:") %}
                         {% let emoji_name = current.status.strip_prefix("custom:").unwrap() %}
-                        <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" title="{{emoji_name}}" class="custom-emoji-display"
-                             onerror="this.onerror=null; this.src='/emojis/{{emoji_name}}.gif';">
+                        <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
+                             alt="{{emoji_name}}" title="{{emoji_name}}" class="custom-emoji-display emoji-placeholder"
+                             data-emoji-name="{{emoji_name}}">
                     {% else %}
                         <span title="{{ current.status }}">{{ current.status }}</span>
                     {% endif %}
@@ -140,8 +141,9 @@
                                 {% if let Some(current) = current_status.as_ref() %}
                                     {% if current.status.starts_with("custom:") %}
                                         {% let emoji_name = current.status.strip_prefix("custom:").unwrap() %}
-                                        <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" title="{{emoji_name}}"
-                                             onerror="this.onerror=null; this.src='/emojis/{{emoji_name}}.gif';">
+                                        <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
+                                             alt="{{emoji_name}}" title="{{emoji_name}}" class="emoji-placeholder"
+                                             data-emoji-name="{{emoji_name}}">
                                     {% else %}
                                         <span title="{{ current.status }}">{{ current.status }}</span>
                                     {% endif %}
@@ -412,8 +414,9 @@ func verify(r *http.Request, body []byte, secret string) bool {
                 <span class="history-emoji">
                     {% if status.status.starts_with("custom:") %}
                         {% let emoji_name = status.status.strip_prefix("custom:").unwrap() %}
-                        <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" title="{{emoji_name}}" class="custom-emoji-display"
-                             onerror="this.onerror=null; this.src='/emojis/{{emoji_name}}.gif';">
+                        <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
+                             alt="{{emoji_name}}" title="{{emoji_name}}" class="custom-emoji-display emoji-placeholder"
+                             data-emoji-name="{{emoji_name}}">
                     {% else %}
                         <span title="{{ status.status }}">{{ status.status }}</span>
                     {% endif %}
