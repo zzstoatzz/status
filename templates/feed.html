@@ -129,8 +129,9 @@
                     <span class="status-emoji">
                         {% if status.status.starts_with("custom:") %}
                             {% let emoji_name = status.status.strip_prefix("custom:").unwrap() %}
-                            <img src="/emojis/{{emoji_name}}.png" alt="{{emoji_name}}" title="{{emoji_name}}" class="custom-emoji-display"
-                                 onerror="this.onerror=null; this.src='/emojis/{{emoji_name}}.gif';">
+                            <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
+                                 alt="{{emoji_name}}" title="{{emoji_name}}" class="custom-emoji-display emoji-placeholder"
+                                 data-emoji-name="{{emoji_name}}">
                         {% else %}
                             <span title="{{status.status}}">{{status.status}}</span>
                         {% endif %}
@@ -989,7 +990,7 @@ const loadMoreStatuses = async () => {
             let emojiHtml = '';
             if (status.status.startsWith('custom:')) {
                 const emojiName = status.status.substring(7);
-                emojiHtml = `<img src="/emojis/${emojiName}.png" alt="${emojiName}" title="${emojiName}" class="custom-emoji-display" onerror="this.onerror=null; this.src='/emojis/${emojiName}.gif';">`;
+                emojiHtml = `<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="${emojiName}" title="${emojiName}" class="custom-emoji-display emoji-placeholder" data-emoji-name="${emojiName}">`;
             } else {
                 emojiHtml = `<span title="${status.status}">${status.status}</span>`;
             }
