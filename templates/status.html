@@ -2246,10 +2246,19 @@ let emojiData = {
         button.dataset.name = emoji.name;
 
         const img = document.createElement('img');
-        img.src = `/emojis/${emoji.filename}`;
+        // Use placeholder initially to avoid 404s
+        img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        img.dataset.emojiName = emoji.name;
+        img.dataset.emojiFilename = emoji.filename;
         img.alt = emoji.name;
         img.title = emoji.name;
         button.appendChild(img);
+        
+        // Load the actual image after a brief delay to let resolver initialize
+        requestAnimationFrame(() => {
+            img.src = `/emojis/${emoji.filename}`;
+        });
+        
         return button;
     };
 
