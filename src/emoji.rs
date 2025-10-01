@@ -3,8 +3,9 @@ use std::{collections::HashSet, fs, path::Path, sync::Arc};
 
 use crate::config::Config;
 
-/// Ensure the runtime emoji directory exists, and seed it from the bundled
-/// `static/emojis` on first run if the runtime directory is empty.
+/// Ensure the runtime emoji directory exists, and sync new emojis from the bundled
+/// `static/emojis` directory. Only copies files that don't already exist in the runtime dir,
+/// preserving manual uploads and deletions.
 pub fn init_runtime_dir(config: &Config) {
     let runtime_emoji_dir = &config.emoji_dir;
     let bundled_emoji_dir = "static/emojis";
@@ -18,12 +19,8 @@ pub fn init_runtime_dir(config: &Config) {
         return;
     }
 
-    let should_seed = runtime_emoji_dir != bundled_emoji_dir
-        && fs::read_dir(runtime_emoji_dir)
-            .map(|mut it| it.next().is_none())
-            .unwrap_or(false);
-
-    if !should_seed {
+    // Skip sync if runtime dir is the same as bundled (local dev)
+    if runtime_emoji_dir == bundled_emoji_dir {
         return;
     }
 
@@ -33,22 +30,30 @@ pub fn init_runtime_dir(config: &Config) {
 
     match fs::read_dir(bundled_emoji_dir) {
         Ok(entries) => {
+            let mut copied = 0;
             for entry in entries.flatten() {
                 let path = entry.path();
                 if let Some(name) = path.file_name() {
                     let dest = Path::new(runtime_emoji_dir).join(name);
-                    if path.is_file() {
-                        if let Err(err) = fs::copy(&path, &dest) {
-                            log::warn!("Failed to seed emoji {:?} -> {:?}: {}", path, dest, err);
+                    // Only copy if destination doesn't exist (preserves manual changes)
+                    if path.is_file() && !dest.exists() {
+                        match fs::copy(&path, &dest) {
+                            Ok(_) => copied += 1,
+                            Err(err) => {
+                                log::warn!("Failed to sync emoji {:?} -> {:?}: {}", path, dest, err)
+                            }
                         }
                     }
                 }
             }
-            log::info!(
-                "Seeded emoji directory {} from {}",
-                runtime_emoji_dir,
-                bundled_emoji_dir
-            );
+            if copied > 0 {
+                log::info!(
+                    "Synced {} new emoji(s) from {} to {}",
+                    copied,
+                    bundled_emoji_dir,
+                    runtime_emoji_dir
+                );
+            }
         }
         Err(err) => log::warn!(
             "Failed to read bundled emoji directory {}: {}",
