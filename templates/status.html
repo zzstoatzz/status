@@ -225,6 +225,11 @@
                     <div class="emoji-grid" id="emoji-grid">
                         <!-- Will be populated by JavaScript -->
                     </div>
+                    <div class="bufo-helper" id="bufo-helper" style="display: none;">
+                        <a href="https://find-bufo.fly.dev/" target="_blank" rel="noopener noreferrer">
+                            need help finding a bufo?
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1275,6 +1280,24 @@ body {
     color: var(--text-tertiary);
     padding: 2rem 1rem;
     font-size: 0.95rem;
+}
+
+.bufo-helper {
+    text-align: center;
+    padding: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+.bufo-helper a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s ease;
+}
+
+.bufo-helper a:hover {
+    color: var(--accent);
+    text-decoration: underline;
 }
 
 .emoji-picker-overlay::before {
@@ -2378,6 +2401,12 @@ let emojiData = {
         }
 
         updateActiveCategory(category);
+
+        // Show/hide bufo helper based on category
+        const bufoHelper = document.getElementById('bufo-helper');
+        if (bufoHelper) {
+            bufoHelper.style.display = category === 'custom' ? 'block' : 'none';
+        }
     };
 
     const applyEmojiSelection = (button) => {
@@ -2606,6 +2635,12 @@ let emojiData = {
             renderEmojiButtons(buttons);
         } else {
             showGridMessage('No emojis found');
+        }
+
+        // Hide bufo helper during search
+        const bufoHelper = document.getElementById('bufo-helper');
+        if (bufoHelper) {
+            bufoHelper.style.display = 'none';
         }
     };
 
