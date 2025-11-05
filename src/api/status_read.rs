@@ -4,10 +4,10 @@ use crate::resolver::HickoryDnsTxtResolver;
 use crate::{
     api::auth::OAuthClientType,
     db::StatusFromDb,
-    templates::{ErrorTemplate, FeedTemplate, StatusTemplate},
+    templates::{ErrorTemplate, FeedTemplate, StatusShareTemplate, StatusTemplate},
 };
 use actix_session::Session;
-use actix_web::{Responder, Result, get, web};
+use actix_web::{HttpRequest, HttpResponse, Responder, Result, get, web};
 use askama::Template;
 use async_sqlite::Pool;
 use atrium_api::types::string::Did;
@@ -40,7 +40,7 @@ pub async fn home(
                     .unwrap_or_else(|| did_string.clone()),
                 Err(_) => did_string.clone(),
             };
-            let current_status = StatusFromDb::my_status(&db_pool, &did)
+            let mut current_status = StatusFromDb::my_status(&db_pool, &did)
                 .await
                 .unwrap_or(None)
                 .and_then(|s| {
@@ -51,12 +51,18 @@ pub async fn home(
                     }
                     Some(s)
                 });
-            let history = StatusFromDb::load_user_statuses(&db_pool, &did, 10)
+            let mut history = StatusFromDb::load_user_statuses(&db_pool, &did, 10)
                 .await
                 .unwrap_or_else(|err| {
                     log::error!("Error loading status history: {err}");
                     vec![]
                 });
+            if let Some(ref mut status) = current_status {
+                status.handle = Some(handle.clone());
+            }
+            for status in &mut history {
+                status.handle = Some(handle.clone());
+            }
             let is_admin_flag = is_admin(did.as_str());
             let html = StatusTemplate {
                 title: "your status",
@@ -82,7 +88,7 @@ pub async fn home(
             } else {
                 None
             };
-            let current_status = if let Some(ref did) = owner_did {
+            let mut current_status = if let Some(ref did) = owner_did {
                 StatusFromDb::my_status(&db_pool, did)
                     .await
                     .unwrap_or(None)
@@ -97,7 +103,7 @@ pub async fn home(
             } else {
                 None
             };
-            let history = if let Some(ref did) = owner_did {
+            let mut history = if let Some(ref did) = owner_did {
                 StatusFromDb::load_user_statuses(&db_pool, did, 10)
                     .await
                     .unwrap_or_else(|err| {
@@ -107,6 +113,12 @@ pub async fn home(
             } else {
                 vec![]
             };
+            if let Some(ref mut status) = current_status {
+                status.handle = Some(OWNER_HANDLE.to_string());
+            }
+            for status in &mut history {
+                status.handle = Some(OWNER_HANDLE.to_string());
+            }
             let html = StatusTemplate {
                 title: "nate's status",
                 handle: OWNER_HANDLE.to_string(),
@@ -163,7 +175,7 @@ pub async fn user_status_page(
         Some(session_did) => session_did == did.to_string(),
         None => false,
     };
-    let current_status = StatusFromDb::my_status(&db_pool, &did)
+    let mut current_status = StatusFromDb::my_status(&db_pool, &did)
         .await
         .unwrap_or(None)
         .and_then(|s| {
@@ -174,12 +186,18 @@ pub async fn user_status_page(
             }
             Some(s)
         });
-    let history = StatusFromDb::load_user_statuses(&db_pool, &did, 10)
+    let mut history = StatusFromDb::load_user_statuses(&db_pool, &did, 10)
         .await
         .unwrap_or_else(|err| {
             log::error!("Error loading status history: {err}");
             vec![]
         });
+    if let Some(ref mut status) = current_status {
+        status.handle = Some(handle.clone());
+    }
+    for status in &mut history {
+        status.handle = Some(handle.clone());
+    }
     let html = StatusTemplate {
         title: &format!("@{} status", handle),
         handle,
@@ -191,6 +209,98 @@ pub async fn user_status_page(
     .render()
     .expect("template should be valid");
     Ok(web::Html::new(html))
+}
+
+/// Public share page for a specific status
+#[get("/s/{did}/{rkey}")]
+pub async fn status_share_page(
+    req: HttpRequest,
+    params: web::Path<(String, String)>,
+    db_pool: web::Data<Arc<Pool>>,
+    handle_resolver: web::Data<HandleResolver>,
+) -> Result<impl Responder> {
+    let (did, rkey) = params.into_inner();
+    let uri = format!("at://{}/io.zzstoatzz.status.record/{}", did, rkey);
+
+    let mut status = match StatusFromDb::load_by_uri(&db_pool, &uri).await {
+        Ok(Some(status)) => status,
+        Ok(None) => {
+            let html = ErrorTemplate {
+                title: "Status not found",
+                error: "We couldn't find that status any more.",
+            }
+            .render()
+            .expect("template should be valid");
+            return Ok(HttpResponse::NotFound()
+                .content_type("text/html; charset=utf-8")
+                .body(html));
+        }
+        Err(err) => {
+            log::error!("Database error loading status {}: {}", uri, err);
+            let html = ErrorTemplate {
+                title: "Something went wrong",
+                error: "We couldn't load that status right now.",
+            }
+            .render()
+            .expect("template should be valid");
+            return Ok(HttpResponse::InternalServerError()
+                .content_type("text/html; charset=utf-8")
+                .body(html));
+        }
+    };
+
+    let handle = match Did::new(status.author_did.clone()) {
+        Ok(did) => match handle_resolver.resolve(&did).await {
+            Ok(doc) => doc
+                .also_known_as
+                .and_then(|aka| aka.first().cloned())
+                .map(|h| h.replace("at://", "")),
+            Err(err) => {
+                log::debug!(
+                    "Failed to resolve handle for {}: {}",
+                    status.author_did,
+                    err
+                );
+                None
+            }
+        },
+        Err(err) => {
+            log::warn!("Invalid DID on status {}: {}", status.uri, err);
+            None
+        }
+    };
+    status.handle = handle.clone();
+
+    let display_handle = status.author_display_name();
+    let meta_title = status.share_title();
+    let meta_description = status.share_description();
+    let share_text = status.share_text();
+    let profile_href = handle
+        .clone()
+        .map(|h| format!("/@{}", h))
+        .unwrap_or_else(|| format!("https://bsky.app/profile/{}", status.author_did));
+
+    let info = req.connection_info();
+    let canonical_url = format!("{}://{}/s/{}/{}", info.scheme(), info.host(), did, rkey);
+    let share_path = format!("/s/{}/{}", did, rkey);
+
+    let html = StatusShareTemplate {
+        title: "status",
+        status,
+        canonical_url,
+        display_handle,
+        meta_title,
+        meta_description,
+        share_text,
+        profile_href,
+        share_path,
+    }
+    .render()
+    .expect("template should be valid");
+
+    Ok(HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(html))
 }
 
 #[get("/json")]
