@@ -43,11 +43,12 @@ impl ResponseError for AppError {
             ),
         };
 
-        HttpResponse::build(status_code).body(format!(
-            "Error {}: {}",
-            status_code.as_u16(),
-            error_message
-        ))
+        // Return JSON error response for consistency with API endpoints
+        HttpResponse::build(status_code).json(serde_json::json!({
+            "error": error_message,
+            "status": status_code.as_u16(),
+            "success": false
+        }))
     }
 
     fn status_code(&self) -> StatusCode {
