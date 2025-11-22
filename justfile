@@ -1,5 +1,5 @@
 watch:
-    watchexec -w src -w templates -r cargo run
+    cargo watch -x run -w src -w templates
 
 dev:
     SERVER_PORT=3000 cargo watch -x run -w src -w templates

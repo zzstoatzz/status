@@ -30,7 +30,6 @@ use std::{io::Error, sync::Arc, time::Duration};
 mod api;
 mod config;
 mod db;
-mod dev_utils;
 mod emoji;
 mod error_handler;
 mod ingester;
