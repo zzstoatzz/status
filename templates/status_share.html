@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}{{ meta_title }} - status.zzstoatzz.io{% endblock %}
+{% block og_url %}{{ canonical_url }}{% endblock %}
+{% block og_title %}{{ meta_title }}{% endblock %}
+{% block og_description %}{{ meta_description }}{% endblock %}
+{% block og_image %}https://status.zzstoatzz.io/og-image.png{% endblock %}
+
+{% block twitter_url %}{{ canonical_url }}{% endblock %}
+{% block twitter_title %}{{ meta_title }}{% endblock %}
+{% block twitter_description %}{{ meta_description }}{% endblock %}
+{% block twitter_image %}https://status.zzstoatzz.io/og-image.png{% endblock %}
+
+{% block content %}
+<div class="share-page">
+    <div class="share-card">
+        <div class="share-header">
+            <span class="share-emoji">
+                {% if status.status.starts_with("custom:") %}
+                    {% let emoji_name = status.status.strip_prefix("custom:").unwrap() %}
+                    <img src="/emojis/{{emoji_name}}.png" alt=":{{emoji_name}}:" onerror="this.onerror=null; this.src='/emojis/{{emoji_name}}.gif';">
+                {% else %}
+                    {{ status.status }}
+                {% endif %}
+            </span>
+            <div class="share-meta">
+                <div class="share-handle">@{{ display_handle }}</div>
+                <time class="share-time" datetime="{{ status.started_at.to_rfc3339() }}">{{ status.started_at.format("%B %e, %Y %l:%M %p") }}</time>
+            </div>
+        </div>
+        {% if status.text.is_some() %}
+        <div class="share-text">{{ status.text.as_ref().unwrap() }}</div>
+        {% endif %}
+        {% if status.expires_at.is_some() %}
+        <div class="share-expiry">
+            {% if status.is_expired() %}
+            expired {{ status.expires_at.as_ref().unwrap().format("%B %e, %Y %l:%M %p") }}
+            {% else %}
+            expires {{ status.expires_at.as_ref().unwrap().format("%B %e, %Y %l:%M %p") }}
+            {% endif %}
+        </div>
+        {% endif %}
+        <div class="share-actions">
+            <button class="share-button share-trigger" data-share-path="{{ share_path }}" data-share-title="{{ meta_title }}" data-share-text="{{ share_text }}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/>
+                    <polyline points="16 6 12 2 8 6"/>
+                    <line x1="12" y1="2" x2="12" y2="15"/>
+                </svg>
+                <span class="share-label">Share this status</span>
+            </button>
+            <a class="share-profile" href="{{ profile_href }}" target="_blank" rel="noopener">view profile</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.share-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.share-card {
+    background: var(--bg-secondary, #f8f9fa);
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 520px;
+    width: 100%;
+    box-shadow: var(--shadow-md, 0 10px 30px rgba(0,0,0,0.12));
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.share-header {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.share-emoji {
+    font-size: 2.5rem;
+    line-height: 1;
+    display: inline-flex;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 1rem;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary, rgba(0,0,0,0.05));
+}
+
+.share-emoji img {
+    width: 2.5rem;
+    height: 2.5rem;
+    object-fit: contain;
+}
+
+.share-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.share-handle {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.share-time {
+    font-size: 0.9rem;
+    color: var(--text-tertiary, #6c757d);
+}
+
+.share-text {
+    font-size: 1.1rem;
+    line-height: 1.6;
+}
+
+.share-expiry {
+    font-size: 0.9rem;
+    color: var(--text-tertiary, #6c757d);
+}
+
+.share-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.share-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--accent, #1DA1F2);
+    color: #fff;
+    border: none;
+    padding: 0.75rem 1.25rem;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.share-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+
+.share-profile {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--accent, #1DA1F2);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.share-profile:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+    .share-card {
+        padding: 1.5rem;
+        border-radius: 12px;
+    }
+}
+</style>
+{% endblock content %}

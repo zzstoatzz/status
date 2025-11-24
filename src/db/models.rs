@@ -39,6 +39,27 @@ impl StatusFromDb {
         }
     }
 
+    /// Loads a status by its ATProto URI
+    pub async fn load_by_uri(
+        pool: &Data<Arc<Pool>>,
+        uri: &str,
+    ) -> Result<Option<Self>, async_sqlite::Error> {
+        let target_uri = uri.to_string();
+        pool.conn(move |conn| {
+            let mut stmt = conn.prepare("SELECT * FROM status WHERE uri = ?1 LIMIT 1")?;
+            stmt.query_row([target_uri.as_str()], Self::map_from_row)
+                .map(Some)
+                .or_else(|err| {
+                    if err == async_sqlite::rusqlite::Error::QueryReturnedNoRows {
+                        Ok(None)
+                    } else {
+                        Err(err)
+                    }
+                })
+        })
+        .await
+    }
+
     /// Helper to map from [Row] to [StatusDb]
     fn map_from_row(row: &Row) -> Result<Self, async_sqlite::rusqlite::Error> {
         Ok(Self {
@@ -250,6 +271,56 @@ impl StatusFromDb {
             Some(handle) => handle.to_string(),
             None => self.author_did.to_string(),
         }
+    }
+
+    /// Friendly emoji label suitable for text-only contexts
+    pub fn share_emoji_label(&self) -> String {
+        if let Some(name) = self.status.strip_prefix("custom:") {
+            format!(":{}:", name)
+        } else {
+            self.status.clone()
+        }
+    }
+
+    fn share_caption(&self) -> Option<String> {
+        self.text
+            .as_ref()
+            .map(|t| t.trim())
+            .filter(|t| !t.is_empty())
+            .map(|t| t.to_owned())
+    }
+
+    /// Short title combining emoji and handle for link previews
+    pub fn share_title(&self) -> String {
+        format!(
+            "{} @{}",
+            self.share_emoji_label(),
+            self.author_display_name()
+        )
+    }
+
+    /// Description prioritizing the freeform text when present
+    pub fn share_description(&self) -> String {
+        self.share_caption()
+            .unwrap_or_else(|| format!("{} shared a status", self.author_display_name()))
+    }
+
+    /// Combined share text used for copy/share flows
+    pub fn share_text(&self) -> String {
+        self.share_caption()
+            .map(|caption| format!("{} — {}", self.share_title(), caption))
+            .unwrap_or_else(|| self.share_title())
+    }
+
+    /// Returns the record key component of the ATProto URI (rkey)
+    pub fn record_key(&self) -> Option<String> {
+        self.uri.rsplit_once('/').map(|(_, rkey)| rkey.to_string())
+    }
+
+    /// Generates the relative share path used by the UI (e.g. `/s/did:plc:abc/rkey`)
+    pub fn share_path(&self) -> String {
+        let rkey = self.record_key().unwrap_or_default();
+        format!("/s/{}/{}", self.author_did, rkey)
     }
 }
 

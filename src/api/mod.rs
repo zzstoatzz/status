@@ -22,6 +22,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
         // Status page routes (read)
         .service(status_read::home)
         .service(status_read::user_status_page)
+        .service(status_read::status_share_page)
         .service(status_read::feed)
         // Status JSON API routes (read)
         .service(status_read::owner_status_json)
