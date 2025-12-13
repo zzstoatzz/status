@@ -1,0 +1,38 @@
+{
+  "lexicon": 1,
+  "id": "io.zzstoatzz.status.record",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["emoji", "createdAt"],
+        "properties": {
+          "emoji": {
+            "type": "string",
+            "description": "Status emoji or custom emoji slug (e.g. custom:bufo-stab)",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "text": {
+            "type": "string",
+            "description": "Optional status text description",
+            "maxLength": 256,
+            "maxGraphemes": 256
+          },
+          "expires": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Optional expiration timestamp for this status"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When this status was created"
+          }
+        }
+      }
+    }
+  }
+}
