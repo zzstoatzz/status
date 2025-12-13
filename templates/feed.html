@@ -1,0 +1,1351 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div id="root">
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="feed-title-wrapper">
+                <h1 id="feed-title">global feed</h1>
+                {% if let Some(p) = &profile %}
+                <label class="feed-toggle" for="feed-toggle-input">
+                    <input type="checkbox" id="feed-toggle-input" />
+                    <span class="toggle-slider"></span>
+                </label>
+                {% endif %}
+            </div>
+            <div class="header-actions">
+                <a href="/" class="nav-button" aria-label="Your status" title="Your status">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                </a>
+                {% if let Some(p) = &profile %}
+                <button class="settings-toggle" id="settings-toggle" aria-label="Settings">
+                    <img src="https://api.iconify.design/lucide:settings.svg" width="20" height="20" alt="Settings" class="settings-icon">
+                </button>
+                {% endif %}
+                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+                <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+                <span class="theme-indicator" id="theme-indicator"></span>
+            </button>
+            </div>
+        </header>
+
+        {% if is_admin %}
+        <!-- Admin Upload (fixed top-left) -->
+        <div class="admin-panel" id="admin-panel">
+            <button class="admin-toggle" id="admin-toggle" title="admin tools" aria-label="admin tools">⚙️</button>
+            <div class="admin-content" id="admin-content" style="display:none;">
+                <div class="admin-section">
+                    <div class="admin-title">upload emoji</div>
+                    <form id="emoji-upload-form">
+                        <input type="text" id="emoji-name" placeholder="name (optional)" maxlength="40" />
+                        <input type="file" id="emoji-file" accept="image/png,image/gif" required />
+                        <button type="submit">upload</button>
+                    </form>
+                    <div class="admin-msg" id="admin-msg" aria-live="polite"></div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Simple Settings (logged in users only) -->
+        {% if let Some(p) = &profile %}
+        <div class="simple-settings hidden" id="simple-settings">
+            <div class="settings-row">
+                <label>font</label>
+                <div class="button-group">
+                    <button class="font-btn active" data-font="system">system</button>
+                    <button class="font-btn" data-font="mono">mono</button>
+                    <button class="font-btn" data-font="serif">serif</button>
+                    <button class="font-btn" data-font="comic">comic</button>
+                </div>
+            </div>
+            <div class="settings-row">
+                <label>accent</label>
+                <input type="color" id="accent-color" value="#1DA1F2">
+                <div class="preset-colors">
+                    <button class="color-preset" data-color="#1DA1F2" style="background: #1DA1F2"></button>
+                    <button class="color-preset" data-color="#FF6B6B" style="background: #FF6B6B"></button>
+                    <button class="color-preset" data-color="#4ECDC4" style="background: #4ECDC4"></button>
+                    <button class="color-preset" data-color="#FFEAA7" style="background: #FFEAA7"></button>
+                    <button class="color-preset" data-color="#A29BFE" style="background: #A29BFE"></button>
+                    <button class="color-preset" data-color="#FD79A8" style="background: #FD79A8"></button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Session Info -->
+        {% if let Some(p) = &profile %}
+        <div class="session-card">
+            <div class="session-info">
+                <span>logged in as <strong>{% if let Some(name) = &p.display_name %}{% if !name.is_empty() %}{{ name }}{% else %}{% if let Some(h) = &p.handle %}{{ h }}{% else %}{{ p.did }}{% endif %}{% endif %}{% else %}{% if let Some(h) = &p.handle %}{{ h }}{% else %}{{ p.did }}{% endif %}{% endif %}</strong></span>
+                <div class="session-actions">
+                    <a href="/" class="button button-primary">your status</a>
+                    <form action="/logout" method="get" style="display: inline;">
+                        <button type="submit" class="button button-secondary">log out</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="session-card">
+            <div class="session-info">
+                <span>viewing public feed</span>
+                <a href="/login" class="button button-primary">log in to set status</a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Feed -->
+        <div class="feed-container">
+            <div class="feed-header-with-indicator">
+                <h2>recent updates</h2>
+                {% if dev_mode %}
+                <div class="dev-indicator" title="dev mode: showing dummy data mixed with real posts">dev</div>
+                {% endif %}
+            </div>
+            
+            <div class="status-list">
+            {% if !statuses.is_empty() %}
+                {% for status in statuses %}
+                <div class="status-item" data-did="{{ status.author_did }}">
+                    <span class="status-emoji">
+                        {% if status.status.starts_with("custom:") %}
+                            {% let emoji_name = status.status.strip_prefix("custom:").unwrap() %}
+                            <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
+                                 alt="{{emoji_name}}" title="{{emoji_name}}" class="custom-emoji-display emoji-placeholder"
+                                 data-emoji-name="{{emoji_name}}">
+                        {% else %}
+                            <span title="{{status.status}}">{{status.status}}</span>
+                        {% endif %}
+                    </span>
+                    <div class="status-content">
+                        <div class="status-main">
+                            <a class="status-author" href="/@{{status.author_display_name()}}">@{{status.author_display_name()}}</a>
+                            {% if status.text.is_some() %}
+                            <span class="status-text">{{ status.text.as_ref().unwrap() }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="status-meta">
+                            <span class="local-time" data-timestamp="{{ status.started_at.to_rfc3339() }}" data-format="relative"></span>
+                            {% if status.expires_at.is_some() %}
+                                {% if !status.is_expired() %}
+                                • <span class="local-time" data-timestamp="{{ status.expires_at.as_ref().unwrap().to_rfc3339() }}" data-prefix="expires"></span>
+                                {% else %}
+                                • expired
+                                {% endif %}
+                            {% endif %}
+                            {% if is_admin %}
+                            • <button class="hide-button" data-uri="{{ status.uri }}" style="color: var(--text-tertiary); background: none; border: none; cursor: pointer; text-decoration: underline;">hide</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <!-- empty at render; JS will populate via /api/feed -->
+            {% endif %}
+            </div>
+            
+            <!-- Loading indicator -->
+            <div id="loading-indicator" style="display: none; text-align: center; padding: 2rem;">
+                <span style="color: var(--text-tertiary);">Loading more...</span>
+            </div>
+            
+            <!-- End of feed indicator -->
+            <div id="end-of-feed" style="display: none; text-align: center; padding: 2rem;">
+                <span style="color: var(--text-tertiary);">you've reached the beginning of time ✨</span>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <a href="/" class="nav-button-bottom">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span>your status</span>
+            </a>
+        </nav>
+    </div>
+</div>
+
+<style>
+:root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #ffffff;
+    --text-primary: #1a1a1a;
+    --text-secondary: #6c757d;
+    --text-tertiary: #adb5bd;
+    --border-color: #e9ecef;
+    --accent: #4a9eff;
+    --accent-hover: color-mix(in srgb, var(--accent) 85%, black);
+    --danger: #dc3545;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+    --radius: 12px;
+    --radius-sm: 8px;
+}
+
+[data-theme="dark"] {
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #1a1a1a;
+    --bg-tertiary: #2a2a2a;
+    --text-primary: #ffffff;
+    --text-secondary: #adb5bd;
+    --text-tertiary: #6c757d;
+    --border-color: #2a2a2a;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Force all elements to use monospace font */
+input, button, select, textarea {
+    font-family: inherit;
+}
+
+body {
+    font-family: var(--font-family);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    transition: background 0.3s, color 0.3s;
+}
+
+#root {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.container {
+    width: 100%;
+    max-width: 700px;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.header-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.nav-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.nav-button:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.nav-button svg {
+    stroke: var(--accent);
+}
+
+/* Simple Settings */
+.simple-settings {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    transform-origin: top;
+}
+
+.simple-settings.hidden {
+    display: none;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.settings-row label {
+    min-width: 60px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.button-group {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.font-btn {
+    padding: 0.25rem 0.75rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+}
+
+.font-btn:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.font-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+#accent-color {
+    width: 50px;
+    height: 32px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.preset-colors {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.color-preset {
+    width: 24px;
+    height: 24px;
+    border: 2px solid transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.color-preset:hover {
+    transform: scale(1.2);
+    border-color: var(--text-primary);
+}
+
+/* Settings toggle button */
+.settings-toggle {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.settings-toggle:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.1);
+}
+
+.settings-icon {
+    filter: invert(50%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    transition: filter 0.2s;
+}
+
+.settings-toggle:hover .settings-icon {
+    filter: invert(50%) sepia(100%) saturate(500%) hue-rotate(190deg) brightness(100%) contrast(100%);
+}
+
+.theme-toggle {
+    position: relative;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.theme-toggle:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.1);
+}
+
+.theme-toggle svg {
+    stroke: var(--accent);
+}
+
+.sun-icon, .moon-icon {
+    display: none;
+}
+
+[data-theme="light"] .sun-icon {
+    display: block;
+    stroke: #f39c12;
+}
+
+[data-theme="dark"] .moon-icon {
+    display: block;
+    stroke: #8e44ad;
+}
+
+.theme-indicator {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 1000;
+}
+
+.theme-indicator.visible {
+    opacity: 1;
+}
+
+/* Session Card */
+.session-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.session-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.session-info strong {
+    color: var(--text-primary);
+}
+
+.session-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Buttons */
+.button {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.button-primary {
+    background: var(--accent);
+    color: white;
+}
+
+.button-primary:hover {
+    background: var(--accent-hover);
+}
+
+.button-secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.button-secondary:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--text-secondary);
+}
+
+/* Feed Container */
+.feed-container {
+    margin: 2rem 0;
+}
+
+.feed-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+#feed-title {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feed-toggle {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.feed-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border-color);
+    border-radius: 20px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-slider::before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    top: 2px;
+    background: white;
+    border-radius: 50%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feed-toggle input:checked + .toggle-slider {
+    background: var(--accent);
+}
+
+.feed-toggle input:checked + .toggle-slider::before {
+    transform: translateX(20px);
+}
+
+.feed-header-with-indicator {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.feed-container h2 {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0;
+}
+
+.dev-indicator {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.25rem 0.5rem;
+    opacity: 0.7;
+}
+
+/* Status List */
+.status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.status-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    transition: all 0.2s;
+}
+
+.status-item:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-sm);
+}
+
+.status-emoji {
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.custom-emoji-display {
+    width: 2rem;
+    height: 2rem;
+    object-fit: contain;
+    vertical-align: middle;
+    /* Ensure GIFs animate */
+    image-rendering: auto;
+}
+
+.status-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.status-main {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: baseline;
+}
+
+.status-author {
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.status-author:link,
+.status-author:visited {
+    color: var(--text-secondary);
+}
+
+.status-author:hover,
+.status-author:active {
+    color: var(--accent);
+}
+
+.status-text {
+    color: var(--text-primary);
+}
+
+.status-text a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.status-meta {
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+}
+
+.empty-emoji {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 1rem;
+}
+
+.empty-state p {
+    color: var(--text-tertiary);
+}
+
+/* Bottom Navigation */
+.bottom-nav {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    padding-top: 2rem;
+    margin-top: 2rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.nav-button-bottom {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: all 0.2s;
+    font-size: 0.875rem;
+}
+
+.nav-button-bottom:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.nav-button-bottom svg {
+    stroke: currentColor;
+    flex-shrink: 0;
+}
+
+/* Mobile adjustments */
+@media (max-width: 640px) {
+    #root {
+        padding: 1rem;
+    }
+    
+    .header h1 {
+        font-size: 1.25rem;
+    }
+    
+    .status-item {
+        padding: 0.75rem;
+    }
+    
+    .status-emoji {
+        font-size: 1.5rem;
+    }
+}
+
+/* Admin panel (top-left) */
+.admin-panel {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 9999;
+}
+.admin-toggle {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 6px 8px;
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+.admin-content {
+    margin-top: 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 10px;
+    width: 240px;
+    box-shadow: var(--shadow-md);
+}
+.admin-title {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+.admin-content input[type="text"],
+.admin-content input[type="file"] {
+    width: 100%;
+    margin-bottom: 8px;
+}
+.admin-content button[type="submit"] {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+}
+.admin-msg { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
+</style>
+
+<script>
+// Theme management
+const initTheme = () => {
+    const saved = localStorage.getItem('theme');
+    const theme = saved || 'system';
+    
+    if (theme === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.body.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    } else {
+        document.body.setAttribute('data-theme', theme);
+    }
+};
+
+const toggleTheme = () => {
+    const saved = localStorage.getItem('theme') || 'system';
+    const themes = ['system', 'light', 'dark'];
+    const currentIndex = themes.indexOf(saved);
+    const next = themes[(currentIndex + 1) % themes.length];
+    
+    localStorage.setItem('theme', next);
+    
+    if (next === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.body.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    } else {
+        document.body.setAttribute('data-theme', next);
+    }
+    
+    // Show theme indicator
+    const indicator = document.getElementById('theme-indicator');
+    if (indicator) {
+        indicator.textContent = next;
+        indicator.classList.add('visible');
+        setTimeout(() => {
+            indicator.classList.remove('visible');
+        }, 1500);
+    }
+};
+
+// Simple settings
+const initSettings = async () => {
+    // Try to load from API first, fall back to localStorage
+    let savedFont = localStorage.getItem('fontFamily') || 'mono';
+    let savedAccent = localStorage.getItem('accentColor') || '#1DA1F2';
+    
+    // If user is logged in, fetch from API
+    const isLoggedIn = document.querySelector('.settings-toggle');
+    if (isLoggedIn) {
+        try {
+            const response = await fetch('/api/preferences');
+            if (response.ok) {
+                const data = await response.json();
+                if (!data.error) {
+                    savedFont = data.font_family || savedFont;
+                    savedAccent = data.accent_color || savedAccent;
+                    // Sync to localStorage
+                    localStorage.setItem('fontFamily', savedFont);
+                    localStorage.setItem('accentColor', savedAccent);
+                }
+            }
+        } catch (err) {
+            console.log('Using localStorage preferences');
+        }
+    }
+    
+    // Apply font family
+    const fontMap = {
+        'system': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        'mono': '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
+        'serif': 'ui-serif, Georgia, Cambria, serif',
+        'comic': '"Comic Sans MS", "Comic Sans", cursive'
+    };
+    document.documentElement.style.setProperty('--font-family', fontMap[savedFont] || fontMap.system);
+    
+    // Update buttons
+    document.querySelectorAll('.font-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.font === savedFont);
+    });
+    
+    // Apply accent color
+    document.documentElement.style.setProperty('--accent', savedAccent);
+    const accentInput = document.getElementById('accent-color');
+    if (accentInput) {
+        accentInput.value = savedAccent;
+    }
+};
+
+// Timestamp formatting is handled by /static/timestamps.js
+
+// Fetch user's following list
+const fetchFollowing = async () => {
+    try {
+        const response = await fetch('/api/following');
+        if (!response.ok) {
+            console.error('Failed to fetch following list');
+            return null;
+        }
+        const data = await response.json();
+        return data.follows;
+    } catch (error) {
+        console.error('Error fetching following:', error);
+        return null;
+    }
+};
+
+// Check if we need to load more content after filtering
+const checkNeedMoreContent = () => {
+    // Check if filtered content fills the viewport
+    setTimeout(() => {
+        if (document.documentElement.scrollHeight <= window.innerHeight && hasMore && !isLoading) {
+            loadMoreStatuses();
+        }
+    }, 50); // Small delay to ensure layout is updated
+};
+
+// Apply following filter to existing statuses
+const applyFollowingFilter = (active) => {
+    const statusItems = document.querySelectorAll('.status-item');
+    
+    statusItems.forEach(item => {
+        if (!active || !followingDids) {
+            // Show all if filter is off or we don't have following data
+            item.style.display = '';
+        } else {
+            const authorDid = item.getAttribute('data-did');
+            // Check if this author is in our following list OR is the current user
+            if (followingDids.includes(authorDid) || authorDid === currentUserDid) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        }
+    });
+    
+    // After filtering, check if we need more content
+    if (active) {
+        checkNeedMoreContent();
+    }
+};
+
+// Infinite scroll variables
+let isLoading = false;
+let offset = {% if !statuses.is_empty() %}{{ statuses.len() }}{% else %}0{% endif %};
+let hasMore = true;
+
+// Following filter variables
+let followingDids = null;
+let filterActive = false;
+// Store current user's DID to include their own posts in following feed
+const currentUserDid = {% if let Some(p) = &profile %}"{{ p.did }}"{% else %}null{% endif %};
+
+// Load more statuses
+const loadMoreStatuses = async () => {
+    if (isLoading || !hasMore) return;
+    
+    isLoading = true;
+    const loadingIndicator = document.getElementById('loading-indicator');
+    loadingIndicator.style.display = 'block';
+    
+    try {
+        const response = await fetch(`/api/feed?offset=${offset}&limit=20`);
+        const data = await response.json();
+        const newStatuses = Array.isArray(data) ? data : (data.statuses || []);
+        
+        if (newStatuses.length === 0) {
+            hasMore = false;
+            loadingIndicator.style.display = 'none';
+            document.getElementById('end-of-feed').style.display = 'block';
+            return;
+        }
+        
+        const statusList = document.querySelector('.status-list');
+        
+        // Render new statuses
+        newStatuses.forEach(status => {
+            const statusItem = document.createElement('div');
+            statusItem.className = 'status-item';
+            statusItem.setAttribute('data-did', status.author_did);
+            
+            let emojiHtml = '';
+            if (status.status.startsWith('custom:')) {
+                const emojiName = status.status.substring(7);
+                emojiHtml = `<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="${emojiName}" title="${emojiName}" class="custom-emoji-display emoji-placeholder" data-emoji-name="${emojiName}">`;
+            } else {
+                emojiHtml = `<span title="${status.status}">${status.status}</span>`;
+            }
+            
+            // Build expiry HTML if present
+            let expiryHtml = '';
+            if (status.expires_at) {
+                const expiryDate = new Date(status.expires_at);
+                const now = new Date();
+                if (expiryDate > now) {
+                    expiryHtml = ` • <span class="local-time" data-timestamp="${status.expires_at}" data-prefix="expires"></span>`;
+                } else {
+                    expiryHtml = ' • expired';
+                }
+            }
+            
+            const displayName = status.handle || status.author_did;
+            const profileUrl = status.handle ? `/@${status.handle}` : '#';
+            
+            statusItem.innerHTML = `
+                <span class="status-emoji">${emojiHtml}</span>
+                <div class="status-content">
+                    <div class="status-main">
+                        <a class="status-author" href="${profileUrl}">@${displayName}</a>
+                        ${status.text ? `<span class="status-text">${status.text}</span>` : ''}
+                    </div>
+                    <div class="status-meta">
+                        <span class="local-time" data-timestamp="${status.started_at}" data-format="relative"></span>${expiryHtml}
+                    </div>
+                </div>
+            `;
+            
+            statusList.appendChild(statusItem);
+            // Render markdown links in the newly added item
+            if (window.renderMarkdownLinksIn) {
+                window.renderMarkdownLinksIn(statusItem);
+            }
+        });
+        
+        // Re-initialize timestamps for newly added elements
+        if (typeof TimestampFormatter !== 'undefined') {
+            TimestampFormatter.initialize();
+        }
+        
+        // Apply filter to newly added items if active
+        if (filterActive && followingDids) {
+            applyFollowingFilter(true);
+        }
+        
+        offset += newStatuses.length;
+        if (!Array.isArray(data) && typeof data === 'object') {
+            if (typeof data.next_offset === 'number') offset = data.next_offset;
+            if (typeof data.has_more === 'boolean') hasMore = data.has_more;
+        }
+        loadingIndicator.style.display = 'none';
+    } catch (error) {
+        console.error('Error loading more statuses:', error);
+        loadingIndicator.style.display = 'none';
+    } finally {
+        isLoading = false;
+    }
+};
+
+// Check scroll position
+const checkScroll = () => {
+    const scrollHeight = document.documentElement.scrollHeight;
+    const scrollTop = window.scrollY;
+    const clientHeight = window.innerHeight;
+    
+    // Load more when user is 200px from the bottom
+    if (scrollTop + clientHeight >= scrollHeight - 200) {
+        loadMoreStatuses();
+    }
+};
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    initTheme();
+    await initSettings();
+    // Timestamps are auto-initialized by timestamps.js
+    // Always load initial page of statuses so feed is never empty on first render
+    try { await loadMoreStatuses(); } catch (e) { console.error('initial load failed', e); }
+    
+    // Settings toggle
+    const settingsToggle = document.getElementById('settings-toggle');
+    const settingsPanel = document.getElementById('simple-settings');
+    if (settingsToggle && settingsPanel) {
+        settingsToggle.addEventListener('click', () => {
+            settingsPanel.classList.toggle('hidden');
+        });
+    }
+    
+    // Helper to save preferences to API
+    const savePreferencesToAPI = async (updates) => {
+        try {
+            await fetch('/api/preferences', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+        } catch (err) {
+            console.log('Failed to save preferences to server');
+        }
+    };
+    
+    // Font family buttons
+    document.querySelectorAll('.font-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const font = btn.dataset.font;
+            localStorage.setItem('fontFamily', font);
+            
+            // Update UI
+            document.querySelectorAll('.font-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // Apply
+            const fontMap = {
+                'system': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                'mono': '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
+                'serif': 'ui-serif, Georgia, Cambria, serif',
+                'comic': '"Comic Sans MS", "Comic Sans", cursive'
+            };
+            document.documentElement.style.setProperty('--font-family', fontMap[font] || fontMap.system);
+            
+            // Save to API if logged in
+            if (document.querySelector('.settings-toggle')) {
+                savePreferencesToAPI({ font_family: font });
+            }
+        });
+    });
+    
+    // Accent color
+    const accentInput = document.getElementById('accent-color');
+    if (accentInput) {
+        accentInput.addEventListener('input', () => {
+            const color = accentInput.value;
+            localStorage.setItem('accentColor', color);
+            document.documentElement.style.setProperty('--accent', color);
+            
+            // Save to API if logged in
+            if (document.querySelector('.settings-toggle')) {
+                savePreferencesToAPI({ accent_color: color });
+            }
+        });
+    }
+    
+    // Color presets
+    document.querySelectorAll('.color-preset').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const color = btn.dataset.color;
+            localStorage.setItem('accentColor', color);
+            document.documentElement.style.setProperty('--accent', color);
+            if (accentInput) {
+                accentInput.value = color;
+            }
+            
+            // Save to API if logged in
+            if (document.querySelector('.settings-toggle')) {
+                savePreferencesToAPI({ accent_color: color });
+            }
+        });
+    });
+    
+    // Theme toggle
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+    }
+    
+    // Feed toggle
+    const feedToggle = document.getElementById('feed-toggle-input');
+    const feedTitle = document.getElementById('feed-title');
+    
+    if (feedToggle && feedTitle) {
+        // Restore preference from localStorage
+        const savedPreference = localStorage.getItem('followingFilterActive');
+        if (savedPreference === 'true') {
+            feedToggle.checked = true;
+            filterActive = true;
+            feedTitle.textContent = 'following feed';
+            
+            // Fetch following list and apply filter
+            fetchFollowing().then(follows => {
+                if (follows) {
+                    followingDids = follows;
+                    // Cache the following list with timestamp
+                    localStorage.setItem('followingDids', JSON.stringify(follows));
+                    localStorage.setItem('followingDidsTimestamp', Date.now().toString());
+                    applyFollowingFilter(true);
+                }
+            });
+        }
+        
+        feedToggle.addEventListener('change', async (e) => {
+            filterActive = e.target.checked;
+            localStorage.setItem('followingFilterActive', filterActive.toString());
+            
+            // Animate title change
+            feedTitle.style.opacity = '0';
+            
+            setTimeout(() => {
+                feedTitle.textContent = filterActive ? 'following feed' : 'global feed';
+                feedTitle.style.opacity = '1';
+            }, 150);
+            
+            if (filterActive) {
+                // Check if we have cached following list (valid for 1 hour)
+                const cachedFollows = localStorage.getItem('followingDids');
+                const cacheTimestamp = localStorage.getItem('followingDidsTimestamp');
+                const oneHour = 60 * 60 * 1000;
+                
+                if (cachedFollows && cacheTimestamp && 
+                    (Date.now() - parseInt(cacheTimestamp)) < oneHour) {
+                    // Use cached data
+                    followingDids = JSON.parse(cachedFollows);
+                } else {
+                    // Fetch fresh data
+                    const follows = await fetchFollowing();
+                    if (follows) {
+                        followingDids = follows;
+                        // Cache the following list
+                        localStorage.setItem('followingDids', JSON.stringify(follows));
+                        localStorage.setItem('followingDidsTimestamp', Date.now().toString());
+                    } else {
+                        // Failed to fetch, disable filter
+                        filterActive = false;
+                        e.target.checked = false;
+                        localStorage.setItem('followingFilterActive', 'false');
+                        feedTitle.textContent = 'global feed';
+                        alert('Failed to fetch following list');
+                        return;
+                    }
+                }
+            }
+            
+            applyFollowingFilter(filterActive);
+        });
+    }
+    
+    // Set up infinite scrolling
+    window.addEventListener('scroll', checkScroll);
+    
+    // Check if we need to load more on initial page load
+    // (in case the initial content doesn't fill the viewport)
+    setTimeout(() => {
+        if (document.documentElement.scrollHeight <= window.innerHeight) {
+            loadMoreStatuses();
+        }
+    }, 100);
+    
+    // Timestamps auto-update via timestamps.js
+    
+    // Admin hide button functionality
+    document.querySelectorAll('.hide-button').forEach(button => {
+        button.addEventListener('click', async (e) => {
+            const uri = e.target.dataset.uri;
+            if (!uri) return;
+            
+            if (!confirm('Hide this status from the global feed?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/admin/hide-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        uri: uri,
+                        hidden: true 
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // Remove the status from the feed
+                    e.target.closest('.status-item').style.display = 'none';
+                } else {
+                    alert(result.error || 'Failed to hide status');
+                }
+            } catch (error) {
+                console.error('Error hiding status:', error);
+                alert('Failed to hide status');
+            }
+        });
+    });
+});
+    </script>
+    <script>
+        // Admin upload toggles and submit
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggle = document.getElementById('admin-toggle');
+            const content = document.getElementById('admin-content');
+            const form = document.getElementById('emoji-upload-form');
+            const file = document.getElementById('emoji-file');
+            const name = document.getElementById('emoji-name');
+            const msg = document.getElementById('admin-msg');
+            if (!toggle || !content || !form) return;
+
+            toggle.addEventListener('click', () => {
+                content.style.display = content.style.display === 'none' ? 'block' : 'none';
+            });
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                msg.textContent = '';
+                if (!file.files || file.files.length === 0) {
+                    msg.textContent = 'choose a PNG or GIF';
+                    return;
+                }
+                // Require a name; prefill from filename if empty
+                if (!name.value.trim().length) {
+                    const base = (file.files[0].name || '').replace(/\.[^.]+$/, '');
+                    const sanitized = base.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+                    name.value = sanitized || '';
+                }
+                if (!name.value.trim().length) {
+                    msg.textContent = 'please choose a name';
+                    return;
+                }
+                // Client-side reserved check (best-effort)
+                if (window.__reservedEmojiNames && window.__reservedEmojiNames.has(name.value.trim().toLowerCase())) {
+                    msg.textContent = 'that name is reserved by a standard emoji';
+                    return;
+                }
+                const f = file.files[0];
+                if (!['image/png','image/gif'].includes(f.type)) {
+                    msg.textContent = 'only PNG or GIF';
+                    return;
+                }
+                const fd = new FormData();
+                fd.append('file', f);
+                if (name.value.trim().length) fd.append('name', name.value.trim());
+                try {
+                    const res = await fetch('/admin/upload-emoji', { method: 'POST', body: fd });
+                    const json = await res.json();
+                    if (!res.ok || !json.success) {
+                        if (json && json.code === 'name_exists') {
+                            msg.textContent = 'that name already exists — please pick another';
+                        } else {
+                            msg.textContent = (json && json.error) || 'upload failed';
+                        }
+                        return;
+                    }
+                    // Notify listeners (e.g., emoji picker) and close panel
+                    document.dispatchEvent(new CustomEvent('custom-emoji-uploaded', { detail: json }));
+                    content.style.display = 'none';
+                    form.reset();
+                    msg.textContent = '';
+                } catch (err) {
+                    msg.textContent = 'network error';
+                }
+            });
+        });
+    </script>
+{%endblock content%}

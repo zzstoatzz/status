@@ -1,0 +1,36 @@
+repos:
+  - repo: local
+    hooks:
+      - id: cargo-check
+        name: Cargo check
+        entry: cargo check
+        language: system
+        types: [rust]
+        pass_filenames: false
+      - id: cargo-fmt-check
+        name: Cargo fmt check
+        entry: cargo fmt -- --check
+        language: system
+        types: [rust]
+        pass_filenames: false
+      - id: cargo-clippy
+        name: Cargo clippy
+        entry: cargo clippy -- -D warnings
+        language: system
+        types: [rust]
+        pass_filenames: false
+      - id: check-html-syntax
+        name: Check HTML syntax
+        entry: bash -c 'for file in "$@"; do if ! xmllint --html --noout "$file" 2>/dev/null; then echo "HTML syntax error in $file"; exit 1; fi; done' --
+        language: system
+        files: \.html$
+      - id: check-js-syntax
+        name: Check JavaScript syntax
+        entry: bash -c 'for file in "$@"; do if ! node -c "$file" 2>/dev/null; then echo "JavaScript syntax error in $file"; exit 1; fi; done' --
+        language: system
+        files: \.js$
+      - id: check-json
+        name: Check JSON
+        entry: bash -c 'for file in "$@"; do if ! python3 -m json.tool "$file" > /dev/null 2>&1; then echo "JSON syntax error in $file"; exit 1; fi; done' --
+        language: system
+        files: \.json$

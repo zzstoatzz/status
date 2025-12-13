@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}status.zzstoatzz.io{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="alternate icon" href="/static/favicon.png">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://status.zzstoatzz.io{% block og_url %}{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}status{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}like slack status, but decoupled from any platform{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}https://status.zzstoatzz.io/og-image.png{% endblock %}">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary">
+    <meta property="twitter:url" content="https://status.zzstoatzz.io{% block twitter_url %}{% endblock %}">
+    <meta property="twitter:title" content="{% block twitter_title %}status{% endblock %}">
+    <meta property="twitter:description" content="{% block twitter_description %}like slack status, but decoupled from any platform{% endblock %}">
+    <meta property="twitter:image" content="{% block twitter_image %}https://status.zzstoatzz.io/og-image.png{% endblock %}">
+    
+    <!-- Shared Timestamp Formatter -->
+    <script src="/static/timestamps.js"></script>
+    
+    <!-- Shared Settings Module -->
+    <script src="/static/settings.js"></script>
+    <!-- Markdown link renderer for statuses -->
+    <script src="/static/markdown.js"></script>
+    
+    <!-- Emoji Resolver for correct file extensions -->
+    <script src="/static/emoji-resolver.js"></script>
+    
+    <!-- Apply User Settings -->
+    <script>
+        // Apply saved settings immediately to prevent flash
+        (function() {
+            const savedFont = localStorage.getItem('fontFamily') || 'mono';
+            const savedAccent = localStorage.getItem('accentColor') || '#1DA1F2';
+            
+            // Use shared FONT_MAP from settings.js (will be available after load)
+            // For immediate application, we still need local fontMap to prevent flash
+            const fontMap = {
+                'system': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                'mono': '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
+                'serif': 'ui-serif, Georgia, Cambria, serif',
+                'comic': '"Comic Sans MS", "Comic Sans", cursive'
+            };
+            
+            document.documentElement.style.setProperty('--font-family', fontMap[savedFont] || fontMap.mono);
+            document.documentElement.style.setProperty('--accent', savedAccent);
+        })();
+    </script>
+    
+    <style>
+        /* Bug Report Button Styles */
+        .bug-report-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            background: var(--accent, #1DA1F2);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            z-index: 9999;
+        }
+        
+        .bug-report-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .bug-report-button svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+        
+        .bug-report-tooltip {
+            position: absolute;
+            bottom: 60px;
+            right: 0;
+            background: var(--bg-secondary, #1a1a1a);
+            color: var(--text-primary, #ffffff);
+            border: 1px solid var(--border-color, #2a2a2a);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .bug-report-button:hover .bug-report-tooltip {
+            opacity: 1;
+        }
+        
+        @media (max-width: 640px) {
+            .bug-report-button {
+                width: 40px;
+                height: 40px;
+                bottom: 15px;
+                right: 15px;
+            }
+            
+            .bug-report-button svg {
+                width: 20px;
+                height: 20px;
+            }
+        }
+        /* GitHub Footer Styles */
+        .github-footer {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-tertiary, #6c757d);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            z-index: 9998;
+        }
+        
+        .github-footer:hover {
+            color: var(--accent, #1DA1F2);
+        }
+        
+        .github-footer svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+            transition: transform 0.3s ease;
+        }
+        
+        .github-footer:hover svg {
+            transform: scale(1.1);
+        }
+        
+        @media (max-width: 640px) {
+            .github-footer {
+                bottom: 15px;
+                left: 15px;
+                font-size: 12px;
+            }
+            
+            .github-footer svg {
+                width: 18px;
+                height: 18px;
+            }
+            
+            .github-footer span {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% block content %}{% endblock %}
+    
+    <!-- GitHub Footer -->
+    <a href="https://github.com/zzstoatzz/status" class="github-footer" target="_blank" rel="noopener noreferrer" aria-label="View source on GitHub">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+        </svg>
+        <span>zzstoatzz/status</span>
+    </a>
+    
+    <!-- Bug Report Button -->
+    <button class="bug-report-button" id="bug-report-button" aria-label="Report a bug">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 8h-2.81a5.985 5.985 0 0 0-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5c-.49 0-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8zm-6 8h-4v-2h4v2zm0-4h-4v-2h4v2z"/>
+        </svg>
+        <span class="bug-report-tooltip">report a bug</span>
+    </button>
+    
+    <script>
+        // Bug Report Button Handler
+        document.addEventListener('DOMContentLoaded', function() {
+            const bugButton = document.getElementById('bug-report-button');
+            if (bugButton) {
+                bugButton.addEventListener('click', function() {
+                    // Gather context information
+                    const context = {
+                        page: window.location.pathname,
+                        url: window.location.href,
+                        userAgent: navigator.userAgent,
+                        screenResolution: `${window.screen.width}x${window.screen.height}`,
+                        viewportSize: `${window.innerWidth}x${window.innerHeight}`,
+                        theme: document.documentElement.getAttribute('data-theme') || 'light',
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    // Build issue title and body
+                    const title = '[Bug Report] Issue on ' + context.page;
+                    const body = `## Bug Description
+<!-- Please describe the bug you encountered -->
+
+
+## Steps to Reproduce
+<!-- Please list the steps to reproduce the bug -->
+1. 
+2. 
+3. 
+
+## Expected Behavior
+<!-- What did you expect to happen? -->
+
+
+## Actual Behavior
+<!-- What actually happened? -->
+
+
+## Context Information
+- **Page**: ${context.page}
+- **URL**: ${context.url}
+- **Timestamp**: ${context.timestamp}
+- **Theme**: ${context.theme}
+- **Viewport**: ${context.viewportSize}
+- **Screen**: ${context.screenResolution}
+- **User Agent**: ${context.userAgent}
+
+## Additional Information
+<!-- Any additional information, screenshots, etc. -->
+`;
+                    
+                    // Create GitHub issue URL
+                    const githubRepo = 'https://github.com/zzstoatzz/status';
+                    const issueUrl = `${githubRepo}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+                    
+                    // Open in new tab
+                    window.open(issueUrl, '_blank');
+                });
+            }
+        });
+    </script>
+    <script>
+        // Render markdown links in any status/history text on load
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.renderMarkdownLinksIn) {
+                window.renderMarkdownLinksIn(document);
+            }
+        });
+    </script>
+</body>
+</html>
