@@ -4,6 +4,9 @@ const CONFIG = {
   clientId: 'client_2mP9AwgVHkg1vaSpcWSsKw',
 };
 
+// Base path for routing (empty for root domain, '/subpath' for subdirectory)
+const BASE_PATH = '';
+
 let client = null;
 let userPreferences = null;
 

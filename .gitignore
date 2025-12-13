@@ -1,5 +1,5 @@
-# local dev files
-site/Caddyfile.dev
+# wrangler/cloudflare
+.wrangler/
 
 # notes
 oauth-experience.md
