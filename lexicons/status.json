@@ -11,10 +11,9 @@
         "properties": {
           "emoji": {
             "type": "string",
-            "description": "Status emoji",
+            "description": "Status emoji or custom emoji slug (e.g. custom:bufo-stab)",
             "minLength": 1,
-            "maxGraphemes": 1,
-            "maxLength": 32
+            "maxLength": 64
           },
           "text": {
             "type": "string",

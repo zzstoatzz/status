@@ -1,94 +1,74 @@
-# status
+# quickslice-status
 
-a personal status tracker built on at protocol, where i can post my current status (like slack status) decoupled from any specific platform.
+a status app for bluesky, built with [quickslice](https://github.com/bigmoves/quickslice).
 
-live at: [status.zzstoatzz.io](https://status.zzstoatzz.io)
+**live:** https://quickslice-status.pages.dev
 
-## about
+## architecture
 
-this is my personal status url - think of it like a service health page, but for a person. i can update my status with an emoji and optional text, and it's stored permanently in my at protocol repository.
+- **backend**: [quickslice](https://github.com/bigmoves/quickslice) on fly.io - handles oauth, graphql api, jetstream ingestion
+- **frontend**: static site on cloudflare pages - vanilla js spa
 
-## credits
+## deployment
 
-this app is based on [bailey townsend's rusty statusphere](https://github.com/fatfingers23/rusty_statusphere_example_app), which is an excellent rust implementation of the at protocol quick start guide. bailey did all the heavy lifting with the atproto integration and the overall architecture. i've adapted it for my personal use case.
+### backend (fly.io)
 
-major thanks to:
-- [bailey townsend (@baileytownsend.dev)](https://bsky.app/profile/baileytownsend.dev) for the rusty statusphere boilerplate
-- the atrium-rs maintainers for the rust at protocol libraries
-- the rocketman maintainers for the jetstream consumer
-
-## development
+builds quickslice from source at v0.17.3 tag.
 
 ```bash
-cp .env.template .env
-cargo run
-# navigate to http://127.0.0.1:8080
+fly deploy
 ```
 
-### custom emojis (no redeploys)
+required secrets:
+```bash
+fly secrets set SECRET_KEY_BASE="$(openssl rand -base64 64 | tr -d '\n')"
+fly secrets set OAUTH_SIGNING_KEY="$(goat key generate -t p256 | tail -1)"
+```
 
-Emojis are now served from a runtime directory configured by `EMOJI_DIR` (defaults to `static/emojis` locally; set to `/data/emojis` on Fly.io). On startup, if the runtime emoji directory is empty, it will be seeded from the bundled `static/emojis`.
-
-- Local dev: add image files to `static/emojis/` (or set `EMOJI_DIR` in `.env`).
-- Production (Fly.io): upload files directly into the mounted volume at `/data/emojis` — no rebuild or redeploy needed.
-
-Examples with Fly CLI:
+### frontend (cloudflare pages)
 
 ```bash
-# Open an SSH console to the machine
-fly ssh console -a zzstoatzz-status
-
-# Inside the VM, copy or fetch files into /data/emojis
-mkdir -p /data/emojis
-curl -L -o /data/emojis/my_new_emoji.png https://example.com/my_new_emoji.png
+cd site
+npx wrangler pages deploy . --project-name=quickslice-status
 ```
 
-Or from your machine using SFTP:
+## oauth client registration
 
+register an oauth client in the quickslice admin ui at `https://zzstoatzz-quickslice-status.fly.dev/`
+
+redirect uri: `https://quickslice-status.pages.dev/callback`
+
+## lexicon
+
+uses `io.zzstoatzz.status` lexicon for user statuses.
+
+```json
+{
+  "lexicon": 1,
+  "id": "io.zzstoatzz.status",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "self",
+      "record": {
+        "type": "object",
+        "required": ["status", "createdAt"],
+        "properties": {
+          "status": { "type": "string", "maxLength": 128 },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}
+```
+
+## local development
+
+serve the frontend locally:
 ```bash
-fly ssh sftp -a zzstoatzz-status
-sftp> put ./static/emojis/my_new_emoji.png /data/emojis/
+cd site
+python -m http.server 8000
 ```
 
-The app serves them at `/emojis/<filename>` and lists them via `/api/custom-emojis`.
-
-### admin upload endpoint
-
-When logged in as the admin DID, you can upload PNG or GIF emojis without SSH via a simple endpoint:
-
-- Endpoint: `POST /admin/upload-emoji`
-- Auth: session-based; only the admin DID is allowed
-- Form fields (multipart/form-data):
-  - `file`: the image file (PNG or GIF), max 5MB
-  - `name` (optional): base filename (letters, numbers, `-`, `_`) without extension
-
-Example with curl:
-
-```bash
-curl -i -X POST \
-  -F "file=@./static/emojis/sample.png" \
-  -F "name=my_sample" \
-  http://localhost:8080/admin/upload-emoji
-```
-
-Response will include the public URL (e.g., `/emojis/my_sample.png`).
-
-### available commands
-
-we use [just](https://github.com/casey/just) for common tasks:
-
-```bash
-just watch    # run with hot-reloading
-just deploy   # deploy to fly.io
-just lint     # run clippy
-just fmt      # format code
-just clean    # clean build artifacts
-```
-
-## tech stack
-
-- [rust](https://www.rust-lang.org/) with [actix web](https://actix.rs/)
-- [at protocol](https://atproto.com/) (via [atrium-rs](https://github.com/sugyan/atrium))
-- [sqlite](https://www.sqlite.org/) for local storage
-- [jetstream](https://github.com/bluesky-social/jetstream) for firehose consumption
-- [fly.io](https://fly.io/) for hosting
+for oauth to work locally, you'd need to register a separate oauth client with `http://localhost:8000/callback` as the redirect uri and update `CONFIG.clientId` in `app.js`.

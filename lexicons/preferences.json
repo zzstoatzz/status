@@ -1,0 +1,30 @@
+{
+  "lexicon": 1,
+  "id": "io.zzstoatzz.status.preferences",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "literal:self",
+      "record": {
+        "type": "object",
+        "properties": {
+          "accentColor": {
+            "type": "string",
+            "description": "Hex color for accent/highlight color (e.g. #4a9eff)",
+            "maxLength": 7
+          },
+          "font": {
+            "type": "string",
+            "description": "Font family preference",
+            "maxLength": 64
+          },
+          "theme": {
+            "type": "string",
+            "description": "Theme preference: light, dark, or system",
+            "enum": ["light", "dark", "system"]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,4 +1,5 @@
-/target
-.idea
-.env
-statusphere.sqlite3
+# wrangler/cloudflare
+.wrangler/
+
+# notes
+oauth-experience.md
