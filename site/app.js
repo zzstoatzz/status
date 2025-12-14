@@ -1008,7 +1008,7 @@ async function renderFeed(append = false) {
         query: `
           query GetFeed($after: String) {
             ioZzstoatzzStatusRecord(first: 20, after: $after, sortBy: [{ field: "createdAt", direction: DESC }]) {
-              edges { node { uri did emoji text createdAt } cursor }
+              edges { node { uri did actorHandle emoji text createdAt } cursor }
               pageInfo { hasNextPage endCursor }
             }
           }
@@ -1023,16 +1023,12 @@ async function renderFeed(append = false) {
     feedCursor = data.pageInfo.endCursor;
     feedHasMore = data.pageInfo.hasNextPage;
 
-    // Resolve all handles in parallel
-    const handlePromises = statuses.map(s => resolveDidToHandle(s.did));
-    const handles = await Promise.all(handlePromises);
-
     if (!append) {
       feedList.innerHTML = '';
     }
 
-    statuses.forEach((status, i) => {
-      const handle = handles[i] || status.did.slice(8, 28);
+    statuses.forEach((status) => {
+      const handle = status.actorHandle || status.did.slice(8, 28);
       const div = document.createElement('div');
       div.className = 'status-item';
       div.innerHTML = `
