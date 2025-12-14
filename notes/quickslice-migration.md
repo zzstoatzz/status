@@ -53,16 +53,56 @@ the frontend uses the `quickslice-client-js` library for OAuth:
 <script src="https://cdn.jsdelivr.net/gh/bigmoves/quickslice@v0.17.3/quickslice-client-js/dist/quickslice-client.min.js"></script>
 ```
 
-### 3. OAuth flow
+### 3. the UI
 
-quickslice handles the OAuth server side. the frontend just needs to:
+since quickslice serves its own admin UI at the root path, we host our frontend separately on cloudflare pages. the frontend is vanilla JS - no framework, just a single `app.js` file.
 
-1. create a client with `QuicksliceClient.create()`
-2. call `client.signIn()` to start the flow
-3. handle the callback (quickslice redirects back with auth tokens)
-4. use `client.agent` for authenticated AT protocol operations
+**OAuth with quickslice-client-js**
+
+the `quickslice-client-js` library handles the OAuth flow in the browser:
+
+```javascript
+const client = await QuicksliceClient.create({
+  server: 'https://zzstoatzz-quickslice-status.fly.dev',
+  clientId: 'client_2mP9AwgVHkg1vaSpcWSsKw',
+  redirectUri: window.location.origin + '/',
+});
+
+// start login
+await client.signIn(handle);
+
+// after redirect, client.agent is authenticated
+const { data } = await client.agent.getProfile({ actor: client.agent.session.did });
+```
 
 the redirect URI is just the root of your site (e.g., `https://status.zzstoatzz.io/`).
+
+**GraphQL queries**
+
+quickslice auto-generates a GraphQL API from your lexicons. querying status records looks like:
+
+```javascript
+const response = await fetch(`${CONFIG.server}/api/graphql`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    query: `
+      query GetStatuses($did: String!) {
+        ioZzstoatzzStatusRecords(
+          where: { did: { eq: $did } }
+          orderBy: { createdAt: DESC }
+          first: 50
+        ) {
+          nodes { uri did emoji text createdAt }
+        }
+      }
+    `,
+    variables: { did }
+  })
+});
+```
+
+no need to write resolvers or schema - it's all generated from the lexicon definitions.
 
 ## problems we hit
 
@@ -134,6 +174,42 @@ when debugging OAuth issues, be aware that your PDS caches OAuth client metadata
 │                    AT Protocol                           │
 │           (bluesky PDS, jetstream firehose)             │
 └─────────────────────────────────────────────────────────┘
+```
+
+## what quickslice eliminated
+
+the rust backend was ~2000 lines of code handling:
+
+- OAuth server implementation (PKCE + DPoP)
+- jetstream consumer for firehose ingestion
+- custom API endpoints for reading/writing statuses
+- session management
+- database queries
+
+with quickslice, all of that is replaced by:
+
+- a Dockerfile that builds quickslice from source
+- a fly.toml with env vars
+- two secrets
+
+the frontend is still custom (~1200 lines), but the backend complexity is gone.
+
+## deployment checklist
+
+when deploying quickslice:
+
+```bash
+# 1. set required secrets
+fly secrets set SECRET_KEY_BASE="$(openssl rand -base64 64 | tr -d '\n')"
+fly secrets set OAUTH_SIGNING_KEY="$(goat key generate -t p256 | tail -1)"
+
+# 2. deploy (builds from source, takes ~3 min)
+fly deploy
+
+# 3. in quickslice admin UI:
+#    - set domain authority (e.g., io.zzstoatzz)
+#    - add supported lexicons
+#    - register OAuth client with redirect URI
 ```
 
 ## key takeaways
