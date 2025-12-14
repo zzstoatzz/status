@@ -764,7 +764,33 @@ async function renderHome() {
         window.location.reload();
         return;
       }
-      const handle = await resolveDidToHandle(user.did) || user.did;
+
+      // Load statuses first (includes actorHandle to avoid PLC lookup)
+      const res = await fetch(`${CONFIG.server}/graphql`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `
+            query GetUserStatuses($did: String!) {
+              ioZzstoatzzStatusRecord(
+                first: 100
+                where: { did: { eq: $did } }
+                sortBy: [{ field: "createdAt", direction: DESC }]
+              ) {
+                edges { node { uri did actorHandle emoji text createdAt expires } }
+              }
+            }
+          `,
+          variables: { did: user.did }
+        })
+      });
+      const json = await res.json();
+      const statuses = json.data.ioZzstoatzzStatusRecord.edges.map(e => e.node);
+
+      // Get handle from statuses if available, otherwise fall back to PLC lookup
+      const handle = statuses.length > 0 && statuses[0].actorHandle
+        ? statuses[0].actorHandle
+        : (await resolveDidToHandle(user.did) || user.did);
 
       // Load and apply preferences, set up settings/logout buttons
       const prefs = await loadPreferences();
@@ -800,28 +826,6 @@ async function renderHome() {
 
       // Set page title with Bluesky profile link
       document.getElementById('page-title').innerHTML = `<a href="https://bsky.app/profile/${handle}" target="_blank">@${handle}</a>`;
-
-      // Load user's statuses (full history)
-      const res = await fetch(`${CONFIG.server}/graphql`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: `
-            query GetUserStatuses($did: String!) {
-              ioZzstoatzzStatusRecord(
-                first: 100
-                where: { did: { eq: $did } }
-                sortBy: [{ field: "createdAt", direction: DESC }]
-              ) {
-                edges { node { uri did emoji text createdAt expires } }
-              }
-            }
-          `,
-          variables: { did: user.did }
-        })
-      });
-      const json = await res.json();
-      const statuses = json.data.ioZzstoatzzStatusRecord.edges.map(e => e.node);
 
       let currentHtml = '<span class="big-emoji">-</span>';
       let historyHtml = '';
