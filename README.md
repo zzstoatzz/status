@@ -1,8 +1,8 @@
-# quickslice-status
+# status
 
 a status app for bluesky, built with [quickslice](https://github.com/bigmoves/quickslice).
 
-**live:** https://quickslice-status.pages.dev
+**live:** https://status.zzstoatzz.io
 
 ## architecture
 
@@ -36,30 +36,30 @@ npx wrangler pages deploy . --project-name=quickslice-status
 
 register an oauth client in the quickslice admin ui at `https://zzstoatzz-quickslice-status.fly.dev/`
 
-redirect uri: `https://quickslice-status.pages.dev/callback`
+redirect uri: `https://status.zzstoatzz.io/callback`
 
-## lexicon
+## lexicons
 
-uses `io.zzstoatzz.status` lexicon for user statuses.
+### io.zzstoatzz.status.record
+
+user status records with emoji, optional text, and optional expiration.
 
 ```json
 {
-  "lexicon": 1,
-  "id": "io.zzstoatzz.status",
-  "defs": {
-    "main": {
-      "type": "record",
-      "key": "self",
-      "record": {
-        "type": "object",
-        "required": ["status", "createdAt"],
-        "properties": {
-          "status": { "type": "string", "maxLength": 128 },
-          "createdAt": { "type": "string", "format": "datetime" }
-        }
-      }
-    }
-  }
+  "emoji": "🔥",
+  "text": "shipping code",
+  "createdAt": "2025-12-13T12:00:00Z"
+}
+```
+
+### io.zzstoatzz.status.preferences
+
+user preferences for display settings.
+
+```json
+{
+  "accentColor": "#4a9eff",
+  "theme": "dark"
 }
 ```
 
@@ -71,4 +71,4 @@ cd site
 python -m http.server 8000
 ```
 
-for oauth to work locally, you'd need to register a separate oauth client with `http://localhost:8000/callback` as the redirect uri and update `CONFIG.clientId` in `app.js`.
+for oauth to work locally, register a separate oauth client with `http://localhost:8000/callback` as the redirect uri and update `CONFIG.clientId` in `app.js`.
