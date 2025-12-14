@@ -342,6 +342,27 @@ function relativeTime(dateStr, format = 'relative') {
     : TimestampFormatter.formatRelative(date);
 }
 
+function formatExpiration(dateStr) {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = date - now;
+
+  // Already expired - show how long ago
+  if (diffMs <= 0) {
+    const agoMs = Math.abs(diffMs);
+    const agoMins = Math.floor(agoMs / 60000);
+    if (agoMins < 1) return 'expired';
+    if (agoMins < 60) return `expired ${agoMins}m ago`;
+    const agoHours = Math.floor(agoMs / 3600000);
+    if (agoHours < 24) return `expired ${agoHours}h ago`;
+    const agoDays = Math.floor(agoMs / 86400000);
+    return `expired ${agoDays}d ago`;
+  }
+
+  // Future - show when it clears
+  return `clears ${relativeTimeFuture(dateStr)}`;
+}
+
 function relativeTimeFuture(dateStr) {
   const date = new Date(dateStr);
   const now = new Date();
@@ -807,7 +828,7 @@ async function renderHome() {
 
       if (statuses.length > 0) {
         const current = statuses[0];
-        const expiresHtml = current.expires ? ` • clears ${relativeTimeFuture(current.expires)}` : '';
+        const expiresHtml = current.expires ? ` • ${formatExpiration(current.expires)}` : '';
         currentHtml = `
           <span class="big-emoji">${renderEmoji(current.emoji)}</span>
           <div class="status-info">
@@ -1095,7 +1116,7 @@ async function renderProfile(handle) {
     }
 
     const current = statuses[0];
-    const expiresHtml = current.expires ? ` • clears ${relativeTimeFuture(current.expires)}` : '';
+    const expiresHtml = current.expires ? ` • ${formatExpiration(current.expires)}` : '';
     let html = `
       <div class="profile-card">
         <div class="current-status">
