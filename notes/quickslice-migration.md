@@ -63,9 +63,9 @@ the `quickslice-client-js` library handles the OAuth flow in the browser:
 
 ```javascript
 const client = await QuicksliceClient.create({
-  server: 'https://zzstoatzz-quickslice-status.fly.dev',
-  clientId: 'client_2mP9AwgVHkg1vaSpcWSsKw',
-  redirectUri: window.location.origin + '/',
+  server: 'https://your-app.fly.dev',        // your quickslice instance
+  clientId: 'client_xxx',                     // from quickslice admin UI
+  redirectUri: window.location.origin + '/', // where OAuth redirects back
 });
 
 // start login
@@ -75,25 +75,25 @@ await client.signIn(handle);
 const { data } = await client.agent.getProfile({ actor: client.agent.session.did });
 ```
 
-the redirect URI is just the root of your site (e.g., `https://status.zzstoatzz.io/`).
+the `clientId` comes from registering an OAuth client in the quickslice admin UI. the redirect URI should match what you registered.
 
 **GraphQL queries**
 
 quickslice auto-generates a GraphQL API from your lexicons. querying status records looks like:
 
 ```javascript
-const response = await fetch(`${CONFIG.server}/api/graphql`, {
+const response = await fetch(`https://your-app.fly.dev/api/graphql`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     query: `
-      query GetStatuses($did: String!) {
-        ioZzstoatzzStatusRecords(
+      query GetRecords($did: String!) {
+        yourLexiconRecords(
           where: { did: { eq: $did } }
           orderBy: { createdAt: DESC }
           first: 50
         ) {
-          nodes { uri did emoji text createdAt }
+          nodes { uri did createdAt /* your fields */ }
         }
       }
     `,
@@ -101,6 +101,8 @@ const response = await fetch(`${CONFIG.server}/api/graphql`, {
   })
 });
 ```
+
+the query name (`yourLexiconRecords`) is auto-generated from your lexicon ID - dots become camelCase (e.g., `io.example.foo` → `ioExampleFoos`).
 
 no need to write resolvers or schema - it's all generated from the lexicon definitions.
 
@@ -134,7 +136,7 @@ without this, quickslice uses `0.0.0.0:8080` in its OAuth client metadata, which
 
 ```toml
 [env]
-  EXTERNAL_BASE_URL = 'https://zzstoatzz-quickslice-status.fly.dev'
+  EXTERNAL_BASE_URL = 'https://your-app.fly.dev'
 ```
 
 ### PDS caching
@@ -146,7 +148,7 @@ when debugging OAuth issues, be aware that your PDS caches OAuth client metadata
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    cloudflare pages                      │
-│                  status.zzstoatzz.io                     │
+│                   your-frontend.com                      │
 │                                                          │
 │   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
 │   │  index.html │  │   app.js    │  │  styles.css │     │
@@ -157,7 +159,7 @@ when debugging OAuth issues, be aware that your PDS caches OAuth client metadata
                            ▼
 ┌─────────────────────────────────────────────────────────┐
 │                       fly.io                             │
-│            zzstoatzz-quickslice-status.fly.dev           │
+│                   your-app.fly.dev                       │
 │                                                          │
 │   ┌─────────────────────────────────────────────────┐   │
 │   │                  quickslice                      │   │
