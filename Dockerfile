@@ -1,3 +1,10 @@
+# Building from source because ghcr.io/bigmoves/quickslice:latest still points
+# to v0.17.2, which lacks the `sub` claim fix needed for OAuth token response.
+# Once :latest is updated to v0.17.3+, this can be simplified to:
+#   FROM ghcr.io/bigmoves/quickslice:latest
+#
+# This Dockerfile is adapted from https://github.com/bigmoves/quickslice/blob/main/Dockerfile
+
 ARG GLEAM_VERSION=v1.13.0
 
 # Build stage - compile the application
