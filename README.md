@@ -1,6 +1,6 @@
 # status
 
-a status app for bluesky, built with [quickslice](https://github.com/bigmoves/quickslice).
+slack status without the slack. built on [quickslice](https://github.com/bigmoves/quickslice).
 
 **live:** https://status.zzstoatzz.io
 
