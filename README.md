@@ -36,7 +36,7 @@ npx wrangler pages deploy . --project-name=quickslice-status
 
 register an oauth client in the quickslice admin ui at `https://zzstoatzz-quickslice-status.fly.dev/`
 
-redirect uri: `https://status.zzstoatzz.io/callback`
+redirect uri: `https://status.zzstoatzz.io/`
 
 ## lexicons
 
