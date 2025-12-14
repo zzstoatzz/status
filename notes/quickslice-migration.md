@@ -87,13 +87,13 @@ const response = await fetch(`https://your-app.fly.dev/api/graphql`, {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     query: `
-      query GetRecords($did: String!) {
-        yourLexiconRecords(
+      query GetStatuses($did: String!) {
+        ioZzstoatzzStatusRecords(
           where: { did: { eq: $did } }
           orderBy: { createdAt: DESC }
           first: 50
         ) {
-          nodes { uri did createdAt /* your fields */ }
+          nodes { uri did emoji text createdAt }
         }
       }
     `,
@@ -102,7 +102,7 @@ const response = await fetch(`https://your-app.fly.dev/api/graphql`, {
 });
 ```
 
-the query name (`yourLexiconRecords`) is auto-generated from your lexicon ID - dots become camelCase (e.g., `io.example.foo` → `ioExampleFoos`).
+the query name is auto-generated from your lexicon ID - dots become camelCase (e.g., `io.zzstoatzz.status.record` → `ioZzstoatzzStatusRecords`).
 
 no need to write resolvers or schema - it's all generated from the lexicon definitions.
 
