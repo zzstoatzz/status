@@ -7,7 +7,7 @@ app = 'zzstoatzz-quickslice-status'
 primary_region = 'ewr'
 
 [build]
-  dockerfile = 'Dockerfile'
+  image = 'ghcr.io/bigmoves/quickslice:latest'
 
 [env]
   DATABASE_URL = 'sqlite:/data/quickslice.db'
