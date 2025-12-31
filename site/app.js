@@ -742,7 +742,7 @@ async function renderHome() {
     if (!isAuthed) {
       main.innerHTML = `
         <div class="center">
-          <p>share your status on the atproto network</p>
+          <p>what's happening?</p>
           <form id="login-form">
             <input type="text" id="handle-input" placeholder="your.handle" required>
             <button type="submit">log in</button>

@@ -13,7 +13,7 @@
             "type": "string",
             "description": "Status emoji or custom emoji slug (e.g. custom:bufo-stab)",
             "minLength": 1,
-            "maxLength": 64
+            "maxLength": 128
           },
           "text": {
             "type": "string",
