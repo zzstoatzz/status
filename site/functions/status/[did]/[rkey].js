@@ -68,9 +68,8 @@ function getOgImageUrl(emoji) {
 function generateOgHtml(status, did, rkey, handle) {
   const emojiDisplay = getEmojiDisplay(status.emoji);
   const title = `@${handle}'s status`;
-  const description = status.text
-    ? `${emojiDisplay} ${status.text}`
-    : emojiDisplay;
+  // prioritize user's text, fall back to emoji name if no text
+  const description = status.text || emojiDisplay;
   const url = `${SITE_URL}/status/${did}/${rkey}`;
   const imageUrl = getOgImageUrl(status.emoji);
 
