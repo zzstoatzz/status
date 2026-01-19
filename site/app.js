@@ -877,6 +877,12 @@ async function renderHome() {
             ${current.text ? `<span id="current-text">${parseLinks(current.text)}</span>` : ''}
             <span class="meta">since ${relativeTime(current.createdAt)}${expiresHtml}</span>
           </div>
+          <button class="share-btn current-share-btn" data-uri="${escapeHtml(current.uri)}" title="copy link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+          </button>
         `;
         if (statuses.length > 1) {
           historyHtml = '<section class="history"><h2>history</h2><div id="history-list">';
