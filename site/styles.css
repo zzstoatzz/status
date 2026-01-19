@@ -344,6 +344,13 @@ nav a:hover {
   margin-top: 0.25rem;
 }
 
+.status-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.share-btn,
 .delete-btn {
   background: transparent;
   border: none;
@@ -356,12 +363,51 @@ nav a:hover {
   flex-shrink: 0;
 }
 
+.status-item:hover .share-btn,
 .status-item:hover .delete-btn {
   opacity: 1;
 }
 
+.share-btn:hover {
+  color: var(--accent);
+}
+
+.share-btn.copied {
+  color: var(--accent);
+  opacity: 1;
+}
+
+.share-btn.copied::after {
+  content: 'copied!';
+  position: absolute;
+  font-size: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transform: translateY(-100%) translateX(-50%);
+  left: 50%;
+  top: -4px;
+  white-space: nowrap;
+}
+
+.share-btn {
+  position: relative;
+}
+
 .delete-btn:hover {
   color: #e74c3c;
+}
+
+/* View profile link */
+.view-profile-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+
+.view-profile-link:hover {
+  text-decoration: underline;
 }
 
 /* Logout */

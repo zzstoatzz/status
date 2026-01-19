@@ -1,5 +1,9 @@
 # wrangler/cloudflare
 .wrangler/
 
+# node
+node_modules/
+package-lock.json
+
 # notes
 oauth-experience.md

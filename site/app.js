@@ -5,7 +5,11 @@ const CONFIG = {
 };
 
 // Base path for routing (empty for root domain, '/subpath' for subdirectory)
-const BASE_PATH = '';
+// Auto-detect from pathname for wisp.place style hosting (/did:xxx/sitename)
+const BASE_PATH = (() => {
+  const match = window.location.pathname.match(/^(\/did:[^/]+\/[^/]+)/);
+  return match ? match[1] : '';
+})();
 
 let client = null;
 let userPreferences = null;
@@ -661,6 +665,31 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// Extract did and rkey from status uri (at://did/collection/rkey)
+function parseStatusUri(uri) {
+  const parts = uri.split('/');
+  const did = parts[2];
+  const rkey = parts[parts.length - 1];
+  return { did, rkey };
+}
+
+// Build permalink for a status
+function getStatusPermalink(uri) {
+  const { did, rkey } = parseStatusUri(uri);
+  return `${window.location.origin}/status/${did}/${rkey}`;
+}
+
+// Copy text to clipboard with visual feedback
+async function copyToClipboard(text, button) {
+  try {
+    await navigator.clipboard.writeText(text);
+    button.classList.add('copied');
+    setTimeout(() => button.classList.remove('copied'), 1500);
+  } catch (e) {
+    console.error('Failed to copy:', e);
+  }
+}
+
 // Parse markdown links [text](url) and return HTML
 function parseLinks(text) {
   if (!text) return '';
@@ -698,12 +727,21 @@ async function resolveDidToHandle(did) {
 
 // Router
 function getRoute() {
-  const path = window.location.pathname;
+  let path = window.location.pathname;
+  // Strip base path if present (for wisp.place or other subdirectory hosting)
+  if (BASE_PATH && path.startsWith(BASE_PATH)) {
+    path = path.slice(BASE_PATH.length) || '/';
+  }
   if (path === '/' || path === '/index.html') return { page: 'home' };
   if (path === '/feed' || path === '/feed.html') return { page: 'feed' };
   if (path.startsWith('/@')) {
     const handle = path.slice(2);
     return { page: 'profile', handle };
+  }
+  // Match /status/{did}/{rkey}
+  const statusMatch = path.match(/^\/status\/(did:[^/]+)\/([^/]+)$/);
+  if (statusMatch) {
+    return { page: 'status', did: statusMatch[1], rkey: statusMatch[2] };
   }
   return { page: '404' };
 }
@@ -852,12 +890,20 @@ async function renderHome() {
                   <div>${s.text ? `<span class="text">${parseLinks(s.text)}</span>` : ''}</div>
                   <span class="time">${relativeTime(s.createdAt)}</span>
                 </div>
-                <button class="delete-btn" data-rkey="${escapeHtml(rkey)}" title="delete">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
+                <div class="status-actions">
+                  <button class="share-btn" data-uri="${escapeHtml(s.uri)}" title="copy link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                    </svg>
+                  </button>
+                  <button class="delete-btn" data-rkey="${escapeHtml(rkey)}" title="delete">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
               </div>
             `;
           });
@@ -981,6 +1027,15 @@ async function renderHome() {
           }
         });
       });
+
+      // Share buttons
+      document.querySelectorAll('.share-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const uri = btn.dataset.uri;
+          const permalink = getStatusPermalink(uri);
+          copyToClipboard(permalink, btn);
+        });
+      });
     }
   } catch (e) {
     console.error('Failed to init:', e);
@@ -1044,7 +1099,18 @@ async function renderFeed(append = false) {
           </div>
           <span class="time">${relativeTime(status.createdAt)}</span>
         </div>
+        <button class="share-btn" data-uri="${escapeHtml(status.uri)}" title="copy link">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>
+        </button>
       `;
+      // Attach share button handler
+      div.querySelector('.share-btn').addEventListener('click', (e) => {
+        const permalink = getStatusPermalink(status.uri);
+        copyToClipboard(permalink, e.currentTarget);
+      });
       feedList.appendChild(div);
     });
 
@@ -1139,6 +1205,12 @@ async function renderProfile(handle) {
               <div>${status.text ? `<span class="text">${parseLinks(status.text)}</span>` : ''}</div>
               <span class="time">${relativeTime(status.createdAt)}</span>
             </div>
+            <button class="share-btn" data-uri="${escapeHtml(status.uri)}" title="copy link">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+              </svg>
+            </button>
           </div>
         `;
       });
@@ -1146,9 +1218,86 @@ async function renderProfile(handle) {
     }
 
     main.innerHTML = html;
+
+    // Share buttons
+    document.querySelectorAll('.share-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const uri = btn.dataset.uri;
+        const permalink = getStatusPermalink(uri);
+        copyToClipboard(permalink, btn);
+      });
+    });
   } catch (e) {
     console.error('Failed to load profile:', e);
     main.innerHTML = '<div class="center">failed to load profile</div>';
+  }
+}
+
+// Render single status permalink page
+async function renderStatus(did, rkey) {
+  const main = document.getElementById('main-content');
+  const pageTitle = document.getElementById('page-title');
+
+  // Initialize auth UI for header elements
+  await initAuthUI();
+
+  pageTitle.textContent = 'status';
+  main.innerHTML = '<div class="center">loading...</div>';
+
+  try {
+    // Fetch the specific status by did and rkey
+    const res = await fetch(`${CONFIG.server}/graphql`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: `
+          query GetStatus($did: String!, $rkey: String!) {
+            ioZzstoatzzStatusRecord(
+              first: 1
+              where: {
+                did: { eq: $did }
+                uri: { endsWith: $rkey }
+              }
+            ) {
+              edges { node { uri did actorHandle emoji text createdAt expires } }
+            }
+          }
+        `,
+        variables: { did, rkey: `/${rkey}` }
+      })
+    });
+
+    const json = await res.json();
+    const statuses = json.data?.ioZzstoatzzStatusRecord?.edges?.map(e => e.node) || [];
+
+    if (statuses.length === 0) {
+      main.innerHTML = '<div class="center">status not found</div>';
+      return;
+    }
+
+    const status = statuses[0];
+    const handle = status.actorHandle || await resolveDidToHandle(status.did) || status.did.slice(8, 28);
+    const expiresHtml = status.expires ? ` • ${formatExpiration(status.expires)}` : '';
+
+    pageTitle.innerHTML = `<a href="/@${handle}" target="_blank">@${handle}</a>`;
+
+    main.innerHTML = `
+      <div class="profile-card">
+        <div class="current-status">
+          <span class="big-emoji">${renderEmoji(status.emoji)}</span>
+          <div class="status-info">
+            ${status.text ? `<span id="current-text">${parseLinks(status.text)}</span>` : ''}
+            <span class="meta">${relativeTime(status.createdAt)}${expiresHtml}</span>
+          </div>
+        </div>
+      </div>
+      <div class="center">
+        <a href="/@${handle}" class="view-profile-link">view all statuses from @${handle}</a>
+      </div>
+    `;
+  } catch (e) {
+    console.error('Failed to load status:', e);
+    main.innerHTML = '<div class="center">failed to load status</div>';
   }
 }
 
@@ -1235,6 +1384,8 @@ document.addEventListener('DOMContentLoaded', () => {
     renderFeed();
   } else if (route.page === 'profile') {
     renderProfile(route.handle);
+  } else if (route.page === 'status') {
+    renderStatus(route.did, route.rkey);
   } else {
     document.getElementById('main-content').innerHTML = '<div class="center">page not found</div>';
   }
