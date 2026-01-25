@@ -877,12 +877,20 @@ async function renderHome() {
             ${current.text ? `<span id="current-text">${parseLinks(current.text)}</span>` : ''}
             <span class="meta">since ${relativeTime(current.createdAt)}${expiresHtml}</span>
           </div>
-          <button class="share-btn current-share-btn" data-uri="${escapeHtml(current.uri)}" title="copy link">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-            </svg>
-          </button>
+          <div class="current-status-actions">
+            <button class="share-btn current-share-btn" data-uri="${escapeHtml(current.uri)}" title="copy link">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+              </svg>
+            </button>
+            <button class="embed-toggle-btn" title="get embed code">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="16 18 22 12 16 6"></polyline>
+                <polyline points="8 6 2 12 8 18"></polyline>
+              </svg>
+            </button>
+          </div>
         `;
         if (statuses.length > 1) {
           historyHtml = '<section class="history"><h2>history</h2><div id="history-list">';
@@ -945,6 +953,17 @@ async function renderHome() {
         <div class="profile-card">
           <div class="current-status">${currentHtml}</div>
         </div>
+        <div class="embed-section hidden" id="embed-section">
+          <div class="embed-code-container">
+            <pre class="embed-code"><code>${escapeHtml(embedCode)}</code></pre>
+            <button class="copy-embed-btn" title="copy code">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
         <form id="status-form" class="status-form">
           <div class="emoji-input-row">
             <button type="button" id="emoji-trigger" class="emoji-trigger">
@@ -970,19 +989,6 @@ async function renderHome() {
           </div>
         </form>
         ${historyHtml}
-        <section class="embed-section">
-          <h2>embed your status</h2>
-          <p class="embed-description">add this to your website to show your current status:</p>
-          <div class="embed-code-container">
-            <pre class="embed-code"><code>${escapeHtml(embedCode)}</code></pre>
-            <button class="copy-embed-btn" title="copy code">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-              </svg>
-            </button>
-          </div>
-        </section>
       `;
 
       // Set up emoji picker
@@ -1077,6 +1083,16 @@ async function renderHome() {
           copyToClipboard(permalink, btn);
         });
       });
+
+      // Embed toggle button
+      const embedToggleBtn = document.querySelector('.embed-toggle-btn');
+      const embedSection = document.getElementById('embed-section');
+      if (embedToggleBtn && embedSection) {
+        embedToggleBtn.addEventListener('click', () => {
+          embedSection.classList.toggle('hidden');
+          embedToggleBtn.classList.toggle('active');
+        });
+      }
 
       // Copy embed button
       const copyEmbedBtn = document.querySelector('.copy-embed-btn');

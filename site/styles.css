@@ -395,14 +395,31 @@ nav a:hover {
   position: relative;
 }
 
-/* Share button on current status - always visible */
-.current-share-btn {
-  opacity: 0.6;
-  margin-top: 0.5rem;
+/* Current status action buttons */
+.current-status-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
 }
 
-.current-share-btn:hover {
+.current-share-btn,
+.embed-toggle-btn {
+  opacity: 0.6;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.current-share-btn:hover,
+.embed-toggle-btn:hover,
+.embed-toggle-btn.active {
   opacity: 1;
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .delete-btn:hover {
@@ -422,23 +439,7 @@ nav a:hover {
 
 /* Embed section */
 .embed-section {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border);
-}
-
-.embed-section h2 {
-  font-size: 0.875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
-  margin-bottom: 0.5rem;
-}
-
-.embed-description {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .embed-code-container {
