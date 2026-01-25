@@ -705,6 +705,118 @@ function parseLinks(text) {
   });
 }
 
+// Handle typeahead state
+let handleSuggestions = [];
+let selectedSuggestionIndex = -1;
+let typeaheadDebounceTimer = null;
+let typeaheadAbortController = null;
+
+// Fetch handle suggestions from Bluesky
+async function fetchHandleSuggestions(query) {
+  if (typeaheadAbortController) typeaheadAbortController.abort();
+  typeaheadAbortController = new AbortController();
+
+  try {
+    const url = `https://public.api.bsky.app/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(query)}&limit=5`;
+    const res = await fetch(url, { signal: typeaheadAbortController.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.actors || [];
+  } catch (e) {
+    if (e.name === 'AbortError') return [];
+    console.error('Typeahead error:', e);
+    return [];
+  }
+}
+
+// Render suggestions dropdown
+function renderSuggestions(suggestions, dropdown, input) {
+  handleSuggestions = suggestions;
+  selectedSuggestionIndex = -1;
+
+  if (suggestions.length === 0) {
+    dropdown.classList.add('hidden');
+    dropdown.innerHTML = '';
+    return;
+  }
+
+  dropdown.innerHTML = suggestions.map((s, i) => `
+    <button type="button" class="suggestion-item" data-handle="${escapeHtml(s.handle)}" data-index="${i}">
+      ${s.avatar ? `<img src="${escapeHtml(s.avatar)}" class="suggestion-avatar" alt="" />` : '<div class="suggestion-avatar-placeholder"></div>'}
+      <div class="suggestion-info">
+        <span class="suggestion-name">${escapeHtml(s.displayName || s.handle)}</span>
+        <span class="suggestion-handle">@${escapeHtml(s.handle)}</span>
+      </div>
+    </button>
+  `).join('');
+
+  dropdown.classList.remove('hidden');
+
+  // Attach click handlers
+  dropdown.querySelectorAll('.suggestion-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      input.value = btn.dataset.handle;
+      dropdown.classList.add('hidden');
+      handleSuggestions = [];
+    });
+  });
+}
+
+// Handle keyboard navigation in suggestions
+function handleSuggestionKeydown(e, dropdown, input) {
+  if (handleSuggestions.length === 0) return false;
+
+  const items = dropdown.querySelectorAll('.suggestion-item');
+
+  switch (e.key) {
+    case 'ArrowDown':
+      e.preventDefault();
+      selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, handleSuggestions.length - 1);
+      items.forEach((item, i) => item.classList.toggle('selected', i === selectedSuggestionIndex));
+      return true;
+
+    case 'ArrowUp':
+      e.preventDefault();
+      selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
+      items.forEach((item, i) => item.classList.toggle('selected', i === selectedSuggestionIndex));
+      return true;
+
+    case 'Enter':
+      if (selectedSuggestionIndex >= 0) {
+        e.preventDefault();
+        input.value = handleSuggestions[selectedSuggestionIndex].handle;
+        dropdown.classList.add('hidden');
+        handleSuggestions = [];
+        return true;
+      }
+      return false;
+
+    case 'Escape':
+      dropdown.classList.add('hidden');
+      handleSuggestions = [];
+      return true;
+  }
+  return false;
+}
+
+// Handle input for typeahead
+function handleTypeaheadInput(input, dropdown) {
+  const query = input.value.trim();
+
+  if (typeaheadDebounceTimer) clearTimeout(typeaheadDebounceTimer);
+
+  if (query.length < 3) {
+    dropdown.classList.add('hidden');
+    handleSuggestions = [];
+    return;
+  }
+
+  typeaheadDebounceTimer = setTimeout(async () => {
+    const suggestions = await fetchHandleSuggestions(query);
+    renderSuggestions(suggestions, dropdown, input);
+  }, 300);
+}
+
 // Resolve handle to DID
 async function resolveHandle(handle) {
   const res = await fetch(`https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
@@ -779,20 +891,102 @@ async function renderHome() {
 
     if (!isAuthed) {
       main.innerHTML = `
-        <div class="center">
-          <p>what's happening?</p>
-          <form id="login-form">
-            <input type="text" id="handle-input" placeholder="your.handle" required>
-            <button type="submit">log in</button>
-          </form>
+        <div class="login-container">
+          <div class="login-card">
+            <h2 class="login-title">what's happening?</h2>
+            <p class="login-tagline">share what you're up to</p>
+            <form id="login-form">
+              <div class="input-group">
+                <label for="handle-input">internet handle</label>
+                <div class="handle-input-wrapper">
+                  <input type="text" id="handle-input" placeholder="you.bsky.social" autocomplete="off" spellcheck="false" required>
+                  <div id="suggestions-dropdown" class="suggestions-dropdown hidden"></div>
+                </div>
+              </div>
+              <button type="submit">sign in</button>
+            </form>
+            <div class="login-faq">
+              <button type="button" class="faq-toggle" data-faq="handle">
+                <span>what is an internet handle?</span>
+                <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <div id="faq-handle" class="faq-content hidden">
+                <p>
+                  your internet handle is a domain that identifies you across apps built on
+                  <a href="https://atproto.com" target="_blank" rel="noopener">AT Protocol</a>.
+                  if you signed up for Bluesky or another ATProto service, you already have one
+                  (like <code>yourname.bsky.social</code>).
+                </p>
+                <p>
+                  read more at <a href="https://internethandle.org" target="_blank" rel="noopener">internethandle.org</a>.
+                </p>
+              </div>
+              <button type="button" class="faq-toggle" data-faq="signup">
+                <span>don't have one?</span>
+                <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <div id="faq-signup" class="faq-content hidden">
+                <p>
+                  the easiest way to get one is to sign up for <a href="https://bsky.app" target="_blank" rel="noopener">Bluesky</a>.
+                  once you have an account, you can use that handle here.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       `;
-      document.getElementById('login-form').addEventListener('submit', async (e) => {
+
+      const loginForm = document.getElementById('login-form');
+      const handleInput = document.getElementById('handle-input');
+      const suggestionsDropdown = document.getElementById('suggestions-dropdown');
+
+      // Typeahead input handler
+      handleInput.addEventListener('input', () => {
+        handleTypeaheadInput(handleInput, suggestionsDropdown);
+      });
+
+      // Keyboard navigation
+      handleInput.addEventListener('keydown', (e) => {
+        handleSuggestionKeydown(e, suggestionsDropdown, handleInput);
+      });
+
+      // Close dropdown on blur (with delay for click events)
+      handleInput.addEventListener('blur', () => {
+        setTimeout(() => {
+          suggestionsDropdown.classList.add('hidden');
+        }, 200);
+      });
+
+      // Reopen on focus if there's content
+      handleInput.addEventListener('focus', () => {
+        if (handleInput.value.trim().length >= 3 && handleSuggestions.length > 0) {
+          suggestionsDropdown.classList.remove('hidden');
+        }
+      });
+
+      loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const handle = document.getElementById('handle-input').value.trim();
+        const handle = handleInput.value.trim();
         if (handle && client) {
           await client.loginWithRedirect({ handle });
         }
+      });
+
+      // FAQ toggle handlers
+      document.querySelectorAll('.faq-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const faqId = btn.dataset.faq;
+          const content = document.getElementById(`faq-${faqId}`);
+          const chevron = btn.querySelector('.chevron');
+          if (content) {
+            content.classList.toggle('hidden');
+            chevron?.classList.toggle('open');
+          }
+        });
       });
     } else {
       const user = client.getUser();

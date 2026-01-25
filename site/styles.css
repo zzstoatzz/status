@@ -134,26 +134,8 @@ nav a:hover {
 .hidden { display: none !important; }
 .center { text-align: center; padding: 2rem; }
 
-/* Login form */
-#login-form {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  justify-content: center;
-}
-
-#login-form input {
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg-card);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 1rem;
-  width: 200px;
-}
-
-#login-form button, button[type="submit"] {
+/* Login form - base button styles */
+button[type="submit"] {
   padding: 0.75rem 1.5rem;
   background: var(--accent);
   color: white;
@@ -164,8 +146,236 @@ nav a:hover {
   font-size: 1rem;
 }
 
-#login-form button:hover, button[type="submit"]:hover {
+button[type="submit"]:hover {
   opacity: 0.9;
+}
+
+/* Login container - centered layout */
+.login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  padding: 2rem 1rem;
+}
+
+.login-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+}
+
+.login-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.login-tagline {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.login-card #login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.login-card .input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.login-card .input-group label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.handle-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.handle-input-wrapper input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 1rem;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.handle-input-wrapper input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.login-card button[type="submit"] {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  box-sizing: border-box;
+}
+
+/* Suggestions dropdown */
+.suggestions-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover,
+.suggestion-item.selected {
+  background: var(--bg);
+}
+
+.suggestion-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.suggestion-avatar-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.suggestion-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.suggestion-name {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggestion-handle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* FAQ accordions */
+.login-faq {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.faq-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.faq-toggle:hover {
+  color: var(--text);
+}
+
+.faq-toggle .chevron {
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.faq-toggle .chevron.open {
+  transform: rotate(180deg);
+}
+
+.faq-content {
+  padding: 0 0 1rem 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.faq-content p {
+  margin: 0 0 0.75rem 0;
+  text-align: left;
+}
+
+.faq-content p:last-child {
+  margin-bottom: 0;
+}
+
+.faq-content a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.faq-content a:hover {
+  text-decoration: underline;
+}
+
+.faq-content code {
+  background: var(--bg);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.85em;
 }
 
 /* Profile card */
