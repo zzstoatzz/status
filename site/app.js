@@ -919,6 +919,28 @@ async function renderHome() {
 
       const currentEmoji = statuses.length > 0 ? statuses[0].emoji : '😊';
 
+      const embedCode = `<div id="status-embed"></div>
+<script>
+(async function() {
+  const did = '${user.did}';
+  const handle = '${handle}';
+  try {
+    const res = await fetch('https://pds.zzstoatzz.io/xrpc/com.atproto.repo.listRecords?repo=' + did + '&collection=io.zzstoatzz.status.record&limit=1');
+    const data = await res.json();
+    const record = data.records?.[0]?.value;
+    if (!record) return;
+    const emoji = record.emoji || '';
+    const text = record.text || '';
+    const isCustom = emoji.startsWith('custom:');
+    const emojiHtml = isCustom
+      ? '<img src="https://all-the.bufo.zone/' + emoji.slice(7) + '.png" style="width:1.25em;height:1.25em;vertical-align:middle" onerror="this.src=this.src.replace(\\'.png\\',\\'.gif\\')">'
+      : emoji;
+    const displayText = text || (isCustom ? emoji.slice(7).replace(/-/g, ' ') : 'vibing');
+    document.getElementById('status-embed').innerHTML = '<a href="https://status.zzstoatzz.io/@' + handle + '" target="_blank" style="text-decoration:none;color:inherit">' + emojiHtml + ' ' + displayText + '</a>';
+  } catch(e) { console.error('status embed error:', e); }
+})();
+</` + `script>`;
+
       main.innerHTML = `
         <div class="profile-card">
           <div class="current-status">${currentHtml}</div>
@@ -948,6 +970,19 @@ async function renderHome() {
           </div>
         </form>
         ${historyHtml}
+        <section class="embed-section">
+          <h2>embed your status</h2>
+          <p class="embed-description">add this to your website to show your current status:</p>
+          <div class="embed-code-container">
+            <pre class="embed-code"><code>${escapeHtml(embedCode)}</code></pre>
+            <button class="copy-embed-btn" title="copy code">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          </div>
+        </section>
       `;
 
       // Set up emoji picker
@@ -1042,6 +1077,14 @@ async function renderHome() {
           copyToClipboard(permalink, btn);
         });
       });
+
+      // Copy embed button
+      const copyEmbedBtn = document.querySelector('.copy-embed-btn');
+      if (copyEmbedBtn) {
+        copyEmbedBtn.addEventListener('click', () => {
+          copyToClipboard(embedCode, copyEmbedBtn);
+        });
+      }
     }
   } catch (e) {
     console.error('Failed to init:', e);

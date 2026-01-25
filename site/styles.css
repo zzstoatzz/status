@@ -420,6 +420,71 @@ nav a:hover {
   text-decoration: underline;
 }
 
+/* Embed section */
+.embed-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.embed-section h2 {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.embed-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.embed-code-container {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.embed-code {
+  padding: 1rem;
+  padding-right: 3rem;
+  overflow-x: auto;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.embed-code code {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.copy-embed-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.copy-embed-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.copy-embed-btn.copied {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 /* Logout */
 .logout-btn {
   display: block;
