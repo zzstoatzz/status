@@ -613,7 +613,8 @@ button[type="submit"]:hover {
 }
 
 .current-share-btn,
-.embed-toggle-btn {
+.embed-toggle-btn,
+.current-status-actions .delete-btn {
   opacity: 0.6;
   background: transparent;
   border: 1px solid var(--border);
@@ -630,6 +631,12 @@ button[type="submit"]:hover {
   opacity: 1;
   color: var(--accent);
   border-color: var(--accent);
+}
+
+.current-status-actions .delete-btn:hover {
+  opacity: 1;
+  color: #e74c3c;
+  border-color: #e74c3c;
 }
 
 .delete-btn:hover {
