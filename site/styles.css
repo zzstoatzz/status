@@ -889,6 +889,7 @@ button[type="submit"]:hover {
 
 .bufo-btn {
   padding: 0.25rem;
+  position: relative;
 }
 
 .bufo-grid .bufo-btn {
@@ -902,6 +903,19 @@ button[type="submit"]:hover {
   max-width: 48px;
   max-height: 48px;
   object-fit: contain;
+}
+
+.bufo-score {
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+  font-size: 0.6rem;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  padding: 1px 3px;
+  border-radius: 3px;
+  line-height: 1;
+  pointer-events: none;
 }
 
 .loading {
@@ -955,14 +969,22 @@ button[type="submit"]:hover {
 }
 
 .bufo-helper {
-  padding: 0.75rem;
+  padding: 0.5rem 0.75rem;
   text-align: center;
   border-top: 1px solid var(--border);
 }
 
 .bufo-helper a {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-decoration: none;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.bufo-helper a:hover {
+  opacity: 1;
   color: var(--accent);
-  font-size: 0.875rem;
 }
 
 /* Settings Modal */

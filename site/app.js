@@ -464,6 +464,14 @@ async function loadBufoList() {
   return bufoList;
 }
 
+async function searchBufos(query, topK = 20) {
+  const params = new URLSearchParams({ query, top_k: topK });
+  const res = await fetch(`https://find-bufo.fly.dev/api/search?${params}`);
+  if (!res.ok) throw new Error('bufo search failed');
+  const data = await res.json();
+  return data.results;
+}
+
 async function loadEmojiData() {
   if (emojiData) return emojiData;
   try {
@@ -527,7 +535,7 @@ function createEmojiPicker(onSelect) {
         <button class="category-btn" data-category="flags">🏁</button>
       </div>
       <div class="emoji-grid"></div>
-      <div class="bufo-helper hidden"><a href="https://find-bufo.fly.dev/" target="_blank">need help finding a bufo?</a></div>
+      <div class="bufo-helper hidden"><a href="https://find-bufo.com" target="_blank">powered by find-bufo.com</a></div>
     </div>
   `;
 
@@ -540,6 +548,7 @@ function createEmojiPicker(onSelect) {
 
   let currentCategory = 'frequent';
   let data = null;
+  let bufoSearchTimer = null;
 
   async function renderCategory(cat) {
     currentCategory = cat;
@@ -547,6 +556,7 @@ function createEmojiPicker(onSelect) {
     bufoHelper.classList.toggle('hidden', cat !== 'custom');
 
     if (cat === 'custom') {
+      search.placeholder = 'describe a bufo... try "happy" or "apocalyptic"';
       grid.classList.add('bufo-grid');
       grid.innerHTML = '<div class="loading">loading bufos...</div>';
       try {
@@ -561,6 +571,8 @@ function createEmojiPicker(onSelect) {
       }
       return;
     }
+
+    search.placeholder = 'search emojis...';
 
     grid.classList.remove('bufo-grid');
 
@@ -588,6 +600,7 @@ function createEmojiPicker(onSelect) {
   function close() {
     overlay.classList.add('hidden');
     search.value = '';
+    clearTimeout(bufoSearchTimer);
   }
 
   function open() {
@@ -612,11 +625,37 @@ function createEmojiPicker(onSelect) {
     const q = search.value.trim();
     if (!q) { renderCategory(currentCategory); return; }
 
-    // Search both emojis and bufos
+    // When on the custom tab, use the findbufo semantic search API
+    if (currentCategory === 'custom') {
+      clearTimeout(bufoSearchTimer);
+      bufoSearchTimer = setTimeout(async () => {
+        grid.classList.add('bufo-grid');
+        bufoHelper.classList.remove('hidden');
+        grid.innerHTML = '<div class="loading">searching bufos...</div>';
+        try {
+          const results = await searchBufos(q, 30);
+          if (search.value.trim() !== q) return; // stale
+          if (results.length === 0) {
+            grid.innerHTML = '<div class="no-results">no bufos found</div>';
+            return;
+          }
+          grid.innerHTML = results.map(r => `
+            <button class="emoji-btn bufo-btn" data-emoji="custom:${r.name}" title="${r.name} (${Math.round(r.score * 100)}%)">
+              <img src="https://all-the.bufo.zone/${r.name}.png" alt="${r.name}" loading="lazy" onerror="this.src='https://all-the.bufo.zone/${r.name}.gif'">
+              <span class="bufo-score">${Math.round(r.score * 100)}%</span>
+            </button>
+          `).join('');
+        } catch (e) {
+          grid.innerHTML = '<div class="no-results">search failed — try again</div>';
+        }
+      }, 300);
+      return;
+    }
+
+    // Default: search both emojis and bufos by name
     if (!data) data = await loadEmojiData();
     const emojiResults = searchEmojis(q, data);
 
-    // Search bufos by name
     let bufoResults = [];
     try {
       const bufos = await loadBufoList();
@@ -633,9 +672,7 @@ function createEmojiPicker(onSelect) {
     }
 
     let html = '';
-    // Show emoji results first
     html += emojiResults.map(e => `<button class="emoji-btn" data-emoji="${e}">${e}</button>`).join('');
-    // Then bufo results
     html += bufoResults.map(name => `
       <button class="emoji-btn bufo-btn" data-emoji="custom:${name}" title="${name}">
         <img src="https://all-the.bufo.zone/${name}.png" alt="${name}" onerror="this.src='https://all-the.bufo.zone/${name}.gif'">
