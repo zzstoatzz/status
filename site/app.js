@@ -754,7 +754,7 @@ async function fetchHandleSuggestions(query) {
   typeaheadAbortController = new AbortController();
 
   try {
-    const url = `https://public.api.bsky.app/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(query)}&limit=5`;
+    const url = `https://typeahead.waow.tech/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(query)}&limit=5`;
     const res = await fetch(url, { signal: typeaheadAbortController.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
