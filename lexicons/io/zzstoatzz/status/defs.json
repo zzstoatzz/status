@@ -1,0 +1,22 @@
+{
+  "lexicon": 1,
+  "id": "io.zzstoatzz.status.defs",
+  "defs": {
+    "statusView": {
+      "type": "object",
+      "required": ["uri", "cid", "did", "handle", "emoji", "createdAt", "indexedAt", "expired"],
+      "properties": {
+        "uri": { "type": "string", "format": "at-uri" },
+        "cid": { "type": "string", "format": "cid" },
+        "did": { "type": "string", "format": "did" },
+        "handle": { "type": "string" },
+        "emoji": { "type": "string" },
+        "text": { "type": "string" },
+        "expires": { "type": "string", "format": "datetime" },
+        "createdAt": { "type": "string", "format": "datetime" },
+        "indexedAt": { "type": "string", "format": "datetime" },
+        "expired": { "type": "boolean" }
+      }
+    }
+  }
+}

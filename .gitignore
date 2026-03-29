@@ -1,9 +1,9 @@
-# wrangler/cloudflare
-.wrangler/
-
-# node
 node_modules/
-package-lock.json
+.svelte-kit/
+build/
+*.db
+data/
+hatk.generated.*
 
-# notes
-oauth-experience.md
+.DS_Store
+.env

@@ -1,0 +1,46 @@
+services:
+  plc:
+    build: https://github.com/did-method-plc/did-method-plc.git
+    ports:
+      - "2582:2582"
+    environment:
+      - DATABASE_URL=postgres://plc:plc@postgres:5432/plc
+      - PORT=2582
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2582/_health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  pds:
+    image: ghcr.io/bluesky-social/pds:latest
+    ports:
+      - "2583:2583"
+    environment:
+      - PDS_HOSTNAME=localhost
+      - PDS_PORT=2583
+      - PDS_DID_PLC_URL=http://plc:2582
+      - PDS_JWT_SECRET=dev-jwt-secret
+      - PDS_ADMIN_PASSWORD=dev-admin
+      - PDS_INVITE_REQUIRED=false
+      - PDS_DEV_MODE=true
+    depends_on:
+      plc:
+        condition: service_healthy
+    volumes:
+      - pds_data:/pds
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=plc
+      - POSTGRES_PASSWORD=plc
+      - POSTGRES_DB=plc
+    volumes:
+      - plc_data:/var/lib/postgresql/data
+
+volumes:
+  pds_data:
+  plc_data:
