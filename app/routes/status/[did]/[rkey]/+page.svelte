@@ -62,7 +62,7 @@
     </div>
   </div>
   <div class="center">
-    <a href="/profile/{data.did}" class="view-profile-link">view all statuses</a>
+    <a href="/@{handle}" class="view-profile-link">view all statuses</a>
   </div>
 {:else}
   <div class="center">status not found</div>

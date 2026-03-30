@@ -40,6 +40,9 @@
       </a>
     {:else if currentPage.startsWith('/feed')}
       global feed
+    {:else if currentPage.startsWith('/@')}
+      {@const handle = decodeURIComponent(currentPage.slice(2))}
+      <a href="https://bsky.app/profile/{handle}" target="_blank">@{handle}</a>
     {:else if currentPage.startsWith('/profile/')}
       profile
     {:else}

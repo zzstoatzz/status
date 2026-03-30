@@ -59,7 +59,7 @@
   <div class="content">
     <div>
       {#if showAuthor && (status.handle || status.did)}
-        <a href="/profile/{status.did}" class="author">@{status.handle ?? status.did?.slice(0, 18)}</a>
+        <a href="/@{status.handle ?? status.did}" class="author">@{status.handle ?? status.did?.slice(0, 18)}</a>
       {/if}
       {#if status.text}
         <span class="text">{@html parseLinks(status.text)}</span>
