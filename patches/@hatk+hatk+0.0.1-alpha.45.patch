@@ -1,211 +1,66 @@
-diff --git a/node_modules/@hatk/hatk/dist/database/db.d.ts b/node_modules/@hatk/hatk/dist/database/db.d.ts
-index 7bee11b..521ace1 100644
---- a/node_modules/@hatk/hatk/dist/database/db.d.ts
-+++ b/node_modules/@hatk/hatk/dist/database/db.d.ts
-@@ -28,6 +28,22 @@ export declare function setRepoStatus(did: string, status: string, rev?: string,
- /** Update the handle for a DID if it exists in _repos. */
- export declare function updateRepoHandle(did: string, handle: string): Promise<void>;
- export declare function getRepoRev(did: string): Promise<string | null>;
-+/**
-+ * Advance the stored rev for a repo without touching status or backfilled_at.
-+ *
-+ * Called from the firehose insert path after a commit has been successfully
-+ * indexed. Keeps `_repos.rev` current so that future backfills via
-+ * `getRepo?since=<rev>` only fetch the small diff since the last seen commit
-+ * rather than walking the whole repo history. Without this, `_repos.rev`
-+ * would only ever advance during a full `backfillRepo` run, drifting stale
-+ * over time and forcing on-login backfills to fetch a large diff (or worse,
-+ * miss commits entirely if the firehose ever drops events).
-+ *
-+ * No-ops if the rev is empty or the row doesn't exist (we don't insert here;
-+ * that's `setRepoStatus`'s job during initial discovery). The
-+ * `rev < $1` guard prevents regression if events arrive out of order.
-+ */
-+export declare function updateRepoRev(did: string, rev: string): Promise<void>;
- export declare function getRepoRetryInfo(did: string): Promise<{
-     retryCount: number;
-     retryAfter: number;
-diff --git a/node_modules/@hatk/hatk/dist/database/db.d.ts.map b/node_modules/@hatk/hatk/dist/database/db.d.ts.map
-index e6cd9c7..06b20f6 100644
---- a/node_modules/@hatk/hatk/dist/database/db.d.ts.map
-+++ b/node_modules/@hatk/hatk/dist/database/db.d.ts.map
-@@ -1 +1 @@
--{"version":3,"file":"db.d.ts","sourceRoot":"","sources":["../../src/database/db.ts"],"names":[],"mappings":"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"}
-\ No newline at end of file
-+{"version":3,"file":"db.d.ts","sourceRoot":"","sources":["../../src/database/db.ts"],"names":[],"mappings":"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"}
-\ No newline at end of file
-diff --git a/node_modules/@hatk/hatk/dist/database/db.js b/node_modules/@hatk/hatk/dist/database/db.js
-index 0d6b89c..ecb87f2 100644
---- a/node_modules/@hatk/hatk/dist/database/db.js
-+++ b/node_modules/@hatk/hatk/dist/database/db.js
-@@ -362,6 +362,26 @@ export async function getRepoRev(did) {
-     const rows = await all(`SELECT rev FROM _repos WHERE did = $1`, [did]);
-     return rows[0]?.rev ?? null;
- }
-+/**
-+ * Advance the stored rev for a repo without touching status or backfilled_at.
-+ *
-+ * Called from the firehose insert path after a commit has been successfully
-+ * indexed. Keeps `_repos.rev` current so that future backfills via
-+ * `getRepo?since=<rev>` only fetch the small diff since the last seen commit
-+ * rather than walking the whole repo history. Without this, `_repos.rev`
-+ * would only ever advance during a full `backfillRepo` run, drifting stale
-+ * over time and forcing on-login backfills to fetch a large diff (or worse,
-+ * miss commits entirely if the firehose ever drops events).
-+ *
-+ * No-ops if the rev is empty or the row doesn't exist (we don't insert here;
-+ * that's `setRepoStatus`'s job during initial discovery). The
-+ * `rev < $1` guard prevents regression if events arrive out of order.
-+ */
-+export async function updateRepoRev(did, rev) {
-+    if (!rev)
-+        return;
-+    await run(`UPDATE _repos SET rev = $1 WHERE did = $2 AND (rev IS NULL OR rev < $1)`, [rev, did]);
-+}
- export async function getRepoRetryInfo(did) {
-     const rows = await all(`SELECT retry_count, retry_after FROM _repos WHERE did = $1`, [did]);
-     if (rows.length === 0)
 diff --git a/node_modules/@hatk/hatk/dist/indexer.d.ts.map b/node_modules/@hatk/hatk/dist/indexer.d.ts.map
-index 0c29a23..4b2f629 100644
+index 0c29a23..43308ed 100644
 --- a/node_modules/@hatk/hatk/dist/indexer.d.ts.map
 +++ b/node_modules/@hatk/hatk/dist/indexer.d.ts.map
 @@ -1 +1 @@
 -{"version":3,"file":"indexer.d.ts","sourceRoot":"","sources":["../src/indexer.ts"],"names":[],"mappings":"AAyJA;;;;;;;GAOG;AACH,iEAAiE;AACjE,wBAAgB,aAAa,CAAC,GAAG,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAGxD;AAED,wBAAsB,mBAAmB,CAAC,GAAG,EAAE,MAAM,EAAE,OAAO,SAAI,GAAG,OAAO,CAAC,IAAI,CAAC,CA4EjF;AAED,8CAA8C;AAC9C,UAAU,WAAW;IACnB,QAAQ,EAAE,MAAM,CAAA;IAChB,WAAW,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACxB,iBAAiB,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IAC/B,WAAW,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACzB,MAAM,CAAC,EAAE,MAAM,GAAG,IAAI,CAAA;IACtB,YAAY,EAAE,MAAM,CAAA;IACpB,UAAU,EAAE,MAAM,CAAA;IAClB,WAAW,CAAC,EAAE,MAAM,CAAA;IACpB,kBAAkB,CAAC,EAAE,MAAM,CAAA;CAC5B;AAyBD;;;;;;;;;GASG;AACH,wBAAsB,YAAY,CAAC,IAAI,EAAE,WAAW,GAAG,OAAO,CAAC,SAAS,CAAC,CAmDxE"}
 \ No newline at end of file
-+{"version":3,"file":"indexer.d.ts","sourceRoot":"","sources":["../src/indexer.ts"],"names":[],"mappings":"AA4KA;;;;;;;GAOG;AACH,iEAAiE;AACjE,wBAAgB,aAAa,CAAC,GAAG,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAGxD;AAED,wBAAsB,mBAAmB,CAAC,GAAG,EAAE,MAAM,EAAE,OAAO,SAAI,GAAG,OAAO,CAAC,IAAI,CAAC,CA+EjF;AAED,8CAA8C;AAC9C,UAAU,WAAW;IACnB,QAAQ,EAAE,MAAM,CAAA;IAChB,WAAW,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACxB,iBAAiB,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IAC/B,WAAW,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACzB,MAAM,CAAC,EAAE,MAAM,GAAG,IAAI,CAAA;IACtB,YAAY,EAAE,MAAM,CAAA;IACpB,UAAU,EAAE,MAAM,CAAA;IAClB,WAAW,CAAC,EAAE,MAAM,CAAA;IACpB,kBAAkB,CAAC,EAAE,MAAM,CAAA;CAC5B;AAyBD;;;;;;;;;GASG;AACH,wBAAsB,YAAY,CAAC,IAAI,EAAE,WAAW,GAAG,OAAO,CAAC,SAAS,CAAC,CAmDxE"}
++{"version":3,"file":"indexer.d.ts","sourceRoot":"","sources":["../src/indexer.ts"],"names":[],"mappings":"AAgKA;;;;;;;GAOG;AACH,iEAAiE;AACjE,wBAAgB,aAAa,CAAC,GAAG,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAGxD;AAED,wBAAsB,mBAAmB,CAAC,GAAG,EAAE,MAAM,EAAE,OAAO,SAAI,GAAG,OAAO,CAAC,IAAI,CAAC,CA4EjF;AAED,8CAA8C;AAC9C,UAAU,WAAW;IACnB,QAAQ,EAAE,MAAM,CAAA;IAChB,WAAW,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACxB,iBAAiB,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IAC/B,WAAW,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACzB,MAAM,CAAC,EAAE,MAAM,GAAG,IAAI,CAAA;IACtB,YAAY,EAAE,MAAM,CAAA;IACpB,UAAU,EAAE,MAAM,CAAA;IAClB,WAAW,CAAC,EAAE,MAAM,CAAA;IACpB,kBAAkB,CAAC,EAAE,MAAM,CAAA;CAC5B;AAkDD;;;;;;;;;GASG;AACH,wBAAsB,YAAY,CAAC,IAAI,EAAE,WAAW,GAAG,OAAO,CAAC,SAAS,CAAC,CAqDxE"}
 \ No newline at end of file
 diff --git a/node_modules/@hatk/hatk/dist/indexer.js b/node_modules/@hatk/hatk/dist/indexer.js
-index 04df7a0..d493487 100644
+index 04df7a0..2382003 100644
 --- a/node_modules/@hatk/hatk/dist/indexer.js
 +++ b/node_modules/@hatk/hatk/dist/indexer.js
-@@ -1,6 +1,6 @@
- import { cborDecode } from "./cbor.js";
- import { parseCarFrame } from "./car.js";
--import { insertRecord, deleteRecord, setCursor, setRepoStatus, getRepoRetryInfo, listAllRepoStatuses, getDatabasePort, updateRepoHandle, } from "./database/db.js";
-+import { insertRecord, deleteRecord, setCursor, setRepoStatus, getRepoRetryInfo, listAllRepoStatuses, getDatabasePort, updateRepoHandle, updateRepoRev, } from "./database/db.js";
- import { backfillRepo } from "./backfill.js";
- import { rebuildAllIndexes } from "./database/fts.js";
- import { log, emit, timer } from "./logger.js";
-@@ -43,11 +43,19 @@ async function flushBuffer() {
-     const errors = [];
-     let cursorError;
-     const inserted = [];
-+    // Track the latest rev seen per DID across this batch so we can advance
-+    // `_repos.rev` exactly once per DID at the end (lexicographic max wins).
-+    const latestRevByDid = new Map();
-     for (const item of batch) {
-         try {
-             await insertRecord(item.collection, item.uri, item.cid, item.authorDid, item.record);
-             insertedCount++;
-             inserted.push(item);
-+            if (item.rev) {
-+                const prev = latestRevByDid.get(item.authorDid);
-+                if (!prev || prev < item.rev)
-+                    latestRevByDid.set(item.authorDid, item.rev);
-+            }
-         }
-         catch (err) {
-             errors.push(err.message);
-@@ -61,6 +69,13 @@ async function flushBuffer() {
-             cursorError = err.message;
-         }
-     }
-+    // Advance `_repos.rev` for each DID whose record we just indexed. The
-+    // UPDATE inside updateRepoRev is a no-op when our stored rev is already
-+    // newer, so this is safe even when firehose events arrive out of order.
-+    log(`[rev-debug] batch_size=${batch.length} inserted=${insertedCount} latestRevByDid_size=${latestRevByDid.size} sample_rev_types=${batch.slice(0, 3).map(b => typeof b.rev + ':' + (b.rev ?? 'undef')).join(',')}`);
-+    for (const [did, rev] of latestRevByDid) {
-+        updateRepoRev(did, rev).then(() => log(`[rev-debug] updated did=${did} rev=${rev}`)).catch((e) => log(`[rev-debug] updateRepoRev failed did=${did} rev=${rev} err=${e.message}`));
-+    }
-     // Run label rules on successfully inserted records (async, non-blocking)
-     for (const item of inserted) {
-         runLabelRules({
-@@ -174,14 +189,19 @@ export async function triggerAutoBackfill(did, attempt = 0) {
-     const buffered = pendingBuffers.get(did) || [];
-     pendingBuffers.delete(did);
-     backfillInFlight.delete(did);
-+    let maxReplayedRev;
-     for (const item of buffered) {
-         try {
-             await insertRecord(item.collection, item.uri, item.cid, item.authorDid, item.record);
-+            if (item.rev && (!maxReplayedRev || maxReplayedRev < item.rev))
-+                maxReplayedRev = item.rev;
-         }
-         catch {
-             replayErrors++;
-         }
-     }
-+    if (maxReplayedRev)
-+        updateRepoRev(did, maxReplayedRev).catch(() => { });
-     // Schedule retry if failed and under maxRetries
-     const retryInfo = status === 'error' ? await getRepoRetryInfo(did) : null;
-     const currentRetryCount = retryInfo?.retryCount ?? 0;
-@@ -316,15 +336,31 @@ function processMessage(bytes, collections) {
-     const did = body.value.repo;
-     if (!did)
-         return;
-+    // The commit's new rev — propagated into each buffered record so that
-+    // flushBuffer can advance `_repos.rev` for this DID after a successful
-+    // insert. Atproto guarantees this field is a lexicographically sortable
-+    // string per com.atproto.sync.subscribeRepos#commit.
-+    const commitRev = typeof body.value.rev === 'string' ? body.value.rev : undefined;
-     // When repos are pinned, only process events from those DIDs
-     if (indexerPinnedRepos && !indexerPinnedRepos.has(did))
-         return;
-     // Check if any ops in this commit are for collections we care about
-     const relevantOps = body.value.ops.filter((op) => collections.has(op.path.split('/')[0]));
-+    const isTraceTarget = did === 'did:plc:6ayddqghxhciedbaofoxkcbs' || relevantOps.length > 0;
-+    if (isTraceTarget) {
-+        log(`[trace] msg seq=${body.value.seq} did=${did} rev=${commitRev} relevant_ops=${relevantOps.length} ops=${JSON.stringify(body.value.ops.map((o) => `${o.action}:${o.path}`))}`);
-+    }
-     if (relevantOps.length === 0)
-         return;
-     // Copy blocks out of the original buffer before it can be GC'd
--    const { blocks } = parseCarFrame(new Uint8Array(body.value.blocks));
-+    let blocks;
-+    try {
-+        blocks = parseCarFrame(new Uint8Array(body.value.blocks)).blocks;
-+    }
-+    catch (e) {
-+        log(`[trace] parseCarFrame threw did=${did} seq=${body.value.seq} err=${e?.message}`);
-+        return;
-+    }
-     // Only auto-backfill when we see activity in a signal collection
-     const hasSignalOp = relevantOps.some((op) => indexerSignalCollections.has(op.path.split('/')[0]));
-     // Use in-memory cache only — never hit DB from the hot path.
-@@ -357,10 +393,12 @@ function processMessage(bytes, collections) {
-             deleteRecord(collection, uri);
-             continue;
-         }
-+        let matchedBlock = false;
-         for (const [cid, data] of blocks) {
-             try {
-                 const { value: record } = cborDecode(data);
-                 if (record?.$type === collection) {
-+                    matchedBlock = true;
-                     const validationError = validateRecord(getLexiconArray(), collection, record);
-                     if (validationError) {
-                         emit('indexer', 'validation_skip', {
-@@ -371,7 +409,7 @@ function processMessage(bytes, collections) {
-                         });
-                         break;
-                     }
--                    const item = { collection, uri, cid, authorDid: did, record };
-+                    const item = { collection, uri, cid, authorDid: did, record, rev: commitRev };
-                     // If DID is mid-backfill, buffer instead of writing directly
-                     if (pendingBuffers.has(did)) {
-                         pendingBuffers.get(did).push(item);
-@@ -382,7 +420,12 @@ function processMessage(bytes, collections) {
-                     break;
-                 }
-             }
--            catch { }
-+            catch (e) {
-+                log(`[trace] block cbor decode threw did=${did} cid=${cid} err=${e?.message}`);
-+            }
-+        }
-+        if (!matchedBlock && op.action !== 'delete') {
-+            log(`[trace] no matching block did=${did} op=${op.action}:${op.path} blocks_count=${blocks.size}`);
-         }
-     }
+@@ -22,6 +22,12 @@ const backfillPromises = new Map();
+ const pendingReschedule = new Set();
+ // In-memory cache of repo status to avoid flooding the DB read queue
+ const repoStatusCache = new Map();
++// Cursor save guard — ensures the periodic cursor saver is started exactly
++// once across all `startIndexer` invocations (the function is re-entered on
++// every reconnect).
++let cursorSaverStarted = false;
++/** How often to persist `lastSeq` to `_cursor.relay` independent of buffer flushes. */
++const CURSOR_SAVE_INTERVAL_MS = 10_000;
+ // Set by startIndexer
+ let indexerCollections;
+ let indexerSignalCollections;
+@@ -231,6 +237,31 @@ function startMemoryDiagnostics() {
+         });
+     }, 30_000);
  }
++/**
++ * Periodically persist `lastSeq` to `_cursor.relay` so the indexer can resume
++ * near live on restart even when no records have been flushed recently.
++ *
++ * `flushBuffer` saves the cursor as a side effect of inserting records — fine
++ * for high-volume collections, but for deployments that index rare/low-volume
++ * collections (custom lexicons, niche feeds) the buffer may not flush for
++ * hours or days. Without a heartbeat, each restart resumes from the last
++ * flush, which can be arbitrarily stale; on reconnect the relay then replays
++ * a huge backlog of irrelevant events before the indexer reaches live and
++ * starts processing fresh commits.
++ *
++ * Idempotent: guarded by {@link cursorSaverStarted} so reconnect loops don't
++ * stack multiple timers.
++ */
++function startCursorSaver() {
++    if (cursorSaverStarted)
++        return;
++    cursorSaverStarted = true;
++    setInterval(() => {
++        if (lastSeq !== null) {
++            setCursor('relay', String(lastSeq)).catch(() => { });
++        }
++    }, CURSOR_SAVE_INTERVAL_MS);
++}
+ /**
+  * Connect to the AT Protocol relay firehose and begin indexing.
+  *
+@@ -251,6 +282,7 @@ export async function startIndexer(opts) {
+     indexerFetchTimeout = fetchTimeout;
+     indexerMaxRetries = opts.maxRetries;
+     maxConcurrentBackfills = opts.parallelism ?? 3;
++    startCursorSaver();
+     // Pre-populate repo status cache from DB so non-signal updates
+     // (e.g. profile changes) are processed for already-tracked DIDs
+     if (repoStatusCache.size === 0) {
