@@ -1,0 +1,494 @@
+diff --git a/node_modules/@hatk/hatk/dist/database/db.d.ts b/node_modules/@hatk/hatk/dist/database/db.d.ts
+index 7bee11b..521ace1 100644
+--- a/node_modules/@hatk/hatk/dist/database/db.d.ts
++++ b/node_modules/@hatk/hatk/dist/database/db.d.ts
+@@ -28,6 +28,22 @@ export declare function setRepoStatus(did: string, status: string, rev?: string,
+ /** Update the handle for a DID if it exists in _repos. */
+ export declare function updateRepoHandle(did: string, handle: string): Promise<void>;
+ export declare function getRepoRev(did: string): Promise<string | null>;
++/**
++ * Advance the stored rev for a repo without touching status or backfilled_at.
++ *
++ * Called from the firehose insert path after a commit has been successfully
++ * indexed. Keeps `_repos.rev` current so that future backfills via
++ * `getRepo?since=<rev>` only fetch the small diff since the last seen commit
++ * rather than walking the whole repo history. Without this, `_repos.rev`
++ * would only ever advance during a full `backfillRepo` run, drifting stale
++ * over time and forcing on-login backfills to fetch a large diff (or worse,
++ * miss commits entirely if the firehose ever drops events).
++ *
++ * No-ops if the rev is empty or the row doesn't exist (we don't insert here;
++ * that's `setRepoStatus`'s job during initial discovery). The
++ * `rev < $1` guard prevents regression if events arrive out of order.
++ */
++export declare function updateRepoRev(did: string, rev: string): Promise<void>;
+ export declare function getRepoRetryInfo(did: string): Promise<{
+     retryCount: number;
+     retryAfter: number;
+diff --git a/node_modules/@hatk/hatk/dist/database/db.d.ts.map b/node_modules/@hatk/hatk/dist/database/db.d.ts.map
+index e6cd9c7..06b20f6 100644
+--- a/node_modules/@hatk/hatk/dist/database/db.d.ts.map
++++ b/node_modules/@hatk/hatk/dist/database/db.d.ts.map
+@@ -1 +1 @@
+-{"version":3,"file":"db.d.ts","sourceRoot":"","sources":["../../src/database/db.ts"],"names":[],"mappings":"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"}
+\ No newline at end of file
++{"version":3,"file":"db.d.ts","sourceRoot":"","sources":["../../src/database/db.ts"],"names":[],"mappings":"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"}
+\ No newline at end of file
+diff --git a/node_modules/@hatk/hatk/dist/database/db.js b/node_modules/@hatk/hatk/dist/database/db.js
+index 0d6b89c..ecb87f2 100644
+--- a/node_modules/@hatk/hatk/dist/database/db.js
++++ b/node_modules/@hatk/hatk/dist/database/db.js
+@@ -362,6 +362,26 @@ export async function getRepoRev(did) {
+     const rows = await all(`SELECT rev FROM _repos WHERE did = $1`, [did]);
+     return rows[0]?.rev ?? null;
+ }
++/**
++ * Advance the stored rev for a repo without touching status or backfilled_at.
++ *
++ * Called from the firehose insert path after a commit has been successfully
++ * indexed. Keeps `_repos.rev` current so that future backfills via
++ * `getRepo?since=<rev>` only fetch the small diff since the last seen commit
++ * rather than walking the whole repo history. Without this, `_repos.rev`
++ * would only ever advance during a full `backfillRepo` run, drifting stale
++ * over time and forcing on-login backfills to fetch a large diff (or worse,
++ * miss commits entirely if the firehose ever drops events).
++ *
++ * No-ops if the rev is empty or the row doesn't exist (we don't insert here;
++ * that's `setRepoStatus`'s job during initial discovery). The
++ * `rev < $1` guard prevents regression if events arrive out of order.
++ */
++export async function updateRepoRev(did, rev) {
++    if (!rev)
++        return;
++    await run(`UPDATE _repos SET rev = $1 WHERE did = $2 AND (rev IS NULL OR rev < $1)`, [rev, did]);
++}
+ export async function getRepoRetryInfo(did) {
+     const rows = await all(`SELECT retry_count, retry_after FROM _repos WHERE did = $1`, [did]);
+     if (rows.length === 0)
+diff --git a/node_modules/@hatk/hatk/dist/indexer.d.ts.map b/node_modules/@hatk/hatk/dist/indexer.d.ts.map
+index 0c29a23..f914622 100644
+--- a/node_modules/@hatk/hatk/dist/indexer.d.ts.map
++++ b/node_modules/@hatk/hatk/dist/indexer.d.ts.map
+@@ -1 +1 @@
+-{"version":3,"file":"indexer.d.ts","sourceRoot":"","sources":["../src/indexer.ts"],"names":[],"mappings":"AAyJA;;;;;;;GAOG;AACH,iEAAiE;AACjE,wBAAgB,aAAa,CAAC,GAAG,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAGxD;AAED,wBAAsB,mBAAmB,CAAC,GAAG,EAAE,MAAM,EAAE,OAAO,SAAI,GAAG,OAAO,CAAC,IAAI,CAAC,CA4EjF;AAED,8CAA8C;AAC9C,UAAU,WAAW;IACnB,QAAQ,EAAE,MAAM,CAAA;IAChB,WAAW,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACxB,iBAAiB,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IAC/B,WAAW,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACzB,MAAM,CAAC,EAAE,MAAM,GAAG,IAAI,CAAA;IACtB,YAAY,EAAE,MAAM,CAAA;IACpB,UAAU,EAAE,MAAM,CAAA;IAClB,WAAW,CAAC,EAAE,MAAM,CAAA;IACpB,kBAAkB,CAAC,EAAE,MAAM,CAAA;CAC5B;AAyBD;;;;;;;;;GASG;AACH,wBAAsB,YAAY,CAAC,IAAI,EAAE,WAAW,GAAG,OAAO,CAAC,SAAS,CAAC,CAmDxE"}
+\ No newline at end of file
++{"version":3,"file":"indexer.d.ts","sourceRoot":"","sources":["../src/indexer.ts"],"names":[],"mappings":"AA2KA;;;;;;;GAOG;AACH,iEAAiE;AACjE,wBAAgB,aAAa,CAAC,GAAG,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAGxD;AAED,wBAAsB,mBAAmB,CAAC,GAAG,EAAE,MAAM,EAAE,OAAO,SAAI,GAAG,OAAO,CAAC,IAAI,CAAC,CA+EjF;AAED,8CAA8C;AAC9C,UAAU,WAAW;IACnB,QAAQ,EAAE,MAAM,CAAA;IAChB,WAAW,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACxB,iBAAiB,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IAC/B,WAAW,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACzB,MAAM,CAAC,EAAE,MAAM,GAAG,IAAI,CAAA;IACtB,YAAY,EAAE,MAAM,CAAA;IACpB,UAAU,EAAE,MAAM,CAAA;IAClB,WAAW,CAAC,EAAE,MAAM,CAAA;IACpB,kBAAkB,CAAC,EAAE,MAAM,CAAA;CAC5B;AAyBD;;;;;;;;;GASG;AACH,wBAAsB,YAAY,CAAC,IAAI,EAAE,WAAW,GAAG,OAAO,CAAC,SAAS,CAAC,CAmDxE"}
+\ No newline at end of file
+diff --git a/node_modules/@hatk/hatk/dist/indexer.js b/node_modules/@hatk/hatk/dist/indexer.js
+index 04df7a0..a322327 100644
+--- a/node_modules/@hatk/hatk/dist/indexer.js
++++ b/node_modules/@hatk/hatk/dist/indexer.js
+@@ -1,6 +1,6 @@
+ import { cborDecode } from "./cbor.js";
+ import { parseCarFrame } from "./car.js";
+-import { insertRecord, deleteRecord, setCursor, setRepoStatus, getRepoRetryInfo, listAllRepoStatuses, getDatabasePort, updateRepoHandle, } from "./database/db.js";
++import { insertRecord, deleteRecord, setCursor, setRepoStatus, getRepoRetryInfo, listAllRepoStatuses, getDatabasePort, updateRepoHandle, updateRepoRev, } from "./database/db.js";
+ import { backfillRepo } from "./backfill.js";
+ import { rebuildAllIndexes } from "./database/fts.js";
+ import { log, emit, timer } from "./logger.js";
+@@ -43,11 +43,19 @@ async function flushBuffer() {
+     const errors = [];
+     let cursorError;
+     const inserted = [];
++    // Track the latest rev seen per DID across this batch so we can advance
++    // `_repos.rev` exactly once per DID at the end (lexicographic max wins).
++    const latestRevByDid = new Map();
+     for (const item of batch) {
+         try {
+             await insertRecord(item.collection, item.uri, item.cid, item.authorDid, item.record);
+             insertedCount++;
+             inserted.push(item);
++            if (item.rev) {
++                const prev = latestRevByDid.get(item.authorDid);
++                if (!prev || prev < item.rev)
++                    latestRevByDid.set(item.authorDid, item.rev);
++            }
+         }
+         catch (err) {
+             errors.push(err.message);
+@@ -61,6 +69,12 @@ async function flushBuffer() {
+             cursorError = err.message;
+         }
+     }
++    // Advance `_repos.rev` for each DID whose record we just indexed. The
++    // UPDATE inside updateRepoRev is a no-op when our stored rev is already
++    // newer, so this is safe even when firehose events arrive out of order.
++    for (const [did, rev] of latestRevByDid) {
++        updateRepoRev(did, rev).catch(() => { });
++    }
+     // Run label rules on successfully inserted records (async, non-blocking)
+     for (const item of inserted) {
+         runLabelRules({
+@@ -174,14 +188,19 @@ export async function triggerAutoBackfill(did, attempt = 0) {
+     const buffered = pendingBuffers.get(did) || [];
+     pendingBuffers.delete(did);
+     backfillInFlight.delete(did);
++    let maxReplayedRev;
+     for (const item of buffered) {
+         try {
+             await insertRecord(item.collection, item.uri, item.cid, item.authorDid, item.record);
++            if (item.rev && (!maxReplayedRev || maxReplayedRev < item.rev))
++                maxReplayedRev = item.rev;
+         }
+         catch {
+             replayErrors++;
+         }
+     }
++    if (maxReplayedRev)
++        updateRepoRev(did, maxReplayedRev).catch(() => { });
+     // Schedule retry if failed and under maxRetries
+     const retryInfo = status === 'error' ? await getRepoRetryInfo(did) : null;
+     const currentRetryCount = retryInfo?.retryCount ?? 0;
+@@ -316,6 +335,11 @@ function processMessage(bytes, collections) {
+     const did = body.value.repo;
+     if (!did)
+         return;
++    // The commit's new rev — propagated into each buffered record so that
++    // flushBuffer can advance `_repos.rev` for this DID after a successful
++    // insert. Atproto guarantees this field is a lexicographically sortable
++    // string per com.atproto.sync.subscribeRepos#commit.
++    const commitRev = typeof body.value.rev === 'string' ? body.value.rev : undefined;
+     // When repos are pinned, only process events from those DIDs
+     if (indexerPinnedRepos && !indexerPinnedRepos.has(did))
+         return;
+@@ -371,7 +395,7 @@ function processMessage(bytes, collections) {
+                         });
+                         break;
+                     }
+-                    const item = { collection, uri, cid, authorDid: did, record };
++                    const item = { collection, uri, cid, authorDid: did, record, rev: commitRev };
+                     // If DID is mid-backfill, buffer instead of writing directly
+                     if (pendingBuffers.has(did)) {
+                         pendingBuffers.get(did).push(item);
+diff --git a/node_modules/@hatk/hatk/dist/lexicons/dev/hatk/applyWrites.json b/node_modules/@hatk/hatk/dist/lexicons/dev/hatk/applyWrites.json
+new file mode 100644
+index 0000000..75d3e2b
+--- /dev/null
++++ b/node_modules/@hatk/hatk/dist/lexicons/dev/hatk/applyWrites.json
+@@ -0,0 +1,87 @@
++{
++  "lexicon": 1,
++  "id": "dev.hatk.applyWrites",
++  "defs": {
++    "main": {
++      "type": "procedure",
++      "description": "Apply multiple record writes in a single atomic PDS transaction.",
++      "input": {
++        "encoding": "application/json",
++        "schema": {
++          "type": "object",
++          "required": ["writes"],
++          "properties": {
++            "writes": {
++              "type": "array",
++              "items": {
++                "type": "union",
++                "refs": ["#create", "#update", "#delete"]
++              }
++            }
++          }
++        }
++      },
++      "output": {
++        "encoding": "application/json",
++        "schema": {
++          "type": "object",
++          "properties": {
++            "results": {
++              "type": "array",
++              "items": {
++                "type": "union",
++                "refs": ["#createResult", "#updateResult", "#deleteResult"]
++              }
++            }
++          }
++        }
++      }
++    },
++    "create": {
++      "type": "object",
++      "required": ["collection", "value"],
++      "properties": {
++        "collection": { "type": "string" },
++        "rkey": { "type": "string" },
++        "value": { "type": "unknown" }
++      }
++    },
++    "update": {
++      "type": "object",
++      "required": ["collection", "rkey", "value"],
++      "properties": {
++        "collection": { "type": "string" },
++        "rkey": { "type": "string" },
++        "value": { "type": "unknown" }
++      }
++    },
++    "delete": {
++      "type": "object",
++      "required": ["collection", "rkey"],
++      "properties": {
++        "collection": { "type": "string" },
++        "rkey": { "type": "string" }
++      }
++    },
++    "createResult": {
++      "type": "object",
++      "required": ["uri", "cid"],
++      "properties": {
++        "uri": { "type": "string", "format": "at-uri" },
++        "cid": { "type": "string", "format": "cid" }
++      }
++    },
++    "updateResult": {
++      "type": "object",
++      "required": ["uri", "cid"],
++      "properties": {
++        "uri": { "type": "string", "format": "at-uri" },
++        "cid": { "type": "string", "format": "cid" }
++      }
++    },
++    "deleteResult": {
++      "type": "object",
++      "properties": {}
++    }
++  }
++}
+diff --git a/node_modules/@hatk/hatk/dist/push.d.ts b/node_modules/@hatk/hatk/dist/push.d.ts
+new file mode 100644
+index 0000000..ad1d79d
+--- /dev/null
++++ b/node_modules/@hatk/hatk/dist/push.d.ts
+@@ -0,0 +1,34 @@
++export interface ApnsConfig {
++    keyFile: string;
++    keyId: string;
++    teamId: string;
++    bundleId: string;
++    production?: boolean;
++}
++export interface PushConfig {
++    apns: ApnsConfig;
++}
++export interface PushPayload {
++    did: string;
++    title: string;
++    body: string;
++    data?: Record<string, string>;
++    collapseId?: string;
++    badge?: number;
++}
++export interface PushInterface {
++    send: (payload: PushPayload) => Promise<void>;
++}
++/** Initialize push with config. Must be called before send(). */
++export declare function initPush(config: PushConfig, configDir: string): void;
++/** Check if push is configured and available. */
++export declare function isPushEnabled(): boolean;
++/** Build the push interface injected into hook contexts. */
++export declare function buildPushInterface(): PushInterface;
++/** Register a push token for a DID. Upserts on conflict. */
++export declare function registerToken(did: string, token: string, platform: string): Promise<void>;
++/** Remove a push token. */
++export declare function removeToken(token: string): Promise<void>;
++/** Unregister a specific token for a DID. */
++export declare function unregisterToken(did: string, token: string): Promise<void>;
++//# sourceMappingURL=push.d.ts.map
+\ No newline at end of file
+diff --git a/node_modules/@hatk/hatk/dist/push.d.ts.map b/node_modules/@hatk/hatk/dist/push.d.ts.map
+new file mode 100644
+index 0000000..a839598
+--- /dev/null
++++ b/node_modules/@hatk/hatk/dist/push.d.ts.map
+@@ -0,0 +1 @@
++{"version":3,"file":"push.d.ts","sourceRoot":"","sources":["../src/push.ts"],"names":[],"mappings":"AAeA,MAAM,WAAW,UAAU;IACzB,OAAO,EAAE,MAAM,CAAA;IACf,KAAK,EAAE,MAAM,CAAA;IACb,MAAM,EAAE,MAAM,CAAA;IACd,QAAQ,EAAE,MAAM,CAAA;IAChB,UAAU,CAAC,EAAE,OAAO,CAAA;CACrB;AAED,MAAM,WAAW,UAAU;IACzB,IAAI,EAAE,UAAU,CAAA;CACjB;AAED,MAAM,WAAW,WAAW;IAC1B,GAAG,EAAE,MAAM,CAAA;IACX,KAAK,EAAE,MAAM,CAAA;IACb,IAAI,EAAE,MAAM,CAAA;IACZ,IAAI,CAAC,EAAE,MAAM,CAAC,MAAM,EAAE,MAAM,CAAC,CAAA;IAC7B,UAAU,CAAC,EAAE,MAAM,CAAA;IACnB,KAAK,CAAC,EAAE,MAAM,CAAA;CACf;AAED,MAAM,WAAW,aAAa;IAC5B,IAAI,EAAE,CAAC,OAAO,EAAE,WAAW,KAAK,OAAO,CAAC,IAAI,CAAC,CAAA;CAC9C;AAOD,iEAAiE;AACjE,wBAAgB,QAAQ,CAAC,MAAM,EAAE,UAAU,EAAE,SAAS,EAAE,MAAM,GAAG,IAAI,CASpE;AAED,iDAAiD;AACjD,wBAAgB,aAAa,IAAI,OAAO,CAEvC;AAED,4DAA4D;AAC5D,wBAAgB,kBAAkB,IAAI,aAAa,CAElD;AAoJD,4DAA4D;AAC5D,wBAAsB,aAAa,CAAC,GAAG,EAAE,MAAM,EAAE,KAAK,EAAE,MAAM,EAAE,QAAQ,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAO/F;AAED,2BAA2B;AAC3B,wBAAsB,WAAW,CAAC,KAAK,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAE9D;AAED,6CAA6C;AAC7C,wBAAsB,eAAe,CAAC,GAAG,EAAE,MAAM,EAAE,KAAK,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAE/E"}
+\ No newline at end of file
+diff --git a/node_modules/@hatk/hatk/dist/push.js b/node_modules/@hatk/hatk/dist/push.js
+new file mode 100644
+index 0000000..95e1536
+--- /dev/null
++++ b/node_modules/@hatk/hatk/dist/push.js
+@@ -0,0 +1,184 @@
++/**
++ * Push notification delivery via APNs HTTP/2.
++ *
++ * Provides `push.send()` for use in on-commit hook context. Looks up device
++ * tokens, builds APNs payloads, and sends via HTTP/2. Self-cleans invalid
++ * tokens on Apple 410 responses. Fire-and-forget — failures are logged via
++ * `emit()` but never throw.
++ */
++import { connect } from 'node:http2';
++import { readFileSync } from 'node:fs';
++import { createSign } from 'node:crypto';
++import { resolve } from 'node:path';
++import { emit } from "./logger.js";
++import { runSQL, querySQL } from "./database/db.js";
++let pushConfig = null;
++let apnsKey = null;
++let cachedJwt = null;
++let http2Session = null;
++/** Initialize push with config. Must be called before send(). */
++export function initPush(config, configDir) {
++    pushConfig = config;
++    const keyPath = resolve(configDir, config.apns.keyFile);
++    try {
++        apnsKey = readFileSync(keyPath, 'utf8');
++    }
++    catch {
++        emit('push', 'init_error', { error: `APNs key file not found: ${keyPath}` });
++        pushConfig = null;
++    }
++}
++/** Check if push is configured and available. */
++export function isPushEnabled() {
++    return pushConfig !== null && apnsKey !== null;
++}
++/** Build the push interface injected into hook contexts. */
++export function buildPushInterface() {
++    return { send };
++}
++/** Create a JWT for APNs authentication (cached for 50 minutes). */
++function getApnsJwt() {
++    if (cachedJwt && Date.now() < cachedJwt.expires)
++        return cachedJwt.token;
++    if (!pushConfig || !apnsKey)
++        throw new Error('Push not initialized');
++    const header = Buffer.from(JSON.stringify({
++        alg: 'ES256',
++        kid: pushConfig.apns.keyId,
++    })).toString('base64url');
++    const now = Math.floor(Date.now() / 1000);
++    const claims = Buffer.from(JSON.stringify({
++        iss: pushConfig.apns.teamId,
++        iat: now,
++    })).toString('base64url');
++    const signer = createSign('SHA256');
++    signer.update(`${header}.${claims}`);
++    const signature = signer.sign(apnsKey, 'base64url');
++    const token = `${header}.${claims}.${signature}`;
++    cachedJwt = { token, expires: Date.now() + 50 * 60 * 1000 };
++    return token;
++}
++/** Get or create an HTTP/2 connection to APNs. */
++function getHttp2Session() {
++    if (http2Session && !http2Session.closed && !http2Session.destroyed) {
++        return http2Session;
++    }
++    const host = pushConfig?.apns.production !== false
++        ? 'https://api.push.apple.com'
++        : 'https://api.sandbox.push.apple.com';
++    emit('push', 'connecting', { host });
++    http2Session = connect(host, {
++        peerMaxConcurrentStreams: 100,
++    });
++    http2Session.on('connect', () => {
++        emit('push', 'connected', { host });
++    });
++    http2Session.on('error', (err) => {
++        emit('push', 'connection_error', { host, error: err.message });
++        http2Session = null;
++    });
++    http2Session.on('close', () => {
++        http2Session = null;
++    });
++    return http2Session;
++}
++/** Send a push notification to all devices registered for a DID. */
++async function send(payload) {
++    if (!pushConfig || !apnsKey)
++        return;
++    const tokens = await querySQL(`SELECT token, platform FROM _push_tokens WHERE did = $1`, [payload.did]);
++    if (tokens.length === 0)
++        return;
++    const jwt = getApnsJwt();
++    const aps = {
++        alert: { title: payload.title, body: payload.body },
++        sound: 'default',
++    };
++    if (payload.badge !== undefined) {
++        aps.badge = payload.badge;
++    }
++    const apnsPayload = JSON.stringify({
++        aps,
++        ...(payload.data || {}),
++    });
++    for (const { token, platform } of tokens) {
++        if (platform !== 'apns')
++            continue;
++        sendToApns(token, apnsPayload, jwt, payload).catch(() => { });
++    }
++}
++/** Send a single APNs push and handle the response. */
++async function sendToApns(token, payload, jwt, original) {
++    const session = getHttp2Session();
++    const headers = {
++        ':method': 'POST',
++        ':path': `/3/device/${token}`,
++        'authorization': `bearer ${jwt}`,
++        'apns-topic': pushConfig.apns.bundleId,
++        'apns-push-type': 'alert',
++    };
++    if (original.collapseId) {
++        headers['apns-collapse-id'] = original.collapseId;
++    }
++    return new Promise((resolve) => {
++        const req = session.request(headers);
++        let settled = false;
++        const done = () => { if (settled)
++            return; settled = true; resolve(); };
++        req.setTimeout(15_000, () => {
++            req.close();
++            emit('push', 'send_error', { did: original.did, error: 'APNs request timed out' });
++            done();
++        });
++        let status = 0;
++        let body = '';
++        req.on('response', (headers) => {
++            status = headers[':status'];
++        });
++        req.on('data', (chunk) => {
++            body += chunk.toString();
++        });
++        req.on('end', async () => {
++            if (settled)
++                return;
++            if (status === 200) {
++                emit('push', 'sent', { did: original.did, token: token.slice(0, 8) + '...' });
++            }
++            else if (status === 410) {
++                // Token is no longer valid — remove it
++                await removeToken(token).catch(() => { });
++                emit('push', 'token_removed', { did: original.did, reason: 'expired' });
++            }
++            else {
++                emit('push', 'send_error', {
++                    did: original.did,
++                    status,
++                    body: body.slice(0, 200),
++                });
++            }
++            done();
++        });
++        req.on('error', (err) => {
++            if (settled)
++                return;
++            emit('push', 'send_error', { did: original.did, error: err.message });
++            done();
++        });
++        req.write(payload);
++        req.end();
++    });
++}
++/** Register a push token for a DID. Upserts on conflict. */
++export async function registerToken(did, token, platform) {
++    await runSQL(`INSERT INTO _push_tokens (did, token, platform, created_at)
++     VALUES ($1, $2, $3, $4)
++     ON CONFLICT (did, token) DO UPDATE SET platform = excluded.platform`, [did, token, platform, new Date().toISOString()]);
++}
++/** Remove a push token. */
++export async function removeToken(token) {
++    await runSQL(`DELETE FROM _push_tokens WHERE token = $1`, [token]);
++}
++/** Unregister a specific token for a DID. */
++export async function unregisterToken(did, token) {
++    await runSQL(`DELETE FROM _push_tokens WHERE did = $1 AND token = $2`, [did, token]);
++}
