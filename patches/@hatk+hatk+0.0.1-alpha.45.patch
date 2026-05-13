@@ -66,16 +66,16 @@ index 0d6b89c..ecb87f2 100644
      const rows = await all(`SELECT retry_count, retry_after FROM _repos WHERE did = $1`, [did]);
      if (rows.length === 0)
 diff --git a/node_modules/@hatk/hatk/dist/indexer.d.ts.map b/node_modules/@hatk/hatk/dist/indexer.d.ts.map
-index 0c29a23..f914622 100644
+index 0c29a23..4b2f629 100644
 --- a/node_modules/@hatk/hatk/dist/indexer.d.ts.map
 +++ b/node_modules/@hatk/hatk/dist/indexer.d.ts.map
 @@ -1 +1 @@
 -{"version":3,"file":"indexer.d.ts","sourceRoot":"","sources":["../src/indexer.ts"],"names":[],"mappings":"AAyJA;;;;;;;GAOG;AACH,iEAAiE;AACjE,wBAAgB,aAAa,CAAC,GAAG,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAGxD;AAED,wBAAsB,mBAAmB,CAAC,GAAG,EAAE,MAAM,EAAE,OAAO,SAAI,GAAG,OAAO,CAAC,IAAI,CAAC,CA4EjF;AAED,8CAA8C;AAC9C,UAAU,WAAW;IACnB,QAAQ,EAAE,MAAM,CAAA;IAChB,WAAW,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACxB,iBAAiB,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IAC/B,WAAW,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACzB,MAAM,CAAC,EAAE,MAAM,GAAG,IAAI,CAAA;IACtB,YAAY,EAAE,MAAM,CAAA;IACpB,UAAU,EAAE,MAAM,CAAA;IAClB,WAAW,CAAC,EAAE,MAAM,CAAA;IACpB,kBAAkB,CAAC,EAAE,MAAM,CAAA;CAC5B;AAyBD;;;;;;;;;GASG;AACH,wBAAsB,YAAY,CAAC,IAAI,EAAE,WAAW,GAAG,OAAO,CAAC,SAAS,CAAC,CAmDxE"}
 \ No newline at end of file
-+{"version":3,"file":"indexer.d.ts","sourceRoot":"","sources":["../src/indexer.ts"],"names":[],"mappings":"AA2KA;;;;;;;GAOG;AACH,iEAAiE;AACjE,wBAAgB,aAAa,CAAC,GAAG,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAGxD;AAED,wBAAsB,mBAAmB,CAAC,GAAG,EAAE,MAAM,EAAE,OAAO,SAAI,GAAG,OAAO,CAAC,IAAI,CAAC,CA+EjF;AAED,8CAA8C;AAC9C,UAAU,WAAW;IACnB,QAAQ,EAAE,MAAM,CAAA;IAChB,WAAW,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACxB,iBAAiB,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IAC/B,WAAW,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACzB,MAAM,CAAC,EAAE,MAAM,GAAG,IAAI,CAAA;IACtB,YAAY,EAAE,MAAM,CAAA;IACpB,UAAU,EAAE,MAAM,CAAA;IAClB,WAAW,CAAC,EAAE,MAAM,CAAA;IACpB,kBAAkB,CAAC,EAAE,MAAM,CAAA;CAC5B;AAyBD;;;;;;;;;GASG;AACH,wBAAsB,YAAY,CAAC,IAAI,EAAE,WAAW,GAAG,OAAO,CAAC,SAAS,CAAC,CAmDxE"}
++{"version":3,"file":"indexer.d.ts","sourceRoot":"","sources":["../src/indexer.ts"],"names":[],"mappings":"AA4KA;;;;;;;GAOG;AACH,iEAAiE;AACjE,wBAAgB,aAAa,CAAC,GAAG,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAGxD;AAED,wBAAsB,mBAAmB,CAAC,GAAG,EAAE,MAAM,EAAE,OAAO,SAAI,GAAG,OAAO,CAAC,IAAI,CAAC,CA+EjF;AAED,8CAA8C;AAC9C,UAAU,WAAW;IACnB,QAAQ,EAAE,MAAM,CAAA;IAChB,WAAW,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACxB,iBAAiB,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IAC/B,WAAW,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACzB,MAAM,CAAC,EAAE,MAAM,GAAG,IAAI,CAAA;IACtB,YAAY,EAAE,MAAM,CAAA;IACpB,UAAU,EAAE,MAAM,CAAA;IAClB,WAAW,CAAC,EAAE,MAAM,CAAA;IACpB,kBAAkB,CAAC,EAAE,MAAM,CAAA;CAC5B;AAyBD;;;;;;;;;GASG;AACH,wBAAsB,YAAY,CAAC,IAAI,EAAE,WAAW,GAAG,OAAO,CAAC,SAAS,CAAC,CAmDxE"}
 \ No newline at end of file
 diff --git a/node_modules/@hatk/hatk/dist/indexer.js b/node_modules/@hatk/hatk/dist/indexer.js
-index 04df7a0..a322327 100644
+index 04df7a0..ce980b6 100644
 --- a/node_modules/@hatk/hatk/dist/indexer.js
 +++ b/node_modules/@hatk/hatk/dist/indexer.js
 @@ -1,6 +1,6 @@
@@ -106,20 +106,21 @@ index 04df7a0..a322327 100644
          }
          catch (err) {
              errors.push(err.message);
-@@ -61,6 +69,12 @@ async function flushBuffer() {
+@@ -61,6 +69,13 @@ async function flushBuffer() {
              cursorError = err.message;
          }
      }
 +    // Advance `_repos.rev` for each DID whose record we just indexed. The
 +    // UPDATE inside updateRepoRev is a no-op when our stored rev is already
 +    // newer, so this is safe even when firehose events arrive out of order.
++    log(`[rev-debug] batch_size=${batch.length} inserted=${insertedCount} latestRevByDid_size=${latestRevByDid.size} sample_rev_types=${batch.slice(0, 3).map(b => typeof b.rev + ':' + (b.rev ?? 'undef')).join(',')}`);
 +    for (const [did, rev] of latestRevByDid) {
-+        updateRepoRev(did, rev).catch(() => { });
++        updateRepoRev(did, rev).then(() => log(`[rev-debug] updated did=${did} rev=${rev}`)).catch((e) => log(`[rev-debug] updateRepoRev failed did=${did} rev=${rev} err=${e.message}`));
 +    }
      // Run label rules on successfully inserted records (async, non-blocking)
      for (const item of inserted) {
          runLabelRules({
-@@ -174,14 +188,19 @@ export async function triggerAutoBackfill(did, attempt = 0) {
+@@ -174,14 +189,19 @@ export async function triggerAutoBackfill(did, attempt = 0) {
      const buffered = pendingBuffers.get(did) || [];
      pendingBuffers.delete(did);
      backfillInFlight.delete(did);
@@ -139,7 +140,7 @@ index 04df7a0..a322327 100644
      // Schedule retry if failed and under maxRetries
      const retryInfo = status === 'error' ? await getRepoRetryInfo(did) : null;
      const currentRetryCount = retryInfo?.retryCount ?? 0;
-@@ -316,6 +335,11 @@ function processMessage(bytes, collections) {
+@@ -316,6 +336,11 @@ function processMessage(bytes, collections) {
      const did = body.value.repo;
      if (!did)
          return;
@@ -151,7 +152,7 @@ index 04df7a0..a322327 100644
      // When repos are pinned, only process events from those DIDs
      if (indexerPinnedRepos && !indexerPinnedRepos.has(did))
          return;
-@@ -371,7 +395,7 @@ function processMessage(bytes, collections) {
+@@ -371,7 +396,7 @@ function processMessage(bytes, collections) {
                          });
                          break;
                      }
@@ -160,335 +161,3 @@ index 04df7a0..a322327 100644
                      // If DID is mid-backfill, buffer instead of writing directly
                      if (pendingBuffers.has(did)) {
                          pendingBuffers.get(did).push(item);
-diff --git a/node_modules/@hatk/hatk/dist/lexicons/dev/hatk/applyWrites.json b/node_modules/@hatk/hatk/dist/lexicons/dev/hatk/applyWrites.json
-new file mode 100644
-index 0000000..75d3e2b
---- /dev/null
-+++ b/node_modules/@hatk/hatk/dist/lexicons/dev/hatk/applyWrites.json
-@@ -0,0 +1,87 @@
-+{
-+  "lexicon": 1,
-+  "id": "dev.hatk.applyWrites",
-+  "defs": {
-+    "main": {
-+      "type": "procedure",
-+      "description": "Apply multiple record writes in a single atomic PDS transaction.",
-+      "input": {
-+        "encoding": "application/json",
-+        "schema": {
-+          "type": "object",
-+          "required": ["writes"],
-+          "properties": {
-+            "writes": {
-+              "type": "array",
-+              "items": {
-+                "type": "union",
-+                "refs": ["#create", "#update", "#delete"]
-+              }
-+            }
-+          }
-+        }
-+      },
-+      "output": {
-+        "encoding": "application/json",
-+        "schema": {
-+          "type": "object",
-+          "properties": {
-+            "results": {
-+              "type": "array",
-+              "items": {
-+                "type": "union",
-+                "refs": ["#createResult", "#updateResult", "#deleteResult"]
-+              }
-+            }
-+          }
-+        }
-+      }
-+    },
-+    "create": {
-+      "type": "object",
-+      "required": ["collection", "value"],
-+      "properties": {
-+        "collection": { "type": "string" },
-+        "rkey": { "type": "string" },
-+        "value": { "type": "unknown" }
-+      }
-+    },
-+    "update": {
-+      "type": "object",
-+      "required": ["collection", "rkey", "value"],
-+      "properties": {
-+        "collection": { "type": "string" },
-+        "rkey": { "type": "string" },
-+        "value": { "type": "unknown" }
-+      }
-+    },
-+    "delete": {
-+      "type": "object",
-+      "required": ["collection", "rkey"],
-+      "properties": {
-+        "collection": { "type": "string" },
-+        "rkey": { "type": "string" }
-+      }
-+    },
-+    "createResult": {
-+      "type": "object",
-+      "required": ["uri", "cid"],
-+      "properties": {
-+        "uri": { "type": "string", "format": "at-uri" },
-+        "cid": { "type": "string", "format": "cid" }
-+      }
-+    },
-+    "updateResult": {
-+      "type": "object",
-+      "required": ["uri", "cid"],
-+      "properties": {
-+        "uri": { "type": "string", "format": "at-uri" },
-+        "cid": { "type": "string", "format": "cid" }
-+      }
-+    },
-+    "deleteResult": {
-+      "type": "object",
-+      "properties": {}
-+    }
-+  }
-+}
-diff --git a/node_modules/@hatk/hatk/dist/push.d.ts b/node_modules/@hatk/hatk/dist/push.d.ts
-new file mode 100644
-index 0000000..ad1d79d
---- /dev/null
-+++ b/node_modules/@hatk/hatk/dist/push.d.ts
-@@ -0,0 +1,34 @@
-+export interface ApnsConfig {
-+    keyFile: string;
-+    keyId: string;
-+    teamId: string;
-+    bundleId: string;
-+    production?: boolean;
-+}
-+export interface PushConfig {
-+    apns: ApnsConfig;
-+}
-+export interface PushPayload {
-+    did: string;
-+    title: string;
-+    body: string;
-+    data?: Record<string, string>;
-+    collapseId?: string;
-+    badge?: number;
-+}
-+export interface PushInterface {
-+    send: (payload: PushPayload) => Promise<void>;
-+}
-+/** Initialize push with config. Must be called before send(). */
-+export declare function initPush(config: PushConfig, configDir: string): void;
-+/** Check if push is configured and available. */
-+export declare function isPushEnabled(): boolean;
-+/** Build the push interface injected into hook contexts. */
-+export declare function buildPushInterface(): PushInterface;
-+/** Register a push token for a DID. Upserts on conflict. */
-+export declare function registerToken(did: string, token: string, platform: string): Promise<void>;
-+/** Remove a push token. */
-+export declare function removeToken(token: string): Promise<void>;
-+/** Unregister a specific token for a DID. */
-+export declare function unregisterToken(did: string, token: string): Promise<void>;
-+//# sourceMappingURL=push.d.ts.map
-\ No newline at end of file
-diff --git a/node_modules/@hatk/hatk/dist/push.d.ts.map b/node_modules/@hatk/hatk/dist/push.d.ts.map
-new file mode 100644
-index 0000000..a839598
---- /dev/null
-+++ b/node_modules/@hatk/hatk/dist/push.d.ts.map
-@@ -0,0 +1 @@
-+{"version":3,"file":"push.d.ts","sourceRoot":"","sources":["../src/push.ts"],"names":[],"mappings":"AAeA,MAAM,WAAW,UAAU;IACzB,OAAO,EAAE,MAAM,CAAA;IACf,KAAK,EAAE,MAAM,CAAA;IACb,MAAM,EAAE,MAAM,CAAA;IACd,QAAQ,EAAE,MAAM,CAAA;IAChB,UAAU,CAAC,EAAE,OAAO,CAAA;CACrB;AAED,MAAM,WAAW,UAAU;IACzB,IAAI,EAAE,UAAU,CAAA;CACjB;AAED,MAAM,WAAW,WAAW;IAC1B,GAAG,EAAE,MAAM,CAAA;IACX,KAAK,EAAE,MAAM,CAAA;IACb,IAAI,EAAE,MAAM,CAAA;IACZ,IAAI,CAAC,EAAE,MAAM,CAAC,MAAM,EAAE,MAAM,CAAC,CAAA;IAC7B,UAAU,CAAC,EAAE,MAAM,CAAA;IACnB,KAAK,CAAC,EAAE,MAAM,CAAA;CACf;AAED,MAAM,WAAW,aAAa;IAC5B,IAAI,EAAE,CAAC,OAAO,EAAE,WAAW,KAAK,OAAO,CAAC,IAAI,CAAC,CAAA;CAC9C;AAOD,iEAAiE;AACjE,wBAAgB,QAAQ,CAAC,MAAM,EAAE,UAAU,EAAE,SAAS,EAAE,MAAM,GAAG,IAAI,CASpE;AAED,iDAAiD;AACjD,wBAAgB,aAAa,IAAI,OAAO,CAEvC;AAED,4DAA4D;AAC5D,wBAAgB,kBAAkB,IAAI,aAAa,CAElD;AAoJD,4DAA4D;AAC5D,wBAAsB,aAAa,CAAC,GAAG,EAAE,MAAM,EAAE,KAAK,EAAE,MAAM,EAAE,QAAQ,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAO/F;AAED,2BAA2B;AAC3B,wBAAsB,WAAW,CAAC,KAAK,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAE9D;AAED,6CAA6C;AAC7C,wBAAsB,eAAe,CAAC,GAAG,EAAE,MAAM,EAAE,KAAK,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAE/E"}
-\ No newline at end of file
-diff --git a/node_modules/@hatk/hatk/dist/push.js b/node_modules/@hatk/hatk/dist/push.js
-new file mode 100644
-index 0000000..95e1536
---- /dev/null
-+++ b/node_modules/@hatk/hatk/dist/push.js
-@@ -0,0 +1,184 @@
-+/**
-+ * Push notification delivery via APNs HTTP/2.
-+ *
-+ * Provides `push.send()` for use in on-commit hook context. Looks up device
-+ * tokens, builds APNs payloads, and sends via HTTP/2. Self-cleans invalid
-+ * tokens on Apple 410 responses. Fire-and-forget — failures are logged via
-+ * `emit()` but never throw.
-+ */
-+import { connect } from 'node:http2';
-+import { readFileSync } from 'node:fs';
-+import { createSign } from 'node:crypto';
-+import { resolve } from 'node:path';
-+import { emit } from "./logger.js";
-+import { runSQL, querySQL } from "./database/db.js";
-+let pushConfig = null;
-+let apnsKey = null;
-+let cachedJwt = null;
-+let http2Session = null;
-+/** Initialize push with config. Must be called before send(). */
-+export function initPush(config, configDir) {
-+    pushConfig = config;
-+    const keyPath = resolve(configDir, config.apns.keyFile);
-+    try {
-+        apnsKey = readFileSync(keyPath, 'utf8');
-+    }
-+    catch {
-+        emit('push', 'init_error', { error: `APNs key file not found: ${keyPath}` });
-+        pushConfig = null;
-+    }
-+}
-+/** Check if push is configured and available. */
-+export function isPushEnabled() {
-+    return pushConfig !== null && apnsKey !== null;
-+}
-+/** Build the push interface injected into hook contexts. */
-+export function buildPushInterface() {
-+    return { send };
-+}
-+/** Create a JWT for APNs authentication (cached for 50 minutes). */
-+function getApnsJwt() {
-+    if (cachedJwt && Date.now() < cachedJwt.expires)
-+        return cachedJwt.token;
-+    if (!pushConfig || !apnsKey)
-+        throw new Error('Push not initialized');
-+    const header = Buffer.from(JSON.stringify({
-+        alg: 'ES256',
-+        kid: pushConfig.apns.keyId,
-+    })).toString('base64url');
-+    const now = Math.floor(Date.now() / 1000);
-+    const claims = Buffer.from(JSON.stringify({
-+        iss: pushConfig.apns.teamId,
-+        iat: now,
-+    })).toString('base64url');
-+    const signer = createSign('SHA256');
-+    signer.update(`${header}.${claims}`);
-+    const signature = signer.sign(apnsKey, 'base64url');
-+    const token = `${header}.${claims}.${signature}`;
-+    cachedJwt = { token, expires: Date.now() + 50 * 60 * 1000 };
-+    return token;
-+}
-+/** Get or create an HTTP/2 connection to APNs. */
-+function getHttp2Session() {
-+    if (http2Session && !http2Session.closed && !http2Session.destroyed) {
-+        return http2Session;
-+    }
-+    const host = pushConfig?.apns.production !== false
-+        ? 'https://api.push.apple.com'
-+        : 'https://api.sandbox.push.apple.com';
-+    emit('push', 'connecting', { host });
-+    http2Session = connect(host, {
-+        peerMaxConcurrentStreams: 100,
-+    });
-+    http2Session.on('connect', () => {
-+        emit('push', 'connected', { host });
-+    });
-+    http2Session.on('error', (err) => {
-+        emit('push', 'connection_error', { host, error: err.message });
-+        http2Session = null;
-+    });
-+    http2Session.on('close', () => {
-+        http2Session = null;
-+    });
-+    return http2Session;
-+}
-+/** Send a push notification to all devices registered for a DID. */
-+async function send(payload) {
-+    if (!pushConfig || !apnsKey)
-+        return;
-+    const tokens = await querySQL(`SELECT token, platform FROM _push_tokens WHERE did = $1`, [payload.did]);
-+    if (tokens.length === 0)
-+        return;
-+    const jwt = getApnsJwt();
-+    const aps = {
-+        alert: { title: payload.title, body: payload.body },
-+        sound: 'default',
-+    };
-+    if (payload.badge !== undefined) {
-+        aps.badge = payload.badge;
-+    }
-+    const apnsPayload = JSON.stringify({
-+        aps,
-+        ...(payload.data || {}),
-+    });
-+    for (const { token, platform } of tokens) {
-+        if (platform !== 'apns')
-+            continue;
-+        sendToApns(token, apnsPayload, jwt, payload).catch(() => { });
-+    }
-+}
-+/** Send a single APNs push and handle the response. */
-+async function sendToApns(token, payload, jwt, original) {
-+    const session = getHttp2Session();
-+    const headers = {
-+        ':method': 'POST',
-+        ':path': `/3/device/${token}`,
-+        'authorization': `bearer ${jwt}`,
-+        'apns-topic': pushConfig.apns.bundleId,
-+        'apns-push-type': 'alert',
-+    };
-+    if (original.collapseId) {
-+        headers['apns-collapse-id'] = original.collapseId;
-+    }
-+    return new Promise((resolve) => {
-+        const req = session.request(headers);
-+        let settled = false;
-+        const done = () => { if (settled)
-+            return; settled = true; resolve(); };
-+        req.setTimeout(15_000, () => {
-+            req.close();
-+            emit('push', 'send_error', { did: original.did, error: 'APNs request timed out' });
-+            done();
-+        });
-+        let status = 0;
-+        let body = '';
-+        req.on('response', (headers) => {
-+            status = headers[':status'];
-+        });
-+        req.on('data', (chunk) => {
-+            body += chunk.toString();
-+        });
-+        req.on('end', async () => {
-+            if (settled)
-+                return;
-+            if (status === 200) {
-+                emit('push', 'sent', { did: original.did, token: token.slice(0, 8) + '...' });
-+            }
-+            else if (status === 410) {
-+                // Token is no longer valid — remove it
-+                await removeToken(token).catch(() => { });
-+                emit('push', 'token_removed', { did: original.did, reason: 'expired' });
-+            }
-+            else {
-+                emit('push', 'send_error', {
-+                    did: original.did,
-+                    status,
-+                    body: body.slice(0, 200),
-+                });
-+            }
-+            done();
-+        });
-+        req.on('error', (err) => {
-+            if (settled)
-+                return;
-+            emit('push', 'send_error', { did: original.did, error: err.message });
-+            done();
-+        });
-+        req.write(payload);
-+        req.end();
-+    });
-+}
-+/** Register a push token for a DID. Upserts on conflict. */
-+export async function registerToken(did, token, platform) {
-+    await runSQL(`INSERT INTO _push_tokens (did, token, platform, created_at)
-+     VALUES ($1, $2, $3, $4)
-+     ON CONFLICT (did, token) DO UPDATE SET platform = excluded.platform`, [did, token, platform, new Date().toISOString()]);
-+}
-+/** Remove a push token. */
-+export async function removeToken(token) {
-+    await runSQL(`DELETE FROM _push_tokens WHERE token = $1`, [token]);
-+}
-+/** Unregister a specific token for a DID. */
-+export async function unregisterToken(did, token) {
-+    await runSQL(`DELETE FROM _push_tokens WHERE did = $1 AND token = $2`, [did, token]);
-+}
