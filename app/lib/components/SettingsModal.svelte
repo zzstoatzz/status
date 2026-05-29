@@ -1,6 +1,14 @@
 <script lang="ts">
   import { preferences, savePreferences, ACCENT_COLORS, FONTS, type Preferences } from '$lib/preferences'
+  import { AT_CLIENTS, atprotoClient, setPreferredClient } from '$lib/atclients'
+  import { Moon, Sun, Monitor } from 'lucide-svelte'
   import { get } from 'svelte/store'
+
+  const THEMES = [
+    { value: 'dark', label: 'dark', icon: Moon },
+    { value: 'light', label: 'light', icon: Sun },
+    { value: 'system', label: 'system', icon: Monitor },
+  ]
 
   let { onclose }: { onclose: () => void } = $props()
 
@@ -54,11 +62,36 @@
       </div>
       <div class="setting-group">
         <label>theme</label>
-        <select bind:value={current.theme}>
-          <option value="dark">dark</option>
-          <option value="light">light</option>
-          <option value="system">system</option>
-        </select>
+        <div class="theme-picker">
+          {#each THEMES as t}
+            {@const Icon = t.icon}
+            <button
+              class="theme-btn"
+              class:active={current.theme === t.value}
+              onclick={() => current.theme = t.value}
+              title={t.label}
+            >
+              <Icon size={18} />
+              <span>{t.label}</span>
+            </button>
+          {/each}
+        </div>
+      </div>
+      <div class="setting-group">
+        <label>open profiles in</label>
+        <div class="client-picker">
+          {#each AT_CLIENTS as client}
+            <button
+              class="client-btn"
+              class:active={$atprotoClient === client.value}
+              onclick={() => setPreferredClient(client.value)}
+              title={client.label}
+            >
+              <img src={client.iconUrl} alt="" width="18" height="18" loading="lazy" />
+              <span>{client.label}</span>
+            </button>
+          {/each}
+        </div>
       </div>
     </div>
     <div class="settings-footer">

@@ -98,16 +98,6 @@ nav {
 .nav-btn:hover { background: var(--bg-card); color: var(--accent); }
 .nav-btn svg { display: block; }
 
-.theme-toggle {
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.5rem;
-  cursor: pointer;
-  font-size: 1rem;
-  color: var(--text);
-}
-
 /* Login */
 .login-container {
   display: flex;
@@ -708,6 +698,62 @@ button[type="submit"]:hover,
   font-family: inherit;
 }
 
+.client-picker {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.client-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.client-btn img {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+}
+
+.client-btn:hover { border-color: var(--text-secondary); }
+.client-btn.active { border-color: var(--accent); }
+
+.theme-picker {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.theme-btn {
+  flex: 1;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.6rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.theme-btn:hover { border-color: var(--text-secondary); color: var(--text); }
+.theme-btn.active { border-color: var(--accent); color: var(--text); }
+
 .settings-footer {
   margin-top: 1rem;
 }
@@ -745,7 +791,6 @@ button[type="submit"]:hover,
   header h1 { font-size: 1.1rem; }
   nav { gap: 0.25rem; }
   .nav-btn { padding: 0.375rem; }
-  .theme-toggle { padding: 0.375rem; font-size: 0.875rem; }
   .profile-card { padding: 1.25rem 1rem; }
   .big-emoji { font-size: 3rem; }
   .big-emoji img { width: 3rem; height: 3rem; }

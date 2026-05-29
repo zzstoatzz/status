@@ -2,7 +2,7 @@
   import { createQuery } from '@tanstack/svelte-query'
   import { actorFeedQuery } from '$lib/queries'
   import StatusFeed from '$lib/components/StatusFeed.svelte'
-  import { isCustomEmoji, customEmojiName, bufoImageUrl, bufoFallbackUrl, parseLinks } from '$lib/utils/emoji'
+  import { isCustomEmoji, customEmojiName, bufoImageUrl, handleBufoError, parseLinks } from '$lib/utils/emoji'
   import { relativeTime, formatExpiration } from '$lib/utils/time'
 
   let { data } = $props()
@@ -27,7 +27,7 @@
       <span class="big-emoji">
         {#if isCustomEmoji(current.emoji)}
           {@const name = customEmojiName(current.emoji)}
-          <img src={bufoImageUrl(name)} alt={name} onerror={(e) => { (e.currentTarget as HTMLImageElement).src = bufoFallbackUrl(name) }} />
+          <img src={bufoImageUrl(name)} alt={name} title={name} onerror={(e) => handleBufoError(e.currentTarget as HTMLImageElement, name)} />
         {:else}
           {current.emoji}
         {/if}

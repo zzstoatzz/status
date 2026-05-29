@@ -6,12 +6,57 @@ export function customEmojiName(emoji: string): string {
   return emoji.slice(7);
 }
 
+// client img src: one canonical url. find-bufo's /e/{name} owns resolution
+// (its own static -> bufo.zone png -> bufo.zone gif), so consumers don't walk candidates.
 export function bufoImageUrl(name: string): string {
-  return `https://all-the.bufo.zone/${name}.png`;
+  return `https://find-bufo.com/e/${name}.png`;
 }
 
 export function bufoFallbackUrl(name: string): string {
   return `https://all-the.bufo.zone/${name}.gif`;
+}
+
+// custom bufos (added directly to find-bufo, not scraped from bufo.zone) live under find-bufo's own static dir
+export function bufoCustomUrl(name: string): string {
+  return `https://find-bufo.com/static/${name}.png`;
+}
+
+// direct (non-redirecting) urls in priority order — used server-side (og/twitter images),
+// where crawlers don't reliably follow the resolver's 302, so we resolve to a concrete url here.
+const bufoCandidateUrls = (name: string): string[] => [
+  `https://all-the.bufo.zone/${name}.png`,
+  bufoFallbackUrl(name),
+  bufoCustomUrl(name),
+];
+
+// walk candidate urls until one loads: bufo.zone png -> bufo.zone gif -> find-bufo custom png
+export function handleBufoError(img: HTMLImageElement, name: string): void {
+  const step = Number(img.dataset.bufoStep ?? "0");
+  const fallbacks = bufoCandidateUrls(name).slice(1);
+  if (step < fallbacks.length) {
+    img.dataset.bufoStep = String(step + 1);
+    img.src = fallbacks[step];
+  } else {
+    img.onerror = null;
+  }
+}
+
+// resolve the first candidate url that actually exists — for server-rendered og/twitter images,
+// where crawlers don't run the onerror fallback. falls back to the default url if none respond.
+export async function resolveBufoUrl(
+  name: string,
+  fetchFn: typeof fetch = fetch,
+): Promise<string> {
+  const candidates = bufoCandidateUrls(name);
+  for (const url of candidates) {
+    try {
+      const res = await fetchFn(url, { method: "HEAD" });
+      if (res.ok) return url;
+    } catch {
+      // network error — try the next candidate
+    }
+  }
+  return candidates[0];
 }
 
 export function parseLinks(text: string): string {

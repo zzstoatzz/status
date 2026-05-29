@@ -3,7 +3,7 @@
   import { createQuery, useQueryClient } from '@tanstack/svelte-query'
   import { actorFeedQuery } from '$lib/queries'
   import { callXrpc } from '$hatk/client'
-  import { isCustomEmoji, customEmojiName, bufoImageUrl, bufoFallbackUrl, parseLinks, parseStatusUri } from '$lib/utils/emoji'
+  import { isCustomEmoji, customEmojiName, bufoImageUrl, handleBufoError, parseLinks, parseStatusUri } from '$lib/utils/emoji'
   import { relativeTime, formatExpiration } from '$lib/utils/time'
   import LoginCard from '$lib/components/LoginCard.svelte'
   import CreateStatusForm from '$lib/components/CreateStatusForm.svelte'
@@ -13,10 +13,10 @@
   const queryClient = useQueryClient()
   const viewer = $derived($page.data.viewer)
 
-  const feed = createQuery(() => {
-    if (!viewer) return { queryKey: ['noop'], queryFn: () => null, enabled: false }
-    return actorFeedQuery(viewer.did)
-  })
+  const feed = createQuery(() => ({
+    ...actorFeedQuery(viewer?.did ?? ''),
+    enabled: !!viewer,
+  }))
 
   const statuses = $derived((feed.data?.items ?? []) as any[])
   const current = $derived(statuses[0] ?? null)
@@ -62,7 +62,7 @@
         <span class="big-emoji">
           {#if isCustomEmoji(current.emoji)}
             {@const name = customEmojiName(current.emoji)}
-            <img src={bufoImageUrl(name)} alt={name} onerror={(e) => { (e.currentTarget as HTMLImageElement).src = bufoFallbackUrl(name) }} />
+            <img src={bufoImageUrl(name)} alt={name} title={name} onerror={(e) => handleBufoError(e.currentTarget as HTMLImageElement, name)} />
           {:else}
             {current.emoji}
           {/if}

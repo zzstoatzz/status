@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores'
   import { callXrpc } from '$hatk/client'
-  import { isCustomEmoji, customEmojiName, bufoImageUrl, bufoFallbackUrl } from '$lib/utils/emoji'
+  import { isCustomEmoji, customEmojiName, bufoImageUrl, handleBufoError } from '$lib/utils/emoji'
   import EmojiPicker from './EmojiPicker.svelte'
 
   let { currentEmoji = '😊', oncreated }: { currentEmoji?: string; oncreated?: () => void } = $props()
@@ -32,7 +32,13 @@
 
     submitting = true
     try {
-      const record: Record<string, string> = {
+      const record: {
+        $type: string
+        emoji: string
+        createdAt: string
+        text?: string
+        expires?: string
+      } = {
         $type: 'io.zzstoatzz.status.record',
         emoji: selectedEmoji,
         createdAt: new Date().toISOString(),
@@ -66,7 +72,7 @@
     <button type="button" class="emoji-trigger" onclick={() => showPicker = true}>
       {#if isCustomEmoji(selectedEmoji)}
         {@const name = customEmojiName(selectedEmoji)}
-        <img src={bufoImageUrl(name)} alt={name} onerror={(e) => { (e.currentTarget as HTMLImageElement).src = bufoFallbackUrl(name) }} />
+        <img src={bufoImageUrl(name)} alt={name} title={name} onerror={(e) => handleBufoError(e.currentTarget as HTMLImageElement, name)} />
       {:else}
         {selectedEmoji}
       {/if}

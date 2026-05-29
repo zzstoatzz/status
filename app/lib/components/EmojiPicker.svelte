@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { loadBufoList, searchBufos, loadEmojiData, searchEmojis, DEFAULT_FREQUENT } from '$lib/utils/emoji'
+  import { loadBufoList, searchBufos, loadEmojiData, searchEmojis, DEFAULT_FREQUENT, bufoImageUrl, handleBufoError } from '$lib/utils/emoji'
 
   let { onselect, onclose }: { onselect: (emoji: string) => void; onclose: () => void } = $props()
 
@@ -131,7 +131,7 @@
         {#each gridItems as item (item.value)}
           {#if item.type === 'bufo'}
             <button class="emoji-btn bufo-btn" onclick={() => select(item.value)} title={item.name}>
-              <img src="https://all-the.bufo.zone/{item.name}.png" alt={item.name ?? ''} loading="lazy" onerror={(e) => { const img = e.currentTarget as HTMLImageElement; img.src = img.src.replace('.png', '.gif') }} />
+              <img src={bufoImageUrl(item.name ?? '')} alt={item.name ?? ''} loading="lazy" onerror={(e) => handleBufoError(e.currentTarget as HTMLImageElement, item.name ?? '')} />
               {#if item.score != null}
                 <span class="bufo-score">{Math.round(item.score * 100)}%</span>
               {/if}
