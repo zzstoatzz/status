@@ -8,30 +8,42 @@
 ## current cost — fetch it live, never hardcode
 
 Costs drift, so this file deliberately does **not** hardcode a dollar figure. Get the
-current monthly cost for this repo from the daily snapshot (collected by
-`my-prefect-server`, surfaced at https://hub.waow.tech):
+current monthly cost for this repo from the public daily snapshot collected by
+`my-prefect-server` (also surfaced at https://hub.waow.tech):
 
 ```bash
-curl -s https://hub.waow.tech/api/costs.json | jq '{
-  as_of: .generatedAt,
+curl -sG https://pds.zzstoatzz.io/xrpc/com.atproto.repo.listRecords \
+  --data-urlencode 'repo=zzstoatzz.io' \
+  --data-urlencode 'collection=io.zzstoatzz.cost.snapshot' \
+  --data-urlencode 'limit=1' | jq '(.records[0].value) as $snapshot | {
+  as_of: $snapshot.generatedAt,
   this_repo_monthly_usd: (
-    [ .lineItems[] | select(.service as $s | ["zzstoatzz-quickslice-status"] | index($s)) ]
+    [ $snapshot.lineItems[] | select(.service == "zzstoatzz-quickslice-status") ]
     | (map(.amount) | add // 0) / 100
   ),
-  lines: [ .lineItems[] | select(.service as $s | ["zzstoatzz-quickslice-status"] | index($s))
+  lines: [ $snapshot.lineItems[] | select(.service == "zzstoatzz-quickslice-status")
            | {service, provider, usd: (.amount/100), estimated} ]
 }'
 ```
 
+Expected baseline for the current inventory is **$5.85/month plus bandwidth**:
+$5.70 for one continuously running `shared-cpu-1x` Machine with 1GB RAM in
+`ewr`, plus $0.15 for the 1GB persistent volume. The shared IPv4/IPv6 addresses
+are free. `min_machines_running = 1` means auto-stop does not reduce that compute
+floor.
+
 Or open the costs panel at https://hub.waow.tech and group **by project**.
 
-Services attributed to this repo: `zzstoatzz-quickslice-status`. If that list is
+Service attributed to this repo: `zzstoatzz-quickslice-status`, grouped under the
+`status` project. If that attribution is
 wrong, fix the mapping in `my-prefect-server`
 (`packages/mps/src/mps/costs/projects.py`) rather than editing numbers here.
 
 ## how we might bring this down
 - biggest line is usually `zzstoatzz-quickslice-status` — check its utilization and right-size before anything else.
-- Fly figures are **estimates** from machine inventory — reconcile against the Fly dashboard, and enable auto-stop on bursty/idle machines.
+- Fly figures are **estimates** from machine and volume inventory; bandwidth is not included. Reconcile against the Fly dashboard.
+- `min_machines_running = 1` keeps the service warm. If cold starts become acceptable, setting it to `0` is the main remaining cost lever.
 
 ## changelog
+- **2026-07-14** — corrected Fly pricing to avoid charging twice for RAM included in the CPU preset; added the 1GB volume; attributed the app to the `status` project instead of `misc`. Expected baseline: **$5.85/mo plus bandwidth**.
 - **2026-06-17** — initial cost notice; 1 service(s) attributed here. Run the command above for the live figure.
