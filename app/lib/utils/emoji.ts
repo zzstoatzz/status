@@ -14,6 +14,20 @@ export function bufoFallbackUrl(name: string): string {
   return `https://all-the.bufo.zone/${name}.gif`;
 }
 
+export function bufoImageCandidates(name: string): string[] {
+  const encodedName = name
+    .split("/")
+    .map((part) => encodeURIComponent(decodeURIComponent(part)))
+    .join("/");
+
+  return [
+    `https://all-the.bufo.zone/${encodedName}.png`,
+    `https://all-the.bufo.zone/${encodedName}.gif`,
+    `https://find-bufo.com/static/${encodedName}.png`,
+    `https://find-bufo.com/static/${encodedName}.gif`,
+  ];
+}
+
 export function parseLinks(text: string): string {
   if (!text) return "";
   const escaped = text

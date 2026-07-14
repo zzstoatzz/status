@@ -1,14 +1,5 @@
-diff --git a/node_modules/@hatk/hatk/dist/indexer.d.ts.map b/node_modules/@hatk/hatk/dist/indexer.d.ts.map
-index 0c29a23..43308ed 100644
---- a/node_modules/@hatk/hatk/dist/indexer.d.ts.map
-+++ b/node_modules/@hatk/hatk/dist/indexer.d.ts.map
-@@ -1 +1 @@
--{"version":3,"file":"indexer.d.ts","sourceRoot":"","sources":["../src/indexer.ts"],"names":[],"mappings":"AAyJA;;;;;;;GAOG;AACH,iEAAiE;AACjE,wBAAgB,aAAa,CAAC,GAAG,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAGxD;AAED,wBAAsB,mBAAmB,CAAC,GAAG,EAAE,MAAM,EAAE,OAAO,SAAI,GAAG,OAAO,CAAC,IAAI,CAAC,CA4EjF;AAED,8CAA8C;AAC9C,UAAU,WAAW;IACnB,QAAQ,EAAE,MAAM,CAAA;IAChB,WAAW,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACxB,iBAAiB,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IAC/B,WAAW,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACzB,MAAM,CAAC,EAAE,MAAM,GAAG,IAAI,CAAA;IACtB,YAAY,EAAE,MAAM,CAAA;IACpB,UAAU,EAAE,MAAM,CAAA;IAClB,WAAW,CAAC,EAAE,MAAM,CAAA;IACpB,kBAAkB,CAAC,EAAE,MAAM,CAAA;CAC5B;AAyBD;;;;;;;;;GASG;AACH,wBAAsB,YAAY,CAAC,IAAI,EAAE,WAAW,GAAG,OAAO,CAAC,SAAS,CAAC,CAmDxE"}
-\ No newline at end of file
-+{"version":3,"file":"indexer.d.ts","sourceRoot":"","sources":["../src/indexer.ts"],"names":[],"mappings":"AAgKA;;;;;;;GAOG;AACH,iEAAiE;AACjE,wBAAgB,aAAa,CAAC,GAAG,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAGxD;AAED,wBAAsB,mBAAmB,CAAC,GAAG,EAAE,MAAM,EAAE,OAAO,SAAI,GAAG,OAAO,CAAC,IAAI,CAAC,CA4EjF;AAED,8CAA8C;AAC9C,UAAU,WAAW;IACnB,QAAQ,EAAE,MAAM,CAAA;IAChB,WAAW,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACxB,iBAAiB,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IAC/B,WAAW,CAAC,EAAE,GAAG,CAAC,MAAM,CAAC,CAAA;IACzB,MAAM,CAAC,EAAE,MAAM,GAAG,IAAI,CAAA;IACtB,YAAY,EAAE,MAAM,CAAA;IACpB,UAAU,EAAE,MAAM,CAAA;IAClB,WAAW,CAAC,EAAE,MAAM,CAAA;IACpB,kBAAkB,CAAC,EAAE,MAAM,CAAA;CAC5B;AAkDD;;;;;;;;;GASG;AACH,wBAAsB,YAAY,CAAC,IAAI,EAAE,WAAW,GAAG,OAAO,CAAC,SAAS,CAAC,CAqDxE"}
-\ No newline at end of file
 diff --git a/node_modules/@hatk/hatk/dist/indexer.js b/node_modules/@hatk/hatk/dist/indexer.js
-index 04df7a0..2382003 100644
+index 04df7a0..8689235 100644
 --- a/node_modules/@hatk/hatk/dist/indexer.js
 +++ b/node_modules/@hatk/hatk/dist/indexer.js
 @@ -22,6 +22,12 @@ const backfillPromises = new Map();
@@ -64,3 +55,63 @@ index 04df7a0..2382003 100644
      // Pre-populate repo status cache from DB so non-signal updates
      // (e.g. profile changes) are processed for already-tracked DIDs
      if (repoStatusCache.size === 0) {
+@@ -357,32 +389,35 @@ function processMessage(bytes, collections) {
+             deleteRecord(collection, uri);
+             continue;
+         }
+-        for (const [cid, data] of blocks) {
+-            try {
+-                const { value: record } = cborDecode(data);
+-                if (record?.$type === collection) {
+-                    const validationError = validateRecord(getLexiconArray(), collection, record);
+-                    if (validationError) {
+-                        emit('indexer', 'validation_skip', {
+-                            uri,
+-                            collection,
+-                            path: validationError.path,
+-                            error: validationError.message,
+-                        });
+-                        break;
+-                    }
+-                    const item = { collection, uri, cid, authorDid: did, record };
+-                    // If DID is mid-backfill, buffer instead of writing directly
+-                    if (pendingBuffers.has(did)) {
+-                        pendingBuffers.get(did).push(item);
+-                    }
+-                    else {
+-                        bufferWrite(item);
+-                    }
+-                    break;
++        const opCid = typeof op.cid === 'string' ? op.cid : op.cid?.$link;
++        if (!opCid)
++            continue;
++        const data = blocks.get(opCid);
++        if (!data)
++            continue;
++        try {
++            const { value: record } = cborDecode(data);
++            if (record?.$type === collection) {
++                const validationError = validateRecord(getLexiconArray(), collection, record);
++                if (validationError) {
++                    emit('indexer', 'validation_skip', {
++                        uri,
++                        collection,
++                        path: validationError.path,
++                        error: validationError.message,
++                    });
++                    continue;
++                }
++                const item = { collection, uri, cid: opCid, authorDid: did, record };
++                // If DID is mid-backfill, buffer instead of writing directly
++                if (pendingBuffers.has(did)) {
++                    pendingBuffers.get(did).push(item);
++                }
++                else {
++                    bufferWrite(item);
+                 }
+             }
+-            catch { }
+         }
++        catch { }
+     }
+ }

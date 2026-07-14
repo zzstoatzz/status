@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { isCustomEmoji, customEmojiName, bufoImageUrl, bufoFallbackUrl, parseLinks } from '$lib/utils/emoji'
+  import { isCustomEmoji, customEmojiName, bufoImageUrl, parseLinks } from '$lib/utils/emoji'
+  import CustomEmoji from '$lib/components/CustomEmoji.svelte'
   import { relativeTime, formatExpiration } from '$lib/utils/time'
 
   let { data } = $props()
@@ -43,7 +44,7 @@
       <span class="big-emoji">
         {#if emoji && isCustomEmoji(emoji)}
           {@const name = customEmojiName(emoji)}
-          <img src={bufoImageUrl(name)} alt={name} onerror={(e) => { (e.currentTarget as HTMLImageElement).src = bufoFallbackUrl(name) }} />
+          <CustomEmoji {name} />
         {:else}
           {emoji ?? '-'}
         {/if}

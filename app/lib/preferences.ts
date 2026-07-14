@@ -42,7 +42,10 @@ export function applyPreferences(prefs: Preferences): void {
   document.documentElement.style.setProperty("--accent", prefs.accentColor);
   const font = FONTS.find((f) => f.value === prefs.font) ?? FONTS[1];
   document.documentElement.style.setProperty("--font-family", font.css);
-  document.documentElement.setAttribute("data-theme", prefs.theme);
+  const theme = prefs.theme === "system"
+    ? window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"
+    : prefs.theme;
+  document.documentElement.setAttribute("data-theme", theme);
   localStorage.setItem("theme", prefs.theme);
 }
 

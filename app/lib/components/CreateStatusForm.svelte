@@ -1,7 +1,8 @@
 <script lang="ts">
   import { page } from '$app/stores'
   import { callXrpc } from '$hatk/client'
-  import { isCustomEmoji, customEmojiName, bufoImageUrl, bufoFallbackUrl } from '$lib/utils/emoji'
+  import { isCustomEmoji, customEmojiName } from '$lib/utils/emoji'
+  import CustomEmoji from './CustomEmoji.svelte'
   import EmojiPicker from './EmojiPicker.svelte'
 
   let { currentEmoji = '😊', oncreated }: { currentEmoji?: string; oncreated?: () => void } = $props()
@@ -65,7 +66,7 @@
     <button type="button" class="emoji-trigger" onclick={() => showPicker = true}>
       {#if isCustomEmoji(selectedEmoji)}
         {@const name = customEmojiName(selectedEmoji)}
-        <img src={bufoImageUrl(name)} alt={name} onerror={(e) => { (e.currentTarget as HTMLImageElement).src = bufoFallbackUrl(name) }} />
+        <CustomEmoji {name} />
       {:else}
         {selectedEmoji}
       {/if}

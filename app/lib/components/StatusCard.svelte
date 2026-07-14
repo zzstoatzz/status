@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { isCustomEmoji, customEmojiName, bufoImageUrl, bufoFallbackUrl, parseLinks, parseStatusUri } from '$lib/utils/emoji'
+  import { isCustomEmoji, customEmojiName, parseLinks, parseStatusUri } from '$lib/utils/emoji'
+  import CustomEmoji from './CustomEmoji.svelte'
   import { relativeTime, formatExpiration } from '$lib/utils/time'
   import { Link, X } from 'lucide-svelte'
 
@@ -51,7 +52,7 @@
   <span class="emoji">
     {#if isCustomEmoji(status.emoji)}
       {@const name = customEmojiName(status.emoji)}
-      <img src={bufoImageUrl(name)} alt={name} onerror={(e) => { e.currentTarget.src = bufoFallbackUrl(name) }} />
+      <CustomEmoji {name} loading="lazy" />
     {:else}
       {status.emoji}
     {/if}

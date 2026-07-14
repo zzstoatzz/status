@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores'
   import { logout } from '$lib/auth'
-  import { House, Rss, Settings, LogOut } from 'lucide-svelte'
+  import { House, Rss, Settings, LogOut, Code2 } from 'lucide-svelte'
   import SettingsModal from './SettingsModal.svelte'
 
   let settingsOpen = $state(false)
@@ -24,7 +24,10 @@
   function initTheme() {
     if (typeof document === 'undefined') return
     const saved = localStorage.getItem('theme') || 'dark'
-    document.documentElement.setAttribute('data-theme', saved)
+    const theme = saved === 'system'
+      ? window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+      : saved
+    document.documentElement.setAttribute('data-theme', theme)
   }
 
   $effect(() => {
@@ -60,6 +63,16 @@
         <Rss size={20} />
       </a>
     {/if}
+    <a
+      href="https://tangled.org/zzstoatzz.io/status"
+      class="nav-btn"
+      aria-label="source code"
+      title="source code"
+      target="_blank"
+      rel="noopener"
+    >
+      <Code2 size={20} />
+    </a>
     {#if viewer}
       <button class="nav-btn" onclick={() => settingsOpen = true} aria-label="settings" title="settings">
         <Settings size={20} />
