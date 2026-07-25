@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
   import { loadBufoList, searchBufos, loadEmojiData, searchEmojis, DEFAULT_FREQUENT } from '$lib/utils/emoji'
   import CustomEmoji from './CustomEmoji.svelte'
 
@@ -95,30 +96,54 @@
     onclose()
   }
 
-  $effect(() => {
+  // lock the page behind the sheet: without this, scroll chaining and the mobile
+  // keyboard resizing the visual viewport yank the underlying page around.
+  onMount(() => {
+    const { overflow, paddingRight } = document.body.style
+    const gutter = window.innerWidth - document.documentElement.clientWidth
+    document.body.style.overflow = 'hidden'
+    if (gutter > 0) document.body.style.paddingRight = `${gutter}px`
+
     renderCategory('frequent')
+
+    return () => {
+      document.body.style.overflow = overflow
+      document.body.style.paddingRight = paddingRight
+    }
   })
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-<div class="emoji-picker-overlay" onclick={(e) => { if (e.target === e.currentTarget) onclose() }}>
-  <div class="emoji-picker">
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape') onclose() }} />
+
+<div class="emoji-picker-overlay" role="presentation" onpointerdown={(e) => { if (e.target === e.currentTarget) onclose() }}>
+  <div class="emoji-picker" role="dialog" aria-modal="true" aria-label="pick an emoji">
     <div class="emoji-picker-header">
+      <span class="emoji-picker-grabber" aria-hidden="true"></span>
       <h3>pick an emoji</h3>
-      <button class="emoji-picker-close" onclick={onclose}>&#x2715;</button>
+      <button class="emoji-picker-close" onclick={onclose} aria-label="close emoji picker">&#x2715;</button>
     </div>
     <input
-      type="text"
+      type="search"
       class="emoji-search"
-      placeholder={currentCategory === 'custom' ? 'describe a bufo... try "happy" or "apocalyptic"' : 'search emojis...'}
+      placeholder={currentCategory === 'custom' ? 'describe a bufo… "happy", "apocalyptic"' : 'search emojis…'}
+      autocomplete="off"
+      autocapitalize="off"
+      autocorrect="off"
+      spellcheck="false"
+      enterkeyhint="search"
       bind:value={searchQuery}
       oninput={handleSearch}
+      onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget as HTMLInputElement).blur() } }}
     />
-    <div class="emoji-categories">
+    <div class="emoji-categories" role="tablist" aria-label="emoji categories">
       {#each categories as cat (cat.id)}
         <button
           class="category-btn"
           class:active={currentCategory === cat.id}
+          role="tab"
+          aria-selected={currentCategory === cat.id}
+          aria-label={cat.id}
+          title={cat.id}
           onclick={() => renderCategory(cat.id)}
         >{cat.icon}</button>
       {/each}

@@ -39,10 +39,7 @@ const bufoCandidateUrls = (name: string): string[] => [
 
 // resolve the first candidate url that actually exists — for server-rendered og/twitter images,
 // where crawlers don't run the onerror fallback. falls back to the default url if none respond.
-export async function resolveBufoUrl(
-  name: string,
-  fetchFn: typeof fetch = fetch,
-): Promise<string> {
+export async function resolveBufoUrl(name: string, fetchFn: typeof fetch = fetch): Promise<string> {
   const candidates = bufoCandidateUrls(name);
   for (const url of candidates) {
     try {
@@ -108,24 +105,42 @@ let emojiDataCache: {
 } | null = null;
 
 const DEFAULT_FREQUENT = [
-  "😊", "👍", "❤️", "😂", "🎉", "🔥", "✨", "💯",
-  "🚀", "💪", "🙏", "👏", "😴", "🤔", "👀", "💻",
+  "😊",
+  "👍",
+  "❤️",
+  "😂",
+  "🎉",
+  "🔥",
+  "✨",
+  "💯",
+  "🚀",
+  "💪",
+  "🙏",
+  "👏",
+  "😴",
+  "🤔",
+  "👀",
+  "💻",
 ];
 
 export { DEFAULT_FREQUENT };
 
 export async function loadEmojiData() {
   if (emojiDataCache) return emojiDataCache;
-  const response = await fetch(
-    "https://cdn.jsdelivr.net/npm/emoji-datasource@15.1.0/emoji.json",
-  );
+  const response = await fetch("https://cdn.jsdelivr.net/npm/emoji-datasource@15.1.0/emoji.json");
   if (!response.ok) throw new Error("Failed to fetch emoji data");
   const data = await response.json();
 
   const emojis: Record<string, string[]> = {};
   const categories: Record<string, string[]> = {
-    people: [], nature: [], food: [], activity: [],
-    travel: [], objects: [], symbols: [], flags: [],
+    people: [],
+    nature: [],
+    food: [],
+    activity: [],
+    travel: [],
+    objects: [],
+    symbols: [],
+    flags: [],
   };
   const categoryMap: Record<string, string> = {
     "Smileys & Emotion": "people",
@@ -157,10 +172,7 @@ export async function loadEmojiData() {
   return emojiDataCache;
 }
 
-export function searchEmojis(
-  query: string,
-  data: { emojis: Record<string, string[]> },
-): string[] {
+export function searchEmojis(query: string, data: { emojis: Record<string, string[]> }): string[] {
   if (!query) return [];
   const q = query.toLowerCase();
   return Object.entries(data.emojis)

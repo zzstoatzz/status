@@ -9,6 +9,8 @@
   let debounceTimer: ReturnType<typeof setTimeout> | undefined
   let abortController: AbortController | null = null
   let faqOpen: Record<string, boolean> = $state({})
+  let signingIn = $state(false)
+  let loginError = $state('')
 
   async function fetchSuggestions(query: string) {
     if (abortController) abortController.abort()
@@ -39,10 +41,23 @@
     }, 300)
   }
 
-  function selectSuggestion(h: string) {
+  async function selectSuggestion(h: string) {
     handle = h
     showDropdown = false
     suggestions = []
+    await startLogin(h)
+  }
+
+  async function startLogin(h: string) {
+    const trimmed = h.trim()
+    if (!trimmed || signingIn) return
+    signingIn = true
+    try {
+      await login(trimmed)
+    } catch (err: any) {
+      signingIn = false
+      loginError = err?.message ?? 'could not start sign in. try again.'
+    }
   }
 
   function onkeydown(e: KeyboardEvent) {
@@ -63,8 +78,7 @@
 
   async function submit(e: Event) {
     e.preventDefault()
-    const h = handle.trim()
-    if (h) await login(h)
+    await startLogin(handle)
   }
 
   function toggleFaq(id: string) {
@@ -78,7 +92,7 @@
     <p class="login-tagline">share what you're up to</p>
     <form class="login-form" onsubmit={submit}>
       <div class="input-group">
-        <label for="handle-input">internet handle</label>
+        <label for="handle-input">atmosphere account</label>
         <div class="handle-input-wrapper">
           <input
             id="handle-input"
@@ -96,7 +110,7 @@
           {#if showDropdown}
             <div class="suggestions-dropdown">
               {#each suggestions as s, i (s.handle)}
-                <button type="button" class="suggestion-item" class:selected={i === selectedIndex} onclick={() => selectSuggestion(s.handle)}>
+                <button type="button" class="suggestion-item" class:selected={i === selectedIndex} onpointerdown={(e) => { e.preventDefault(); selectSuggestion(s.handle) }}>
                   {#if s.avatar}
                     <img src={s.avatar} class="suggestion-avatar" alt="" />
                   {:else}
@@ -112,7 +126,8 @@
           {/if}
         </div>
       </div>
-      <button type="submit">sign in</button>
+      {#if loginError}<p class="login-error" role="alert">{loginError}</p>{/if}
+      <button type="submit" disabled={signingIn}>{signingIn ? 'signing in…' : 'sign in'}</button>
     </form>
     <div class="login-faq">
       <button type="button" class="faq-toggle" onclick={() => toggleFaq('handle')}>
