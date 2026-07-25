@@ -657,6 +657,7 @@ button[type="submit"]:hover,
 }
 
 .emoji-picker-header {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -687,6 +688,7 @@ button[type="submit"]:hover,
 }
 
 .emoji-search {
+  flex-shrink: 0;
   margin: 0.75rem;
   padding: 0.625rem 0.75rem;
   border: 1px solid var(--border);
@@ -704,6 +706,7 @@ button[type="submit"]:hover,
 }
 
 .emoji-categories {
+  flex-shrink: 0;
   display: flex;
   gap: 0.25rem;
   padding: 0 0.75rem 0.5rem;
@@ -808,6 +811,7 @@ button[type="submit"]:hover,
 }
 
 .bufo-helper {
+  flex-shrink: 0;
   padding: 0.5rem 0.75rem;
   border-top: 1px solid var(--border);
   font-size: 0.75rem;
