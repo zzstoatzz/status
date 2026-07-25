@@ -15,7 +15,7 @@
   let ogTitle = $derived(`@${handle}'s status`)
   let ogDescription = $derived(text || (emoji && isCustomEmoji(emoji) ? customEmojiName(emoji).replace(/-/g, ' ') : emoji) || 'share your status')
   let ogUrl = $derived(`https://status.zzstoatzz.io/status/${data.did}/${data.rkey}`)
-  let ogImage = $derived(emoji && isCustomEmoji(emoji) ? bufoImageUrl(customEmojiName(emoji)) : null)
+  let ogImage = $derived(data.ogImage ?? null)
 </script>
 
 <svelte:head>
@@ -54,7 +54,7 @@
           <span class="current-text">{@html parseLinks(text)}</span>
         {/if}
         <span class="meta">
-          {relativeTime(createdAt)}
+          {#if createdAt}{relativeTime(createdAt)}{/if}
           {#if expires}
             &middot; {formatExpiration(expires)}
           {/if}

@@ -1,8 +1,10 @@
 <script lang="ts">
   import { preferences, savePreferences, ACCENT_COLORS, FONTS, type Preferences } from '$lib/preferences'
+  import { AT_CLIENTS, atprotoClient, setPreferredClient } from '$lib/atclients'
   import { get } from 'svelte/store'
   import { onMount } from 'svelte'
   import { Check, ExternalLink, X } from 'lucide-svelte'
+
 
   let { onclose }: { onclose: () => void } = $props()
 
@@ -107,6 +109,23 @@
               aria-pressed={current.theme === theme}
               onclick={() => current.theme = theme}
             >{theme}</button>
+          {/each}
+        </div>
+      </fieldset>
+
+      <fieldset class="setting-group">
+        <legend>open profiles in</legend>
+        <div class="option-grid client-options">
+          {#each AT_CLIENTS as client}
+            <button
+              type="button"
+              class:active={$atprotoClient === client.value}
+              aria-pressed={$atprotoClient === client.value}
+              onclick={() => setPreferredClient(client.value)}
+            >
+              <img src={client.iconUrl} alt="" width="18" height="18" loading="lazy" />
+              <span>{client.label}</span>
+            </button>
           {/each}
         </div>
       </fieldset>

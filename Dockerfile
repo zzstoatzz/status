@@ -6,6 +6,7 @@ COPY package.json package-lock.json ./
 COPY patches ./patches
 RUN npm ci
 COPY . .
+RUN npx hatk generate types
 RUN npx vp build
 RUN npm prune --omit=dev
 ENV NODE_ENV=production

@@ -33,7 +33,14 @@
 
     submitting = true
     try {
-      const record: Record<string, string> = {
+      const record: {
+        $type: string
+        emoji: string
+        createdAt: string
+        text?: string
+        expires?: string
+      } = {
+        $type: 'io.zzstoatzz.status.record',
         emoji: selectedEmoji,
         createdAt: new Date().toISOString(),
       }

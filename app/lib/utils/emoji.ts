@@ -6,26 +6,53 @@ export function customEmojiName(emoji: string): string {
   return emoji.slice(7);
 }
 
-export function bufoImageUrl(name: string): string {
-  return `https://all-the.bufo.zone/${name}.png`;
-}
-
-export function bufoFallbackUrl(name: string): string {
-  return `https://all-the.bufo.zone/${name}.gif`;
-}
-
-export function bufoImageCandidates(name: string): string[] {
-  const encodedName = name
+function encodeBufoName(name: string): string {
+  return name
     .split("/")
     .map((part) => encodeURIComponent(decodeURIComponent(part)))
     .join("/");
+}
 
-  return [
-    `https://all-the.bufo.zone/${encodedName}.png`,
-    `https://all-the.bufo.zone/${encodedName}.gif`,
-    `https://find-bufo.com/static/${encodedName}.png`,
-    `https://find-bufo.com/static/${encodedName}.gif`,
-  ];
+// client img src: one canonical url. find-bufo's /e/{name} owns resolution
+// (its own static -> bufo.zone png -> bufo.zone gif), so consumers don't walk candidates
+// client-side — which an SSR'd <img> can't do anyway, since it 404s before hydration
+// attaches onerror.
+export function bufoImageUrl(name: string): string {
+  return `https://find-bufo.com/e/${encodeBufoName(name)}.png`;
+}
+
+export function bufoFallbackUrl(name: string): string {
+  return `https://all-the.bufo.zone/${encodeBufoName(name)}.gif`;
+}
+
+export function bufoCustomUrl(name: string): string {
+  return `https://find-bufo.com/static/${encodeBufoName(name)}.png`;
+}
+
+// direct (non-redirecting) urls in priority order — used server-side (og/twitter images),
+// where crawlers don't reliably follow the resolver's 302, so we resolve to a concrete url here.
+const bufoCandidateUrls = (name: string): string[] => [
+  `https://all-the.bufo.zone/${encodeBufoName(name)}.png`,
+  bufoFallbackUrl(name),
+  bufoCustomUrl(name),
+];
+
+// resolve the first candidate url that actually exists — for server-rendered og/twitter images,
+// where crawlers don't run the onerror fallback. falls back to the default url if none respond.
+export async function resolveBufoUrl(
+  name: string,
+  fetchFn: typeof fetch = fetch,
+): Promise<string> {
+  const candidates = bufoCandidateUrls(name);
+  for (const url of candidates) {
+    try {
+      const res = await fetchFn(url, { method: "HEAD" });
+      if (res.ok) return url;
+    } catch {
+      // network error — try the next candidate
+    }
+  }
+  return candidates[0];
 }
 
 export function parseLinks(text: string): string {

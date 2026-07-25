@@ -14,10 +14,10 @@
   const queryClient = useQueryClient()
   const viewer = $derived($page.data.viewer)
 
-  const feed = createQuery(() => {
-    if (!viewer) return { queryKey: ['noop'], queryFn: () => null, enabled: false }
-    return actorFeedQuery(viewer.did)
-  })
+  const feed = createQuery(() => ({
+    ...actorFeedQuery(viewer?.did ?? ''),
+    enabled: !!viewer,
+  }))
 
   const statuses = $derived((feed.data?.items ?? []) as any[])
   const current = $derived(statuses[0] ?? null)
