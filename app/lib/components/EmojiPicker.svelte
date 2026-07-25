@@ -143,7 +143,6 @@
           role="tab"
           aria-selected={currentCategory === cat.id}
           aria-label={cat.id}
-          title={cat.id}
           onclick={() => renderCategory(cat.id)}
         >{cat.icon}</button>
       {/each}

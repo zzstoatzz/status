@@ -91,6 +91,25 @@ header h1 {
 header h1 a {
   color: var(--text);
 }
+
+.header-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.src {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.src:hover {
+  opacity: 1;
+  color: var(--accent);
+}
 header h1 a:hover {
   color: var(--accent);
 }
@@ -941,7 +960,7 @@ button[type="submit"]:hover,
   border-color: var(--text-secondary);
 }
 
-.settings-modal form {
+.settings-body {
   padding: 1.25rem;
 }
 
@@ -1055,6 +1074,31 @@ button[type="submit"]:hover,
 .font-options {
   grid-template-columns: repeat(4, 1fr);
 }
+
+.client-options {
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+}
+
+.client-options button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  text-align: left;
+}
+
+/* brand logos are drawn for light backgrounds — blacksky's is solid black and
+   vanishes on our dark surface. a fixed light chip makes every logo legible in
+   both themes and doubles as the alignment box. */
+.client-options img {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  padding: 2px;
+  border-radius: 5px;
+  background: #fff;
+  object-fit: contain;
+}
 .theme-options {
   grid-template-columns: repeat(3, 1fr);
 }
@@ -1087,116 +1131,6 @@ button[type="submit"]:hover,
   margin: -0.35rem 0 1rem;
   color: #ef4444;
   font-size: 0.75rem;
-}
-
-.client-picker {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.client-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 0.8125rem;
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-
-.client-btn img {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-}
-
-.client-btn:hover {
-  border-color: var(--text-secondary);
-}
-.client-btn.active {
-  border-color: var(--accent);
-}
-
-.theme-picker {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.theme-btn {
-  flex: 1;
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.6rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: 0.8125rem;
-  cursor: pointer;
-  transition:
-    border-color 0.15s,
-    color 0.15s;
-}
-
-.theme-btn:hover {
-  border-color: var(--text-secondary);
-  color: var(--text);
-}
-.theme-btn.active {
-  border-color: var(--accent);
-  color: var(--text);
-}
-
-.settings-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-top: 1.4rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
-}
-
-.settings-footer a {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  color: var(--text-secondary);
-  font-size: 0.7rem;
-}
-
-.settings-footer a:hover {
-  color: var(--accent);
-}
-
-.save-btn {
-  padding: 0.68rem 0.9rem;
-  background: var(--accent);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
-.save-btn:hover {
-  opacity: 0.9;
-}
-.save-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 /* View profile link */
@@ -1321,7 +1255,7 @@ button[type="submit"]:hover,
   .settings-header {
     padding: 1rem;
   }
-  .settings-modal form {
+  .settings-body {
     padding: 1rem;
   }
   .color-picker {

@@ -4,7 +4,7 @@
   import { actorFeedQuery } from '$lib/queries'
   import { atprotoClient, resolveClient } from '$lib/atclients'
   import { logout } from '$lib/auth'
-  import { House, Rss, Settings, LogOut, Code2 } from 'lucide-svelte'
+  import { House, Rss, Settings, LogOut } from 'lucide-svelte'
   import SettingsModal from './SettingsModal.svelte'
 
   let settingsOpen = $state(false)
@@ -43,7 +43,8 @@
 </script>
 
 <header>
-  <h1>
+  <div class="header-title">
+    <h1>
     {#if currentPage === '/' && viewer}
       <a href={client.profileUrl(viewer.handle ?? viewer.did)} target="_blank" rel="noopener">
         @{viewer.handle ?? viewer.did.slice(0, 18)}
@@ -55,10 +56,12 @@
       <a href={client.profileUrl(handle)} target="_blank" rel="noopener">@{handle}</a>
     {:else if currentPage.startsWith('/profile/')}
       <a href={client.profileUrl(profileHandle)} target="_blank" rel="noopener">@{profileHandle}</a>
-    {:else}
-      status
-    {/if}
-  </h1>
+      {:else}
+        status
+      {/if}
+    </h1>
+    <a class="src" href="https://tangled.org/zzstoatzz.io/status" target="_blank" rel="noopener">[src]</a>
+  </div>
   <nav>
     {#if currentPage !== '/'}
       <a href="/" class="nav-btn" aria-label="home" title="home">
@@ -70,16 +73,6 @@
         <Rss size={20} />
       </a>
     {/if}
-    <a
-      href="https://tangled.org/zzstoatzz.io/status"
-      class="nav-btn"
-      aria-label="source code"
-      title="source code"
-      target="_blank"
-      rel="noopener"
-    >
-      <Code2 size={20} />
-    </a>
     {#if viewer}
       <button class="nav-btn" onclick={() => settingsOpen = true} aria-label="settings" title="settings">
         <Settings size={20} />
