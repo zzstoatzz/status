@@ -148,10 +148,10 @@
         >{cat.icon}</button>
       {/each}
     </div>
-    <div class="emoji-grid" class:bufo-grid={currentCategory === 'custom' || gridItems.some(i => i.type === 'bufo')}>
-      {#if loading}
-        <div class="loading">loading...</div>
-      {:else if gridItems.length === 0}
+    <div class="emoji-grid-wrap">
+      <div class="emoji-loading-bar" class:visible={loading} aria-hidden="true"></div>
+      <div class="emoji-grid" class:bufo-grid={currentCategory === 'custom' || gridItems.some(i => i.type === 'bufo')}>
+      {#if !loading && gridItems.length === 0}
         <div class="no-results">no emojis found</div>
       {:else}
         {#each gridItems as item (item.value)}
@@ -167,11 +167,12 @@
           {/if}
         {/each}
       {/if}
-    </div>
-    {#if currentCategory === 'custom'}
-      <div class="bufo-helper">
-        <a href="https://find-bufo.com" target="_blank" rel="noopener">powered by find-bufo.com</a>
       </div>
-    {/if}
+    </div>
+    <div class="bufo-helper">
+      {#if currentCategory === 'custom'}
+        <a href="https://find-bufo.com" target="_blank" rel="noopener">powered by find-bufo.com</a>
+      {/if}
+    </div>
   </div>
 </div>

@@ -647,10 +647,11 @@ button[type="submit"]:hover,
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  width: 360px;
-  /* dvh, not vh: the mobile keyboard shrinks the visual viewport, and vh would
-     leave the sheet extending underneath it. */
-  max-height: min(480px, calc(100dvh - 2rem));
+  /* fixed geometry, driven only by the viewport. height, not max-height: the sheet
+     must not resize when results load, a search runs, or a tab changes. dvh, not vh,
+     so the mobile keyboard shrinks it instead of leaving it under the keyboard. */
+  width: min(420px, calc(100vw - 2rem));
+  height: min(620px, calc(100dvh - 4rem));
   display: flex;
   flex-direction: column;
   overscroll-behavior: contain;
@@ -743,8 +744,39 @@ button[type="submit"]:hover,
   background: var(--bg);
 }
 
+.emoji-grid-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* sits above the grid and is 2px tall, so showing it can never move anything */
+.emoji-loading-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.emoji-loading-bar.visible {
+  opacity: 1;
+}
+
 .emoji-grid {
+  flex: 1;
+  min-height: 0;
   display: grid;
+  /* rows keep their natural size instead of stretching to fill: otherwise three
+     results render as three giant spaced-out rows and forty render as tight ones. */
+  align-content: start;
   grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
   gap: 2px;
   padding: 0.75rem;
@@ -812,7 +844,13 @@ button[type="submit"]:hover,
 
 .bufo-helper {
   flex-shrink: 0;
-  padding: 0.5rem 0.75rem;
+  /* fixed height: the credit link only renders on the custom tab, and letting the
+     footer collapse without it would shift the grid on every tab change. */
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.75rem;
   border-top: 1px solid var(--border);
   font-size: 0.75rem;
   text-align: center;
@@ -1223,7 +1261,7 @@ button[type="submit"]:hover,
   .emoji-picker {
     width: 100%;
     max-width: none;
-    max-height: 85dvh;
+    height: 85dvh;
     border-width: 1px 0 0;
     border-radius: var(--radius) var(--radius) 0 0;
     padding-bottom: env(safe-area-inset-bottom);
