@@ -900,7 +900,8 @@ button[type="submit"]:hover,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bufo-btn.pending::before {
+  .bufo-btn.pending::before,
+  .gif-btn.pending::before {
     animation: none;
   }
   .bufo-btn img {
@@ -914,6 +915,11 @@ button[type="submit"]:hover,
 .emoji-grid.gif-grid {
   grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
   gap: 6px;
+}
+
+/* gif tiles have no padding, so their shimmer covers the whole cell */
+.gif-btn.pending::before {
+  inset: 0;
 }
 
 .gif-btn {

@@ -55,7 +55,7 @@
   <span class="emoji">
     {#if gifFromRef(status.gif)}
       {@const g = gifFromRef(status.gif)!}
-      <GifImage did={g.did} blobCid={g.blobCid} animated alt={status.text ?? 'gif status'} />
+      <GifImage did={g.did} blobCid={g.blobCid} alt={status.text ?? 'gif status'} />
     {:else if isCustomEmoji(status.emoji)}
       {@const name = customEmojiName(status.emoji)}
       <CustomEmoji {name} loading="lazy" />

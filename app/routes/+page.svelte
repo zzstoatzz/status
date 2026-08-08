@@ -65,7 +65,7 @@
         <span class="big-emoji">
           {#if gifFromRef(current.gif)}
             {@const g = gifFromRef(current.gif)!}
-            <GifImage did={g.did} blobCid={g.blobCid} animated alt="status gif" />
+            <GifImage did={g.did} blobCid={g.blobCid} alt="status gif" />
           {:else if isCustomEmoji(current.emoji)}
             {@const name = customEmojiName(current.emoji)}
             <CustomEmoji {name} />

@@ -46,6 +46,9 @@
   // rendering them all is what made opening it hang for seconds. The sentinel at
   // the end of the grid extends the window as it scrolls into view.
   const WINDOW_STEP = 60
+  // Gifs are the real bytes — median ~1MB, no thumbnail tier — so they extend in
+  // much smaller steps than emoji do. Raise this once a resizer exists.
+  const GIF_WINDOW_STEP = 12
   // the ⭐ tab is a leaderboard, not a feed — one screenful of the all-time top
   const POPULAR_LIMIT = 64
   let visibleCount = $state(WINDOW_STEP)
@@ -79,8 +82,10 @@
   ]
 
   /** Reset the window and scroll whenever the result set changes identity. */
+  let windowStep = $derived(currentCategory === 'gifs' ? GIF_WINDOW_STEP : WINDOW_STEP)
+
   function resetWindow() {
-    visibleCount = WINDOW_STEP
+    visibleCount = windowStep
     gridEl?.scrollTo({ top: 0 })
   }
 
@@ -219,7 +224,7 @@
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting) && visibleCount < gridItems.length) {
-          visibleCount = Math.min(visibleCount + WINDOW_STEP, gridItems.length)
+          visibleCount = Math.min(visibleCount + windowStep, gridItems.length)
         }
       },
       { root: gridEl, rootMargin: '300px' },

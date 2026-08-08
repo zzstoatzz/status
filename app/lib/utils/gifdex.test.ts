@@ -2,9 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   blobCidFromRkey,
   gifFromRef,
-  gifThumbUrl,
-  isGifdexPost,
   parseAtUri,
+  gifBlobUrl,
   searchGifs,
   type GifPost,
 } from "./gifdex.ts";
@@ -78,18 +77,23 @@ describe("gifFromRef", () => {
   });
 });
 
-describe("isGifdexPost", () => {
-  it("recognises only gif.post", () => {
-    expect(isGifdexPost(URI)).toBe(true);
-    expect(isGifdexPost(`at://${DID}/net.gifdex.gif.save/3mru`)).toBe(false);
-  });
-});
-
-describe("gifThumbUrl", () => {
-  it("builds a cdn thumbnail url", () => {
-    expect(gifThumbUrl(DID, BLOB)).toBe(
-      `https://cdn.bsky.app/img/feed_thumbnail/plain/${DID}/${BLOB}@jpeg`,
+describe("gifBlobUrl", () => {
+  // Never bsky's CDN: it transcodes to jpeg, so it cannot serve an animated gif,
+  // and its bytes can never hash to the cid our strongRef claims to pin. porxie
+  // fetches from the owning PDS and verifies the bytes against the cid.
+  it("builds a porxie /{did}/{cid} url", () => {
+    // the did's colons come out percent-encoded; verified live that porxie
+    // decodes the segment and serves both forms identically
+    expect(gifBlobUrl(DID, BLOB)).toBe(
+      `https://zzstoatzz-porxie.fly.dev/${encodeURIComponent(DID)}/${BLOB}`,
     );
+  });
+
+  it("encodes each segment, so a malformed did cannot inject a path", () => {
+    const url = gifBlobUrl("did:web:evil.com/../../admin", BLOB);
+    expect(url).not.toContain("/../");
+    expect(url.startsWith("https://zzstoatzz-porxie.fly.dev/")).toBe(true);
+    expect(url.split("/").length).toBe(5); // https, '', host, did, cid
   });
 });
 
@@ -158,39 +162,5 @@ describe("gifFromRef with hatk's flattened shape", () => {
   it("still rejects a bare string that is not a gifdex post", () => {
     expect(gifFromRef(`at://${DID}/app.bsky.feed.post/${RKEY}`)).toBeNull();
     expect(gifFromRef("")).toBeNull();
-  });
-});
-
-describe("resolvePdsForDid", () => {
-  const doc = {
-    service: [{ type: "AtprotoPersonalDataServer", serviceEndpoint: "https://pds.dollware.net" }],
-  };
-
-  it("reads the PDS endpoint out of a plc document", async () => {
-    const { resolvePdsForDid } = await import("./gifdex.ts");
-    const f = (async () => new Response(JSON.stringify(doc))) as unknown as typeof fetch;
-    await expect(resolvePdsForDid("did:plc:aaaa", f)).resolves.toBe("https://pds.dollware.net");
-  });
-
-  it("memoizes per did, so a feed of gifs resolves once", async () => {
-    const { resolvePdsForDid } = await import("./gifdex.ts");
-    let calls = 0;
-    const f = (async () => {
-      calls++;
-      return new Response(JSON.stringify(doc));
-    }) as unknown as typeof fetch;
-
-    await resolvePdsForDid("did:plc:bbbb", f);
-    await resolvePdsForDid("did:plc:bbbb", f);
-    expect(calls).toBe(1);
-  });
-
-  it("resolves null rather than throwing when the doc is unreachable", async () => {
-    const { resolvePdsForDid } = await import("./gifdex.ts");
-    const f = (async () => {
-      throw new Error("offline");
-    }) as unknown as typeof fetch;
-    // GifImage falls back to the still thumbnail on null
-    await expect(resolvePdsForDid("did:plc:cccc", f)).resolves.toBeNull();
   });
 });

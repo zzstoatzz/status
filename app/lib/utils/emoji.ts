@@ -21,11 +21,11 @@ export function bufoImageUrl(name: string): string {
   return `https://find-bufo.com/e/${encodeBufoName(name)}.png`;
 }
 
-export function bufoFallbackUrl(name: string): string {
+function bufoFallbackUrl(name: string): string {
   return `https://all-the.bufo.zone/${encodeBufoName(name)}.gif`;
 }
 
-export function bufoCustomUrl(name: string): string {
+function bufoCustomUrl(name: string): string {
   return `https://find-bufo.com/static/${encodeBufoName(name)}.png`;
 }
 

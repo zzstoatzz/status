@@ -60,7 +60,7 @@ type RawRecord = {
     title?: string;
     tags?: unknown;
     media?: {
-      blob?: { ref?: { $link?: string }; size?: number };
+      blob?: { ref?: { $link?: string } };
       dimensions?: { width?: number; height?: number };
     };
   };
@@ -104,7 +104,6 @@ async function listGifs(did: string, f: typeof fetch): Promise<GifPost[]> {
         blobCid,
         width: r.value.media?.dimensions?.width,
         height: r.value.media?.dimensions?.height,
-        size: r.value.media?.blob?.size,
       });
     }
 
