@@ -46,6 +46,60 @@ index 0d6b89c..d2a8ecf 100644
      // Check for empty collection tables — these are newly added and need backfill
      // Skip on fresh DB (no repos yet) since backfill runs naturally
      const [hasRepos] = await all(`SELECT 1 FROM _repos LIMIT 1`);
+diff --git a/node_modules/@hatk/hatk/dist/database/fts.js b/node_modules/@hatk/hatk/dist/database/fts.js
+index 037715c..d59f7da 100644
+--- a/node_modules/@hatk/hatk/dist/database/fts.js
++++ b/node_modules/@hatk/hatk/dist/database/fts.js
+@@ -158,6 +158,26 @@ function computeFtsSchema(collection) {
+     ftsSchemaCache.set(collection, result);
+     return result;
+ }
++/**
++ * Does the existing shadow table still carry every search column?
++ * Returns true when it cannot be determined, so an introspection failure
++ * degrades to the previous behaviour rather than rebuilding on every boot.
++ */
++async function ftsColumnsMatch(shadowTable, searchColNames) {
++    try {
++        const dialect = getSqlDialect();
++        const rows = await querySQL(dialect.introspectColumnsQuery(shadowTable), []);
++        if (!rows || rows.length === 0)
++            return true;
++        const present = new Set(rows.map((r) => r.name ?? r.column_name).filter(Boolean));
++        if (present.size === 0)
++            return true;
++        return searchColNames.every((c) => present.has(c));
++    }
++    catch {
++        return true;
++    }
++}
+ /**
+  * Build FTS index for a collection.
+  * Creates a shadow table copy and indexes all TEXT NOT NULL columns
+@@ -169,14 +189,20 @@ export async function buildFtsIndex(collection) {
+     const { searchColNames, sourceQuery, safeName } = computeFtsSchema(collection);
+     if (searchColNames.length === 0)
+         return;
+-    // For incremental ports: skip rebuild if index already exists
++    // For incremental ports: skip rebuild if the index already exists AND still
++    // matches the collection's search columns. Skipping unconditionally meant a
++    // lexicon that gained a field kept a shadow table without that column, and
++    // every subsequent updateFtsRecord failed with "no such column: <field>".
+     if (searchPort.indexExists) {
+         const exists = await searchPort.indexExists(safeName);
+-        if (exists) {
++        if (exists && (await ftsColumnsMatch(safeName, searchColNames))) {
+             searchColumnCache.set(collection, searchColNames);
+             lastRebuiltAt.set(collection, new Date().toISOString());
+             return;
+         }
++        if (exists) {
++            emit('fts', 'schema_drift', { collection, table: safeName });
++        }
+     }
+     await searchPort.buildIndex(safeName, sourceQuery, searchColNames);
+     searchColumnCache.set(collection, searchColNames);
 diff --git a/node_modules/@hatk/hatk/dist/indexer.js b/node_modules/@hatk/hatk/dist/indexer.js
 index 04df7a0..8689235 100644
 --- a/node_modules/@hatk/hatk/dist/indexer.js
