@@ -757,6 +757,16 @@ button[type="submit"]:hover,
   min-height: 40px;
 }
 
+/* the custom tab shows a real bufo rather than a glyph; size it to the
+   optical weight of the emoji beside it. */
+.category-btn img {
+  width: 1.375rem;
+  height: 1.375rem;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
+
 .category-btn:hover {
   opacity: 0.8;
 }
@@ -1344,6 +1354,10 @@ button[type="submit"]:hover,
     min-width: 44px;
     min-height: 44px;
     font-size: 1.375rem;
+  }
+  .category-btn img {
+    width: 1.5rem;
+    height: 1.5rem;
   }
   .settings-overlay {
     padding: 0.75rem;

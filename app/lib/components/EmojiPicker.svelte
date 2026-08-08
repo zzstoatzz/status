@@ -67,9 +67,10 @@
   )
   let isGifGrid = $derived(currentCategory === 'gifs' || gridItems.some((i) => i.type === 'gif'))
 
-  const categories = [
+  const categories: Array<{ id: string; icon?: string; bufo?: string }> = [
     { id: 'popular', icon: '⭐' },
-    { id: 'custom', icon: '🐸' },
+    // the frog emoji reads nothing like bufo; use the canonical bufo itself
+    { id: 'custom', bufo: 'bufo' },
     { id: 'gifs', icon: '🎞️' },
     { id: 'people', icon: '😊' },
     { id: 'nature', icon: '🌿' },
@@ -270,7 +271,13 @@
           aria-label={cat.id}
           title={cat.id}
           onclick={() => renderCategory(cat.id)}
-        >{cat.icon}</button>
+        >
+          {#if cat.bufo}
+            <CustomEmoji name={cat.bufo} loading="eager" />
+          {:else}
+            {cat.icon}
+          {/if}
+        </button>
       {/each}
     </div>
     <div class="emoji-grid-wrap">
