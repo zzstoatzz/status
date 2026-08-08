@@ -20,7 +20,10 @@ import type { GifPost, GifRef } from "./gifsources.ts";
  * animated gif, and its bytes can never hash to the blob's CID — which would
  * leave the cid in our strongRef an integrity claim nothing ever checks.
  */
-const BLOB_PROXY = "https://zzstoatzz-porxie.fly.dev";
+// Custom domain, not the *.fly.dev hostname: a provider's default domain
+// bypasses the CDN entirely (the same trap plyr.fm hit with r2.dev). Behind
+// this, Cloudflare caches the immutable, content-addressed bytes at the edge.
+const BLOB_PROXY = "https://porxie.waow.tech";
 
 export function gifBlobUrl(did: string, blobCid: string): string {
   return `${BLOB_PROXY}/${encodeURIComponent(did)}/${encodeURIComponent(blobCid)}`;

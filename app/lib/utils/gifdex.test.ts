@@ -80,14 +80,14 @@ describe("gifBlobUrl", () => {
     // the did's colons come out percent-encoded; verified live that porxie
     // decodes the segment and serves both forms identically
     expect(gifBlobUrl(DID, BLOB)).toBe(
-      `https://zzstoatzz-porxie.fly.dev/${encodeURIComponent(DID)}/${BLOB}`,
+      `https://porxie.waow.tech/${encodeURIComponent(DID)}/${BLOB}`,
     );
   });
 
   it("encodes each segment, so a malformed did cannot inject a path", () => {
     const url = gifBlobUrl("did:web:evil.com/../../admin", BLOB);
     expect(url).not.toContain("/../");
-    expect(url.startsWith("https://zzstoatzz-porxie.fly.dev/")).toBe(true);
+    expect(url.startsWith("https://porxie.waow.tech/")).toBe(true);
     expect(url.split("/").length).toBe(5); // https, '', host, did, cid
   });
 });
@@ -112,7 +112,7 @@ describe("gifPreviewUrl", () => {
   // stable public url, and bluesky's card proxy passes gifs through unmodified.
   it("gives a public image url for a saved gif", () => {
     expect(gifPreviewUrl({ uri: URI, cid: "bafyanything" })).toBe(
-      `https://zzstoatzz-porxie.fly.dev/${encodeURIComponent(DID)}/${BLOB}`,
+      `https://porxie.waow.tech/${encodeURIComponent(DID)}/${BLOB}`,
     );
   });
 
