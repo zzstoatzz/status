@@ -10,6 +10,12 @@ const scopes = [
 
 export default defineConfig({
   relay: isProd ? "wss://bsky.network" : "ws://localhost:2583",
+  // Filtered ingest. The relay firehose carries the whole network (~230 events/s)
+  // to find a collection that produces a handful of records a day, so any
+  // downtime costs many times its own length to replay. Jetstream applies
+  // wantedCollections server-side, leaving a trickle the indexer cannot fall
+  // behind on. `relay` above is still used for backfill's HTTP endpoints.
+  jetstream: isProd ? "wss://stream.waow.tech/subscribe" : undefined,
   plc: isProd ? "https://plc.directory" : "http://localhost:2582",
   port: 3000,
   databaseEngine: "sqlite",
@@ -20,21 +26,16 @@ export default defineConfig({
     parallelism: 2,
   },
   oauth: {
-    issuer: isProd
-      ? "https://status.zzstoatzz.io"
-      : undefined,
+    issuer: isProd ? "https://status.zzstoatzz.io" : undefined,
     scopes: scopes.split(" "),
     clients: [
       ...(isProd
         ? [
             {
-              client_id:
-                "https://status.zzstoatzz.io/oauth-client-metadata.json",
+              client_id: "https://status.zzstoatzz.io/oauth-client-metadata.json",
               client_name: "status",
               scope: scopes,
-              redirect_uris: [
-                "https://status.zzstoatzz.io/oauth/callback",
-              ],
+              redirect_uris: ["https://status.zzstoatzz.io/oauth/callback"],
             },
           ]
         : []),
