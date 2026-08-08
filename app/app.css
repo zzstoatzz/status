@@ -391,13 +391,13 @@ button[type="submit"]:hover,
 }
 
 .big-emoji {
-  font-size: 4rem;
+  font-size: 5rem;
   line-height: 1;
 }
 .big-emoji img,
 .big-emoji .custom-emoji-missing {
-  width: 4rem;
-  height: 4rem;
+  width: 5rem;
+  height: 5rem;
   object-fit: contain;
 }
 .status-info {
@@ -470,7 +470,7 @@ button[type="submit"]:hover,
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 2rem;
   flex-shrink: 0;
   transition: border-color 0.15s;
 }
@@ -480,8 +480,8 @@ button[type="submit"]:hover,
 }
 .emoji-trigger img,
 .emoji-trigger .custom-emoji-missing {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 2rem;
+  height: 2rem;
   object-fit: contain;
 }
 
@@ -554,14 +554,14 @@ button[type="submit"]:hover,
   border-color: var(--accent);
 }
 .status-item .emoji {
-  font-size: 2rem;
+  font-size: 2.5rem;
   line-height: 1;
   flex-shrink: 0;
 }
 .status-item .emoji img,
 .status-item .emoji .custom-emoji-missing {
-  width: 2rem;
-  height: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
   object-fit: contain;
 }
 .status-item .content {
