@@ -5,6 +5,7 @@
   import { callXrpc } from '$hatk/client'
   import { isCustomEmoji, customEmojiName, parseLinks, parseStatusUri } from '$lib/utils/emoji'
   import { gifFromRef } from '$lib/utils/gifdex'
+  import { toast } from '$lib/toast.svelte'
   import GifImage from '$lib/components/GifImage.svelte'
   import CustomEmoji from '$lib/components/CustomEmoji.svelte'
   import { relativeTime, formatExpiration } from '$lib/utils/time'
@@ -25,7 +26,6 @@
   const current = $derived(statuses[0] ?? null)
   const history = $derived(statuses.slice(1))
 
-  let copied = $state(false)
   let showEmbed = $state(false)
 
   function refresh() {
@@ -40,8 +40,9 @@
         rkey,
       })
       refresh()
+      toast.success('status deleted')
     } catch (err: any) {
-      alert('Failed to delete: ' + (err?.message ?? err))
+      toast.error(`could not delete: ${err?.message ?? err}`)
     }
   }
 
@@ -50,9 +51,10 @@
     const permalink = `${window.location.origin}/status/${did}/${rkey}`
     try {
       await navigator.clipboard.writeText(permalink)
-      copied = true
-      setTimeout(() => copied = false, 1500)
-    } catch {}
+      toast.success('link copied')
+    } catch {
+      toast.error('could not copy link')
+    }
   }
 </script>
 

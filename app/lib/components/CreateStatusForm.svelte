@@ -6,6 +6,7 @@
   import GifImage from './GifImage.svelte'
   import EmojiPicker from './EmojiPicker.svelte'
   import { gifFromRef, type GifRef } from '$lib/utils/gifdex'
+  import { toast } from '$lib/toast.svelte'
 
   let { currentEmoji = '😊', oncreated }: { currentEmoji?: string; oncreated?: () => void } = $props()
 
@@ -67,8 +68,9 @@
       text = ''
       expiresValue = ''
       oncreated?.()
+      toast.success('status posted')
     } catch (err: any) {
-      alert('Failed to set status: ' + (err?.message ?? err))
+      toast.error(`could not post: ${err?.message ?? err}`)
     } finally {
       submitting = false
     }

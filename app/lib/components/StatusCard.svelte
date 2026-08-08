@@ -3,6 +3,7 @@
   import CustomEmoji from './CustomEmoji.svelte'
   import GifImage from './GifImage.svelte'
   import { gifFromRef, type GifRef } from '$lib/utils/gifdex'
+  import { toast } from '$lib/toast.svelte'
   import { relativeTime, formatExpiration } from '$lib/utils/time'
   import { Link, X } from 'lucide-svelte'
 
@@ -30,7 +31,6 @@
     ondelete?: (rkey: string) => void
   } = $props()
 
-  let copied = $state(false)
 
   function getPermalink() {
     const { did, rkey } = parseStatusUri(status.uri)
@@ -40,9 +40,10 @@
   async function share() {
     try {
       await navigator.clipboard.writeText(getPermalink())
-      copied = true
-      setTimeout(() => copied = false, 1500)
-    } catch {}
+      toast.success('link copied')
+    } catch {
+      toast.error('could not copy link')
+    }
   }
 
   function handleDelete() {
@@ -80,7 +81,7 @@
     </span>
   </div>
   <div class="status-actions">
-    <button class="share-btn" class:copied onclick={share} title="copy link">
+    <button class="share-btn" onclick={share} title="copy link">
       <Link size={14} />
     </button>
     {#if showDelete && ondelete}

@@ -3,6 +3,7 @@
   import '../app.css'
   import '$lib/auth'
   import Header from '$lib/components/Header.svelte'
+  import Toast from '$lib/components/Toast.svelte'
   import { QueryClientProvider } from '@tanstack/svelte-query'
   import { loadPreferences } from '$lib/preferences'
 
@@ -20,4 +21,5 @@
     <Header />
     {@render children()}
   </div>
+  <Toast />
 </QueryClientProvider>
