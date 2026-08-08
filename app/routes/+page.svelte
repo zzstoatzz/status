@@ -12,6 +12,9 @@
   import LoginCard from '$lib/components/LoginCard.svelte'
   import CreateStatusForm from '$lib/components/CreateStatusForm.svelte'
   import StatusCard from '$lib/components/StatusCard.svelte'
+  import BacklinkLink from '$lib/components/BacklinkLink.svelte'
+  import { statusPermalink } from '$lib/utils/backlinks'
+  import { browser } from '$app/environment'
   import { Link, Code, X } from 'lucide-svelte'
 
   const queryClient = useQueryClient()
@@ -46,9 +49,12 @@
     }
   }
 
+  let currentPermalink = $derived(
+    browser && current ? statusPermalink(window.location.origin, current.uri) : '',
+  )
+
   async function shareStatus(uri: string) {
-    const { did, rkey } = parseStatusUri(uri)
-    const permalink = `${window.location.origin}/status/${did}/${rkey}`
+    const permalink = statusPermalink(window.location.origin, uri)
     try {
       await navigator.clipboard.writeText(permalink)
       toast.success('link copied')
@@ -67,7 +73,7 @@
         <span class="big-emoji">
           {#if gifFromRef(current.gif)}
             {@const g = gifFromRef(current.gif)!}
-            <GifImage did={g.did} blobCid={g.blobCid} alt="status gif" />
+            <GifImage did={g.did} blobCid={g.blobCid} source={g.source} variant="full" alt="status gif" />
           {:else if isCustomEmoji(current.emoji)}
             {@const name = customEmojiName(current.emoji)}
             <CustomEmoji {name} />
@@ -87,6 +93,9 @@
           </span>
         </div>
         <div class="current-status-actions">
+          {#if currentPermalink}
+            <BacklinkLink permalink={currentPermalink} />
+          {/if}
           <button class="share-btn" onclick={() => shareStatus(current.uri)} title="copy link">
             <Link size={16} />
           </button>

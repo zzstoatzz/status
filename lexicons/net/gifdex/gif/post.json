@@ -30,6 +30,10 @@
           "media": {
             "type": "object",
             "properties": {
+              "alt": {
+                "type": "string",
+                "description": "Alt text. Often the richest description on the record, so it is indexed for full-text search."
+              },
               "blob": { "type": "blob" },
               "dimensions": {
                 "type": "object",

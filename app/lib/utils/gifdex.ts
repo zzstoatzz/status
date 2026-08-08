@@ -6,10 +6,10 @@
  * these schemas are inferred from records in the wild and can change.
  */
 
-import { GIF_SOURCES, parseAtUri, sourceForCollection } from "./gifsources.ts";
+import { GIF_SOURCES, parseAtUri, sourceForCollection, sourceForId } from "./gifsources.ts";
 
-export type { GifPost, GifRef } from "./gifsources.ts";
-import type { GifPost, GifRef } from "./gifsources.ts";
+export type { GifPost, GifRef, GifVariant } from "./gifsources.ts";
+import type { GifPost, GifRef, GifVariant } from "./gifsources.ts";
 
 /**
  * Blob bytes come from our porxie instance (codeberg.org/Blooym/porxie), which
@@ -44,6 +44,8 @@ export function gifFromRef(ref: GifRef | string | null | undefined): {
   did: string;
   rkey: string;
   blobCid: string;
+  /** which source owns it, so display can prefer that source's CDN */
+  source: string;
 } | null {
   const uri = typeof ref === "string" ? ref : ref?.uri;
   if (!uri) return null;
@@ -52,9 +54,24 @@ export function gifFromRef(ref: GifRef | string | null | undefined): {
 
   const source = sourceForCollection(parsed.collection);
   const blobCid = source?.blobCidFromRkey?.(parsed.rkey);
-  if (!blobCid) return null;
+  if (!blobCid || !source) return null;
 
-  return { did: parsed.did, rkey: parsed.rkey, blobCid };
+  return { did: parsed.did, rkey: parsed.rkey, blobCid, source: source.id };
+}
+
+/**
+ * The url to *display* a gif at.
+ *
+ * Prefers the owning source's CDN, which serves a far smaller re-encode, and
+ * falls back to the CID-verifying blob proxy for any source without one. Not
+ * for link previews — see `gifPreviewUrl`.
+ */
+export function gifRenditionUrl(
+  gif: { did: string; blobCid: string; source: string },
+  variant: GifVariant = "preview",
+): string {
+  const source = sourceForId(gif.source);
+  return source?.renditionUrl?.(gif.did, gif.blobCid, variant) ?? gifBlobUrl(gif.did, gif.blobCid);
 }
 
 /** A publicly fetchable image url for a saved gif — used for link previews. */

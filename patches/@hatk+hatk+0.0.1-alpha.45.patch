@@ -1,3 +1,43 @@
+diff --git a/node_modules/@hatk/hatk/dist/database/adapters/sqlite-search.js b/node_modules/@hatk/hatk/dist/database/adapters/sqlite-search.js
+index daf9b51..be6f468 100644
+--- a/node_modules/@hatk/hatk/dist/database/adapters/sqlite-search.js
++++ b/node_modules/@hatk/hatk/dist/database/adapters/sqlite-search.js
+@@ -5,6 +5,26 @@
+  * references the shadow data table. Updates happen incrementally per-record
+  * instead of dropping and rebuilding the entire index.
+  */
++/**
++ * Turn a user's query into an FTS5 prefix match.
++ *
++ * Bare tokens make FTS5 match whole tokens only, so "cat" misses "catgirl" and
++ * a half-typed word matches nothing at all — unusable for a type-as-you-go
++ * search box. Each token becomes `"tok"*` instead, quoted so punctuation cannot
++ * be read as FTS5 operator syntax, and ANDed so more typing narrows results.
++ *
++ * Prefix, not substring: FTS5 can only anchor at a token start without a
++ * trigram tokenizer, so "girl" still will not find "catgirl".
++ */
++export function buildPrefixMatch(query) {
++    return (query ?? '')
++        .replace(/['"*(){}[\]^~\\:]/g, ' ')
++        .trim()
++        .split(/\s+/)
++        .filter(Boolean)
++        .map((token) => `"${token}"*`)
++        .join(' AND ');
++}
+ export class SQLiteSearchPort {
+     port;
+     constructor(port) {
+@@ -61,7 +81,7 @@ export class SQLiteSearchPort {
+         await this.port.execute(`INSERT INTO ${shadowTable}_fts(${shadowTable}_fts, rowid, uri, ${colList}) VALUES('delete', $1, $2, ${placeholders.join(', ')})`, [old.rowid, uri, ...searchColumns.map((c) => old[c] ?? '')]);
+     }
+     async search(shadowTable, query, _searchColumns, limit, offset) {
+-        const escaped = query.replace(/['"*(){}[\]^~\\:]/g, ' ').trim();
++        const escaped = buildPrefixMatch(query);
+         if (!escaped)
+             return [];
+         const sql = `SELECT uri, -bm25(${shadowTable}_fts) AS score
 diff --git a/node_modules/@hatk/hatk/dist/database/db.js b/node_modules/@hatk/hatk/dist/database/db.js
 index 0d6b89c..d2a8ecf 100644
 --- a/node_modules/@hatk/hatk/dist/database/db.js

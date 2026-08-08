@@ -35,11 +35,23 @@ export type RawRecord = {
   value: Record<string, unknown>;
 };
 
+/**
+ * Which rendition to ask for. `preview` is what grids and feed rows want;
+ * `full` is for a single gif shown on its own.
+ */
+export type GifVariant = "preview" | "full";
+
 export type GifSource = {
   id: string;
   collection: string;
   /** shown as the credit line under the picker grid */
   credit?: { label: string; href: string };
+  /**
+   * Optional source-run media CDN, preferred over the blob proxy for display.
+   * Returns null for a variant the source cannot serve, so callers fall back to
+   * the full blob rather than requesting something that 404s.
+   */
+  renditionUrl?: (did: string, blobCid: string, variant: GifVariant) => string | null;
   /**
    * Optional shortcut: derive the media blob's cid from the rkey alone, so a
    * saved gif renders with no record fetch. Only some sources encode it there.
@@ -74,6 +86,28 @@ export function gifdexBlobCidFromRkey(rkey: string): string | null {
   return isCid(cid) ? cid : null;
 }
 
+/**
+ * gifdex runs its own media CDN, which blooym invited us to use.
+ *
+ * Measured against a 2.1MB source gif: `gif_preview` is 95KB and `gif` is 216KB,
+ * both animated webp with all 28 frames intact — so a grid tile costs ~22x less
+ * than the raw blob. Responses carry `immutable` and are edge-cached, which they
+ * can be because the path is content-addressed.
+ *
+ * Only presets verified to exist are used. `gif_thumbnail` and `avatar_preview`
+ * are documented but currently answer "unknown or unsupported media kind", and
+ * `gif_placeholder` is a static frame — wrong for anything that should move.
+ *
+ * This is a rendition, not the blob: the bytes are re-encoded, so they cannot
+ * hash to the cid. Anywhere the cid is the point, use the verifying proxy.
+ */
+const GIFDEX_CDN = "https://media.gifdex.net/media";
+
+function gifdexRenditionUrl(did: string, blobCid: string, variant: GifVariant): string {
+  const preset = variant === "full" ? "gif" : "gif_preview";
+  return `${GIFDEX_CDN}/${preset}/${encodeURIComponent(did)}/${encodeURIComponent(blobCid)}.webp`;
+}
+
 /** Pull `media.blob.ref.$link` + dimensions out of a gifdex-shaped record. */
 function gifdexFromRecord(raw: RawRecord): GifPost | null {
   const v = raw.value as {
@@ -106,6 +140,7 @@ export const GIF_SOURCES: GifSource[] = [
     id: "gifdex",
     collection: "net.gifdex.gif.post",
     credit: { label: "gifs from gifdex", href: "https://gifdex.net" },
+    renditionUrl: gifdexRenditionUrl,
     blobCidFromRkey: gifdexBlobCidFromRkey,
     fromRecord: gifdexFromRecord,
   },
@@ -113,6 +148,10 @@ export const GIF_SOURCES: GifSource[] = [
 
 export function sourceForCollection(collection: string): GifSource | undefined {
   return GIF_SOURCES.find((s) => s.collection === collection);
+}
+
+export function sourceForId(id: string): GifSource | undefined {
+  return GIF_SOURCES.find((s) => s.id === id);
 }
 
 export const GIF_COLLECTIONS = GIF_SOURCES.map((s) => s.collection);

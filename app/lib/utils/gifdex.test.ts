@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fetchGifPage, gifBlobUrl, gifFromRef, gifPreviewUrl } from "./gifdex.ts";
+import { fetchGifPage, gifBlobUrl, gifFromRef, gifPreviewUrl, gifRenditionUrl } from "./gifdex.ts";
 import { gifdexBlobCidFromRkey, parseAtUri } from "./gifsources.ts";
 import { vi } from "vitest";
 
@@ -50,6 +50,7 @@ describe("gifFromRef", () => {
       did: DID,
       rkey: RKEY,
       blobCid: BLOB,
+      source: "gifdex",
     });
   });
 
@@ -92,12 +93,40 @@ describe("gifBlobUrl", () => {
   });
 });
 
+describe("gifRenditionUrl", () => {
+  const gif = { did: DID, blobCid: BLOB, source: "gifdex" };
+
+  // measured live: a 2.1MB source gif is 95KB as gif_preview and 216KB as gif,
+  // both still animated. blooym confirmed the CDN is ours to use.
+  it("prefers the source's cdn, defaulting to the small preview", () => {
+    expect(gifRenditionUrl(gif)).toBe(
+      `https://media.gifdex.net/media/gif_preview/${encodeURIComponent(DID)}/${BLOB}.webp`,
+    );
+  });
+
+  it("asks for the larger rendition when the gif is shown on its own", () => {
+    expect(gifRenditionUrl(gif, "full")).toBe(
+      `https://media.gifdex.net/media/gif/${encodeURIComponent(DID)}/${BLOB}.webp`,
+    );
+  });
+
+  it("falls back to the verifying blob proxy for a source with no cdn", () => {
+    expect(gifRenditionUrl({ ...gif, source: "nope" })).toBe(gifBlobUrl(DID, BLOB));
+  });
+
+  it("encodes segments, so a malformed did cannot inject a path", () => {
+    const url = gifRenditionUrl({ ...gif, did: "did:web:evil.com/../../admin" });
+    expect(url).not.toContain("/../");
+    expect(url.startsWith("https://media.gifdex.net/media/gif_preview/")).toBe(true);
+  });
+});
+
 describe("gifFromRef with hatk's flattened shape", () => {
   // hatk stores a strongRef as {name}_uri + {name}_cid, then hydrates only the
   // uri back into the view — so the read path hands us a bare string even
   // though the write path stored a proper strongRef.
   it("accepts a bare uri string as well as a strongRef", () => {
-    expect(gifFromRef(URI)).toEqual({ did: DID, rkey: RKEY, blobCid: BLOB });
+    expect(gifFromRef(URI)).toEqual({ did: DID, rkey: RKEY, blobCid: BLOB, source: "gifdex" });
     expect(gifFromRef(URI)).toEqual(gifFromRef({ uri: URI, cid: "bafyanything" }));
   });
 

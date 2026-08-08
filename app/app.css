@@ -554,14 +554,14 @@ button[type="submit"]:hover,
   border-color: var(--accent);
 }
 .status-item .emoji {
-  font-size: 1.5rem;
+  font-size: 2rem;
   line-height: 1;
   flex-shrink: 0;
 }
 .status-item .emoji img,
 .status-item .emoji .custom-emoji-missing {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 2rem;
+  height: 2rem;
   object-fit: contain;
 }
 .status-item .content {
@@ -627,6 +627,62 @@ button[type="submit"]:hover,
 }
 .delete-btn:hover {
   color: #ef4444;
+}
+
+/* Backlinks: the selected client's own mark, revealed with the other actions. */
+.backlink-slot {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.backlink-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  transition:
+    opacity 0.15s,
+    color 0.15s;
+}
+.backlink-btn img {
+  display: block;
+  opacity: 0.75;
+}
+.backlink-btn:hover img {
+  opacity: 1;
+}
+.backlink-count {
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+/* Same escape hatch the share/delete buttons use: hide-until-hover applies only
+   where hovering exists. On touch there is no hover, so it stays visible. */
+@media (hover: hover) {
+  .status-item .backlink-btn {
+    opacity: 0;
+  }
+  .status-item:hover .backlink-btn,
+  .status-item .backlink-btn:focus-visible {
+    opacity: 1;
+  }
+}
+
+/* the current status' own actions are always shown, so its backlink is too */
+.current-status-actions .backlink-btn {
+  opacity: 1;
+  border: 1px solid var(--border);
+  padding: 0.375rem;
+  border-radius: 6px;
+}
+.current-status-actions .backlink-btn:hover {
+  border-color: var(--accent);
+}
+.current-status-actions .backlink-btn img {
+  width: 16px;
+  height: 16px;
 }
 /* Load more */
 .load-more {

@@ -84,6 +84,7 @@
         <GifImage
           did={selectedGifMedia.did}
           blobCid={selectedGifMedia.blobCid}
+          source={selectedGifMedia.source}
           alt="selected gif"
         />
       {:else if isCustomEmoji(selectedEmoji)}

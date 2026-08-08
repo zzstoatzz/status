@@ -6,6 +6,9 @@
   import { toast } from '$lib/toast.svelte'
   import { relativeTime, formatExpiration } from '$lib/utils/time'
   import { Link, X } from 'lucide-svelte'
+  import { browser } from '$app/environment'
+  import BacklinkLink from './BacklinkLink.svelte'
+  import { statusPermalink } from '$lib/utils/backlinks'
 
   interface StatusItem {
     uri: string
@@ -32,14 +35,13 @@
   } = $props()
 
 
-  function getPermalink() {
-    const { did, rkey } = parseStatusUri(status.uri)
-    return `${window.location.origin}/status/${did}/${rkey}`
-  }
+  // the same string the copy button yields — constellation targets are exact,
+  // so a backlink lookup has to use the permalink people actually shared
+  let permalink = $derived(browser ? statusPermalink(window.location.origin, status.uri) : '')
 
   async function share() {
     try {
-      await navigator.clipboard.writeText(getPermalink())
+      await navigator.clipboard.writeText(permalink)
       toast.success('link copied')
     } catch {
       toast.error('could not copy link')
@@ -56,7 +58,7 @@
   <span class="emoji">
     {#if gifFromRef(status.gif)}
       {@const g = gifFromRef(status.gif)!}
-      <GifImage did={g.did} blobCid={g.blobCid} alt={status.text ?? 'gif status'} />
+      <GifImage did={g.did} blobCid={g.blobCid} source={g.source} alt={status.text ?? 'gif status'} />
     {:else if isCustomEmoji(status.emoji)}
       {@const name = customEmojiName(status.emoji)}
       <CustomEmoji {name} loading="lazy" />
@@ -81,6 +83,9 @@
     </span>
   </div>
   <div class="status-actions">
+    {#if permalink}
+      <BacklinkLink {permalink} />
+    {/if}
     <button class="share-btn" onclick={share} title="copy link">
       <Link size={14} />
     </button>

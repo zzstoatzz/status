@@ -330,7 +330,7 @@
       <div class="emoji-loading-bar" class:visible={loading} aria-hidden="true"></div>
       <div class="emoji-grid" class:bufo-grid={isBufoGrid} class:gif-grid={isGifGrid} bind:this={gridEl}>
         {#if !loading && gridItems.length === 0}
-          <div class="no-results">no emojis found</div>
+          <div class="no-results">{isGifGrid ? 'no gifs found' : 'no emojis found'}</div>
         {:else}
           {#each visibleItems as item (item.value)}
             {#if item.type === 'gif' && item.gif}
@@ -346,6 +346,7 @@
                 <GifImage
                   did={item.gif.did}
                   blobCid={item.gif.blobCid}
+                  source={item.gif.source}
                   alt={item.gif.title ?? ''}
                   onsettled={() => { settled = new Set(settled).add(item.value) }}
                 />
