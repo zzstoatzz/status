@@ -4,6 +4,8 @@
   import { actorFeedQuery } from '$lib/queries'
   import { callXrpc } from '$hatk/client'
   import { isCustomEmoji, customEmojiName, parseLinks, parseStatusUri } from '$lib/utils/emoji'
+  import { gifFromRef } from '$lib/utils/gifdex'
+  import GifImage from '$lib/components/GifImage.svelte'
   import CustomEmoji from '$lib/components/CustomEmoji.svelte'
   import { relativeTime, formatExpiration } from '$lib/utils/time'
   import LoginCard from '$lib/components/LoginCard.svelte'
@@ -61,7 +63,10 @@
     <div class="current-status">
       {#if current}
         <span class="big-emoji">
-          {#if isCustomEmoji(current.emoji)}
+          {#if gifFromRef(current.gif)}
+            {@const g = gifFromRef(current.gif)!}
+            <GifImage did={g.did} blobCid={g.blobCid} animated alt="status gif" />
+          {:else if isCustomEmoji(current.emoji)}
             {@const name = customEmojiName(current.emoji)}
             <CustomEmoji {name} />
           {:else}

@@ -17,6 +17,7 @@ export async function hydrateStatuses(
       did: item.did,
       handle: item.handle ?? item.did,
       emoji: item.value.emoji,
+      gif: item.value.gif,
       text: item.value.text,
       expires: item.value.expires,
       createdAt: item.value.createdAt,

@@ -11,9 +11,14 @@
         "properties": {
           "emoji": {
             "type": "string",
-            "description": "Status emoji or custom emoji slug (e.g. custom:bufo-stab)",
+            "description": "Status emoji or custom emoji slug (e.g. custom:bufo-stab). Always set: when `gif` is present this is the fallback for clients that cannot render it.",
             "minLength": 1,
             "maxLength": 128
+          },
+          "gif": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "Optional gif shown in place of the emoji, referencing a net.gifdex.gif.post record. A strongRef, not an at-uri string: the cid pins the exact version, so the gif cannot be swapped out from under a status."
           },
           "text": {
             "type": "string",

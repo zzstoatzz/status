@@ -11,6 +11,7 @@
         "did": { "type": "string", "format": "did" },
         "handle": { "type": "string" },
         "emoji": { "type": "string" },
+        "gif": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
         "text": { "type": "string" },
         "expires": { "type": "string", "format": "datetime" },
         "createdAt": { "type": "string", "format": "datetime" },

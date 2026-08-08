@@ -908,6 +908,45 @@ button[type="submit"]:hover,
   }
 }
 
+/* gifs are landscape more often than not, so they get wider cells than bufos.
+   each tile carries its own aspect-ratio inline from the record's dimensions,
+   which every gifdex record supplies — so the grid never reflows as they load. */
+.emoji-grid.gif-grid {
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 6px;
+}
+
+.gif-btn {
+  padding: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  position: relative;
+  background: var(--bg);
+}
+
+.gif-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gif-btn.pending::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, var(--bg) 30%, var(--border) 50%, var(--bg) 70%);
+  background-size: 300% 100%;
+  animation: bufo-shimmer 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gif-btn.pending::before {
+    animation: none;
+  }
+}
+
 /* spans the grid so it is reliably reached by scrolling; zero height so it can
    never add a visible row of its own. */
 .emoji-sentinel {

@@ -10,10 +10,26 @@
     DEFAULT_FREQUENT,
   } from '$lib/utils/emoji'
   import CustomEmoji from './CustomEmoji.svelte'
+  import GifImage from './GifImage.svelte'
+  import { loadGifCatalog, searchGifs, type GifPost, type GifRef } from '$lib/utils/gifdex'
 
-  let { onselect, onclose }: { onselect: (emoji: string) => void; onclose: () => void } = $props()
+  let { onselect, onclose }: {
+    // a gif still carries an emoji: it is the fallback for anything that cannot
+    // render the gif, and what the popularity feed counts.
+    onselect: (emoji: string, gif?: GifRef) => void
+    onclose: () => void
+  } = $props()
 
-  type GridItem = { type: 'emoji' | 'bufo'; value: string; name?: string; score?: number }
+  type GridItem = {
+    type: 'emoji' | 'bufo' | 'gif'
+    value: string
+    name?: string
+    score?: number
+    gif?: GifPost
+  }
+
+  // stands in for a gif wherever an emoji is required
+  const GIF_FALLBACK_EMOJI = '\u{1F39E}\u{FE0F}'
 
   let currentCategory = $state('popular')
   let searchQuery = $state('')
@@ -46,10 +62,12 @@
   let isBufoGrid = $derived(
     currentCategory === 'custom' || gridItems.some((i) => i.type === 'bufo'),
   )
+  let isGifGrid = $derived(currentCategory === 'gifs' || gridItems.some((i) => i.type === 'gif'))
 
   const categories = [
     { id: 'popular', icon: '⭐' },
     { id: 'custom', icon: '🐸' },
+    { id: 'gifs', icon: '🎞️' },
     { id: 'people', icon: '😊' },
     { id: 'nature', icon: '🌿' },
     { id: 'food', icon: '🍔' },
@@ -86,6 +104,9 @@
         value: `custom:${name}`,
         name,
       }))
+    } else if (cat === 'gifs') {
+      const gifs = await loadGifCatalog().catch(() => [] as GifPost[])
+      next = gifs.map((g) => ({ type: 'gif' as const, value: g.uri, name: g.title, gif: g }))
     } else if (cat === 'popular') {
       const popular = await loadPopularEmoji(() =>
         callXrpc('dev.hatk.getFeed', { feed: 'popular', limit: POPULAR_LIMIT }),
@@ -116,6 +137,20 @@
 
     const mine = ++generation
     resetWindow()
+
+    if (currentCategory === 'gifs') {
+      // the whole catalog is already local, so this filters without a network hop
+      const gifs = await loadGifCatalog().catch(() => [] as GifPost[])
+      if (mine !== generation) return
+      gridItems = searchGifs(q, gifs).map((g) => ({
+        type: 'gif' as const,
+        value: g.uri,
+        name: g.title,
+        gif: g,
+      }))
+      loading = false
+      return
+    }
 
     if (currentCategory === 'custom') {
       // semantic search is a network call per keystroke; debounce it
@@ -151,8 +186,8 @@
     loading = false
   }
 
-  function select(value: string) {
-    onselect(value)
+  function select(value: string, gif?: GifPost) {
+    onselect(gif ? GIF_FALLBACK_EMOJI : value, gif ? { uri: gif.uri, cid: gif.cid } : undefined)
     onclose()
   }
 
@@ -206,7 +241,11 @@
     <input
         type="search"
         class="emoji-search"
-        placeholder={currentCategory === 'custom' ? 'describe a bufo… "happy", "apocalyptic"' : 'search emojis…'}
+        placeholder={currentCategory === 'custom'
+          ? 'describe a bufo… "happy", "apocalyptic"'
+          : currentCategory === 'gifs'
+            ? 'search gifs by title or tag…'
+            : 'search emojis…'}
         autocomplete="off"
         autocapitalize="off"
         autocorrect="off"
@@ -231,12 +270,29 @@
     </div>
     <div class="emoji-grid-wrap">
       <div class="emoji-loading-bar" class:visible={loading} aria-hidden="true"></div>
-      <div class="emoji-grid" class:bufo-grid={isBufoGrid} bind:this={gridEl}>
+      <div class="emoji-grid" class:bufo-grid={isBufoGrid} class:gif-grid={isGifGrid} bind:this={gridEl}>
         {#if !loading && gridItems.length === 0}
           <div class="no-results">no emojis found</div>
         {:else}
           {#each visibleItems as item (item.value)}
-            {#if item.type === 'bufo'}
+            {#if item.type === 'gif' && item.gif}
+              <button
+                class="emoji-btn gif-btn"
+                class:pending={!settled.has(item.value)}
+                onclick={() => select(item.value, item.gif)}
+                title={item.gif.title ?? 'gif'}
+                style={item.gif.width && item.gif.height
+                  ? `aspect-ratio: ${item.gif.width} / ${item.gif.height}`
+                  : undefined}
+              >
+                <GifImage
+                  did={item.gif.did}
+                  blobCid={item.gif.blobCid}
+                  alt={item.gif.title ?? ''}
+                  onsettled={() => { settled = new Set(settled).add(item.value) }}
+                />
+              </button>
+            {:else if item.type === 'bufo'}
               <button
                 class="emoji-btn bufo-btn"
                 class:pending={!settled.has(item.value)}
@@ -265,6 +321,8 @@
     <div class="bufo-helper">
       {#if currentCategory === 'custom'}
         <a href="https://find-bufo.com" target="_blank" rel="noopener">powered by find-bufo.com</a>
+      {:else if currentCategory === 'gifs'}
+        <span>gifs from net.gifdex.gif.post on atproto</span>
       {/if}
     </div>
   </div>

@@ -1,12 +1,15 @@
 <script lang="ts">
   import { isCustomEmoji, customEmojiName, parseLinks, parseStatusUri } from '$lib/utils/emoji'
   import CustomEmoji from './CustomEmoji.svelte'
+  import GifImage from './GifImage.svelte'
+  import { gifFromRef, type GifRef } from '$lib/utils/gifdex'
   import { relativeTime, formatExpiration } from '$lib/utils/time'
   import { Link, X } from 'lucide-svelte'
 
   interface StatusItem {
     uri: string
     emoji: string
+    gif?: GifRef | string
     text?: string
     handle?: string
     did?: string
@@ -50,7 +53,10 @@
 
 <div class="status-item">
   <span class="emoji">
-    {#if isCustomEmoji(status.emoji)}
+    {#if gifFromRef(status.gif)}
+      {@const g = gifFromRef(status.gif)!}
+      <GifImage did={g.did} blobCid={g.blobCid} animated alt={status.text ?? 'gif status'} />
+    {:else if isCustomEmoji(status.emoji)}
       {@const name = customEmojiName(status.emoji)}
       <CustomEmoji {name} loading="lazy" />
     {:else}

@@ -1,3 +1,51 @@
+diff --git a/node_modules/@hatk/hatk/dist/database/db.js b/node_modules/@hatk/hatk/dist/database/db.js
+index 0d6b89c..d2a8ecf 100644
+--- a/node_modules/@hatk/hatk/dist/database/db.js
++++ b/node_modules/@hatk/hatk/dist/database/db.js
+@@ -38,6 +38,7 @@ export async function runBatch(operations) {
+ async function all(sql, params = []) {
+     return port.query(sql, params);
+ }
++let deferredDdl = [];
+ export async function initDatabase(adapter, dbPath, tableSchemas, ddlStatements) {
+     port = adapter;
+     dialect = getDialect(adapter.dialect);
+@@ -45,8 +46,18 @@ export async function initDatabase(adapter, dbPath, tableSchemas, ddlStatements)
+     for (const schema of tableSchemas) {
+         schemas.set(schema.collection, schema);
+     }
++    // A lexicon that gained a field emits DDL indexing its column (a strongRef's
++    // {name}_uri, say) — but that column is only added later, by migrateSchema.
++    // Defer whatever fails here and replay it once the migration has run, rather
++    // than crashing on startup against an existing database.
++    deferredDdl = [];
+     for (const ddl of ddlStatements) {
+-        await port.executeMultiple(ddl);
++        try {
++            await port.executeMultiple(ddl);
++        }
++        catch {
++            deferredDdl.push(ddl);
++        }
+     }
+     // Internal tables for backfill state
+     await run(`CREATE TABLE IF NOT EXISTS _repos (
+@@ -268,6 +279,15 @@ export async function migrateSchema(tableSchemas) {
+     if (changes.length > 0) {
+         await applyMigrationChanges(changes);
+     }
++    // Replay DDL that could not run before the new columns existed. Anything
++    // still failing now is a real error and is allowed to throw.
++    if (deferredDdl.length > 0) {
++        const pending = deferredDdl;
++        deferredDdl = [];
++        for (const ddl of pending) {
++            await port.executeMultiple(ddl);
++        }
++    }
+     // Check for empty collection tables — these are newly added and need backfill
+     // Skip on fresh DB (no repos yet) since backfill runs naturally
+     const [hasRepos] = await all(`SELECT 1 FROM _repos LIMIT 1`);
 diff --git a/node_modules/@hatk/hatk/dist/indexer.js b/node_modules/@hatk/hatk/dist/indexer.js
 index 04df7a0..8689235 100644
 --- a/node_modules/@hatk/hatk/dist/indexer.js

@@ -3,11 +3,16 @@
   import { callXrpc } from '$hatk/client'
   import { isCustomEmoji, customEmojiName } from '$lib/utils/emoji'
   import CustomEmoji from './CustomEmoji.svelte'
+  import GifImage from './GifImage.svelte'
   import EmojiPicker from './EmojiPicker.svelte'
+  import { gifFromRef, type GifRef } from '$lib/utils/gifdex'
 
   let { currentEmoji = '😊', oncreated }: { currentEmoji?: string; oncreated?: () => void } = $props()
 
+  // follows the prop until the user picks something, then holds that choice
   let selectedEmoji = $derived(currentEmoji)
+  let selectedGif: GifRef | undefined = $state()
+  let selectedGifMedia = $derived(gifFromRef(selectedGif))
   let text = $state('')
   let expiresValue = $state('')
   let customDatetime = $state('')
@@ -39,11 +44,13 @@
         createdAt: string
         text?: string
         expires?: string
+        gif?: GifRef
       } = {
         $type: 'io.zzstoatzz.status.record',
         emoji: selectedEmoji,
         createdAt: new Date().toISOString(),
       }
+      if (selectedGif) record.gif = selectedGif
       if (text.trim()) record.text = text.trim()
       if (expiresValue === 'custom' && customDatetime) {
         record.expires = new Date(customDatetime).toISOString()
@@ -71,7 +78,14 @@
 <form class="status-form" onsubmit={submit}>
   <div class="emoji-input-row">
     <button type="button" class="emoji-trigger" onclick={() => showPicker = true}>
-      {#if isCustomEmoji(selectedEmoji)}
+      {#if selectedGifMedia}
+        <GifImage
+          did={selectedGifMedia.did}
+          blobCid={selectedGifMedia.blobCid}
+          animated
+          alt="selected gif"
+        />
+      {:else if isCustomEmoji(selectedEmoji)}
         {@const name = customEmojiName(selectedEmoji)}
         <CustomEmoji {name} />
       {:else}
@@ -103,7 +117,7 @@
 
 {#if showPicker}
   <EmojiPicker
-    onselect={(emoji) => { selectedEmoji = emoji; showPicker = false }}
+    onselect={(emoji, gif) => { selectedEmoji = emoji; selectedGif = gif; showPicker = false }}
     onclose={() => showPicker = false}
   />
 {/if}

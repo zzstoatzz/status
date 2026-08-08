@@ -3,6 +3,8 @@
   import { actorFeedQuery } from '$lib/queries'
   import StatusFeed from '$lib/components/StatusFeed.svelte'
   import { isCustomEmoji, customEmojiName, parseLinks } from '$lib/utils/emoji'
+  import { gifFromRef } from '$lib/utils/gifdex'
+  import GifImage from '$lib/components/GifImage.svelte'
   import CustomEmoji from '$lib/components/CustomEmoji.svelte'
   import { relativeTime, formatExpiration } from '$lib/utils/time'
 
@@ -26,7 +28,10 @@
   <div class="profile-card">
     <div class="current-status">
       <span class="big-emoji">
-        {#if isCustomEmoji(current.emoji)}
+        {#if gifFromRef(current.gif)}
+          {@const g = gifFromRef(current.gif)!}
+          <GifImage did={g.did} blobCid={g.blobCid} animated alt="status gif" />
+        {:else if isCustomEmoji(current.emoji)}
           {@const name = customEmojiName(current.emoji)}
           <CustomEmoji {name} />
         {:else}
