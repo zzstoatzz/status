@@ -189,7 +189,11 @@ nav {
 
 .input-group label {
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  /* the card is centred; the field label reads better aligned to its input.
+     small and lightly tracked, matching the micro-labels in our other UIs. */
+  text-align: left;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
 }
 
 .handle-input-wrapper {
@@ -403,6 +407,7 @@ button[type="submit"]:hover,
 .meta {
   color: var(--text-secondary);
   font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .current-status-actions {

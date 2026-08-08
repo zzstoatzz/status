@@ -131,29 +131,33 @@
     </form>
     <div class="login-faq">
       <button type="button" class="faq-toggle" onclick={() => toggleFaq('handle')}>
-        <span>what is an internet handle?</span>
+        <span>what's an atmosphere account?</span>
         <ChevronDown size={16} style={faqOpen.handle ? 'transform: rotate(180deg)' : ''} />
       </button>
       {#if faqOpen.handle}
         <div class="faq-content">
           <p>
-            your internet handle is a domain that identifies you across apps built on
-            <a href="https://atproto.com" target="_blank" rel="noopener">AT Protocol</a>.
-            if you signed up for Bluesky or another ATProto service, you already have one
-            (like <code>yourname.bsky.social</code>).
+            one account for every app built on the
+            <a href="https://atproto.com" target="_blank" rel="noopener">atmosphere</a>.
+            you sign in with your handle — a domain like <code>yourname.bsky.social</code>
+            — and your data stays yours, wherever you use it.
           </p>
-          <p>read more at <a href="https://internethandle.org" target="_blank" rel="noopener">internethandle.org</a>.</p>
+          <p>
+            if you've signed up for <a href="https://bsky.app" target="_blank" rel="noopener">Bluesky</a>
+            or any other atproto app, you already have one.
+          </p>
         </div>
       {/if}
       <button type="button" class="faq-toggle" onclick={() => toggleFaq('signup')}>
-        <span>don't have one?</span>
+        <span>don't have one yet?</span>
         <ChevronDown size={16} style={faqOpen.signup ? 'transform: rotate(180deg)' : ''} />
       </button>
       {#if faqOpen.signup}
         <div class="faq-content">
           <p>
-            the easiest way to get one is to sign up for <a href="https://bsky.app" target="_blank" rel="noopener">Bluesky</a>.
-            once you have an account, you can use that handle here.
+            you can't make one here yet. the quickest route is
+            <a href="https://bsky.app" target="_blank" rel="noopener">Bluesky</a> — sign up there,
+            then come back and use that handle.
           </p>
         </div>
       {/if}
