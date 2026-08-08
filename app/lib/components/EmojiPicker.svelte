@@ -1,93 +1,153 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { loadBufoList, searchBufos, loadEmojiData, searchEmojis, DEFAULT_FREQUENT } from '$lib/utils/emoji'
+  import { callXrpc } from '$hatk/client'
+  import {
+    loadBufoList,
+    searchBufos,
+    loadEmojiData,
+    searchEmojis,
+    loadPopularEmoji,
+    DEFAULT_FREQUENT,
+  } from '$lib/utils/emoji'
   import CustomEmoji from './CustomEmoji.svelte'
 
   let { onselect, onclose }: { onselect: (emoji: string) => void; onclose: () => void } = $props()
 
-  let currentCategory = $state('frequent')
+  type GridItem = { type: 'emoji' | 'bufo'; value: string; name?: string; score?: number }
+
+  let currentCategory = $state('popular')
   let searchQuery = $state('')
-  let gridItems: Array<{ type: 'emoji' | 'bufo'; value: string; name?: string; score?: number }> = $state([])
+  let gridItems: GridItem[] = $state([])
   let loading = $state(false)
   let bufoSearchTimer: ReturnType<typeof setTimeout> | undefined
+  // Every render/search takes a ticket. An async result only gets to write the
+  // grid if no newer one started meanwhile — comparing the query alone was not
+  // enough, because switching tabs keeps the query and so let a still-pending
+  // bufo search overwrite the tab you had just moved to.
+  let generation = 0
+
+  // Only this many tiles are in the DOM at once. The custom tab is ~1600 bufos;
+  // rendering them all is what made opening it hang for seconds. The sentinel at
+  // the end of the grid extends the window as it scrolls into view.
+  const WINDOW_STEP = 60
+  // the ⭐ tab is a leaderboard, not a feed — one screenful of the all-time top
+  const POPULAR_LIMIT = 64
+  let visibleCount = $state(WINDOW_STEP)
+  let sentinel: HTMLDivElement | undefined = $state()
+  let gridEl: HTMLDivElement | undefined = $state()
+
+  // names whose image has settled, so a tile knows to drop its skeleton
+  let settled = $state(new Set<string>())
+
+  let visibleItems = $derived(gridItems.slice(0, visibleCount))
+  let hasMore = $derived(visibleCount < gridItems.length)
+  // a search spans bufos too, so results can be mixed — size the cells for images
+  // whenever any are present rather than keying off the tab alone.
+  let isBufoGrid = $derived(
+    currentCategory === 'custom' || gridItems.some((i) => i.type === 'bufo'),
+  )
 
   const categories = [
-    { id: 'frequent', icon: '\u2B50' },
-    { id: 'custom', icon: '\uD83D\uDC38' },
-    { id: 'people', icon: '\uD83D\uDE0A' },
-    { id: 'nature', icon: '\uD83C\uDF3F' },
-    { id: 'food', icon: '\uD83C\uDF54' },
-    { id: 'activity', icon: '\u26BD' },
-    { id: 'travel', icon: '\u2708\uFE0F' },
-    { id: 'objects', icon: '\uD83D\uDCA1' },
-    { id: 'symbols', icon: '\uD83D\uDC95' },
-    { id: 'flags', icon: '\uD83C\uDFC1' },
+    { id: 'popular', icon: '⭐' },
+    { id: 'custom', icon: '🐸' },
+    { id: 'people', icon: '😊' },
+    { id: 'nature', icon: '🌿' },
+    { id: 'food', icon: '🍔' },
+    { id: 'activity', icon: '⚽' },
+    { id: 'travel', icon: '✈️' },
+    { id: 'objects', icon: '💡' },
+    { id: 'symbols', icon: '💕' },
+    { id: 'flags', icon: '🏁' },
   ]
+
+  /** Reset the window and scroll whenever the result set changes identity. */
+  function resetWindow() {
+    visibleCount = WINDOW_STEP
+    gridEl?.scrollTo({ top: 0 })
+  }
 
   async function renderCategory(cat: string) {
     currentCategory = cat
-    searchQuery = ''
-    loading = true
-
-    if (cat === 'custom') {
-      try {
-        const bufos = await loadBufoList()
-        gridItems = bufos.map(name => ({ type: 'bufo', value: `custom:${name}`, name }))
-      } catch {
-        gridItems = []
-      }
-    } else if (cat === 'frequent') {
-      gridItems = DEFAULT_FREQUENT.map(e => ({ type: 'emoji', value: e }))
-    } else {
-      try {
-        const data = await loadEmojiData()
-        const emojis = data.categories[cat] || []
-        gridItems = emojis.map(e => ({ type: 'emoji', value: e }))
-      } catch {
-        gridItems = []
-      }
+    // NOTE: searchQuery is deliberately NOT cleared. Switching tabs used to wipe
+    // what you had typed, which is the one thing you never want a tab to do.
+    if (searchQuery.trim()) {
+      runSearch()
+      return
     }
+
+    const mine = ++generation
+    loading = true
+    resetWindow()
+
+    let next: GridItem[]
+    if (cat === 'custom') {
+      next = (await loadBufoList().catch(() => [] as string[])).map((name) => ({
+        type: 'bufo' as const,
+        value: `custom:${name}`,
+        name,
+      }))
+    } else if (cat === 'popular') {
+      const popular = await loadPopularEmoji(() =>
+        callXrpc('dev.hatk.getFeed', { feed: 'popular', limit: POPULAR_LIMIT }),
+      ).catch(() => [...DEFAULT_FREQUENT])
+      next = popular.map((value) =>
+        value.startsWith('custom:')
+          ? { type: 'bufo' as const, value, name: value.slice(7) }
+          : { type: 'emoji' as const, value },
+      )
+    } else {
+      const data = await loadEmojiData().catch(() => null)
+      next = (data?.categories[cat] ?? []).map((e) => ({ type: 'emoji' as const, value: e }))
+    }
+
+    if (mine !== generation) return
+    gridItems = next
     loading = false
   }
 
-  async function handleSearch() {
+  /** The active tab scopes the query: the bufo tab searches bufos, everything
+      else searches unicode and appends name-matching bufos. */
+  async function runSearch() {
     const q = searchQuery.trim()
     if (!q) {
       renderCategory(currentCategory)
       return
     }
 
+    const mine = ++generation
+    resetWindow()
+
     if (currentCategory === 'custom') {
+      // semantic search is a network call per keystroke; debounce it
       clearTimeout(bufoSearchTimer)
+      loading = true
       bufoSearchTimer = setTimeout(async () => {
-        loading = true
-        try {
-          const results = await searchBufos(q, 30)
-          if (searchQuery.trim() !== q) return
-          gridItems = results.map(r => ({ type: 'bufo', value: `custom:${r.name}`, name: r.name, score: r.score }))
-        } catch {
-          gridItems = []
-        }
+        const results = await searchBufos(q, 60).catch(() => [])
+        if (mine !== generation) return
+        gridItems = results.map((r) => ({
+          type: 'bufo' as const,
+          value: `custom:${r.name}`,
+          name: r.name,
+          score: r.score,
+        }))
         loading = false
-      }, 300)
+      }, 250)
       return
     }
 
     loading = true
-    try {
-      const data = await loadEmojiData()
-      const emojiResults = searchEmojis(q, data)
-      const bufos = await loadBufoList().catch(() => [] as string[])
-      const qLower = q.toLowerCase()
-      const bufoResults = bufos.filter(name => name.toLowerCase().includes(qLower)).slice(0, 30)
+    const data = await loadEmojiData().catch(() => null)
+    const bufos = await loadBufoList().catch(() => [] as string[])
+    if (mine !== generation) return
 
-      gridItems = [
-        ...emojiResults.map(e => ({ type: 'emoji' as const, value: e })),
-        ...bufoResults.map(name => ({ type: 'bufo' as const, value: `custom:${name}`, name })),
-      ]
-    } catch {
-      gridItems = []
-    }
+    const qLower = q.toLowerCase()
+    gridItems = [
+      ...(data ? searchEmojis(q, data) : []).map((e) => ({ type: 'emoji' as const, value: e })),
+      ...bufos
+        .filter((name) => name.toLowerCase().includes(qLower))
+        .slice(0, 60)
+        .map((name) => ({ type: 'bufo' as const, value: `custom:${name}`, name })),
+    ]
     loading = false
   }
 
@@ -96,20 +156,41 @@
     onclose()
   }
 
-  // lock the page behind the sheet: without this, scroll chaining and the mobile
-  // keyboard resizing the visual viewport yank the underlying page around.
   onMount(() => {
+    // lock the page behind the sheet: without this, scroll chaining and the mobile
+    // keyboard resizing the visual viewport yank the underlying page around.
     const { overflow, paddingRight } = document.body.style
     const gutter = window.innerWidth - document.documentElement.clientWidth
     document.body.style.overflow = 'hidden'
     if (gutter > 0) document.body.style.paddingRight = `${gutter}px`
 
-    renderCategory('frequent')
+    renderCategory('popular')
+
+    // warm the two lists the picker always ends up wanting, off the critical path
+    loadEmojiData().catch(() => {})
+    loadBufoList().catch(() => {})
 
     return () => {
       document.body.style.overflow = overflow
       document.body.style.paddingRight = paddingRight
+      clearTimeout(bufoSearchTimer)
     }
+  })
+
+  // extend the window slightly before the sentinel is actually on screen, so the
+  // next rows are already decoding by the time they are scrolled to.
+  $effect(() => {
+    if (!sentinel || !gridEl) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting) && visibleCount < gridItems.length) {
+          visibleCount = Math.min(visibleCount + WINDOW_STEP, gridItems.length)
+        }
+      },
+      { root: gridEl, rootMargin: '300px' },
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
   })
 </script>
 
@@ -123,17 +204,17 @@
       <button class="emoji-picker-close" onclick={onclose} aria-label="close emoji picker">&#x2715;</button>
     </div>
     <input
-      type="search"
-      class="emoji-search"
-      placeholder={currentCategory === 'custom' ? 'describe a bufo… "happy", "apocalyptic"' : 'search emojis…'}
-      autocomplete="off"
-      autocapitalize="off"
-      autocorrect="off"
-      spellcheck="false"
-      enterkeyhint="search"
-      bind:value={searchQuery}
-      oninput={handleSearch}
-      onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget as HTMLInputElement).blur() } }}
+        type="search"
+        class="emoji-search"
+        placeholder={currentCategory === 'custom' ? 'describe a bufo… "happy", "apocalyptic"' : 'search emojis…'}
+        autocomplete="off"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck="false"
+        enterkeyhint="search"
+        bind:value={searchQuery}
+        oninput={runSearch}
+        onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget as HTMLInputElement).blur() } }}
     />
     <div class="emoji-categories" role="tablist" aria-label="emoji categories">
       {#each categories as cat (cat.id)}
@@ -143,29 +224,42 @@
           role="tab"
           aria-selected={currentCategory === cat.id}
           aria-label={cat.id}
+          title={cat.id}
           onclick={() => renderCategory(cat.id)}
         >{cat.icon}</button>
       {/each}
     </div>
     <div class="emoji-grid-wrap">
       <div class="emoji-loading-bar" class:visible={loading} aria-hidden="true"></div>
-      <div class="emoji-grid" class:bufo-grid={currentCategory === 'custom' || gridItems.some(i => i.type === 'bufo')}>
-      {#if !loading && gridItems.length === 0}
-        <div class="no-results">no emojis found</div>
-      {:else}
-        {#each gridItems as item (item.value)}
-          {#if item.type === 'bufo'}
-            <button class="emoji-btn bufo-btn" onclick={() => select(item.value)} title={item.name}>
-              <CustomEmoji name={item.name ?? ''} loading="lazy" />
-              {#if item.score != null}
-                <span class="bufo-score">{Math.round(item.score * 100)}%</span>
-              {/if}
-            </button>
-          {:else}
-            <button class="emoji-btn" onclick={() => select(item.value)}>{item.value}</button>
+      <div class="emoji-grid" class:bufo-grid={isBufoGrid} bind:this={gridEl}>
+        {#if !loading && gridItems.length === 0}
+          <div class="no-results">no emojis found</div>
+        {:else}
+          {#each visibleItems as item (item.value)}
+            {#if item.type === 'bufo'}
+              <button
+                class="emoji-btn bufo-btn"
+                class:pending={!settled.has(item.value)}
+                onclick={() => select(item.value)}
+                title={item.name}
+              >
+                <CustomEmoji
+                  name={item.name ?? ''}
+                  loading="lazy"
+                  onsettled={() => { settled = new Set(settled).add(item.value) }}
+                />
+                {#if item.score != null}
+                  <span class="bufo-score">{Math.round(item.score * 100)}%</span>
+                {/if}
+              </button>
+            {:else}
+              <button class="emoji-btn" onclick={() => select(item.value)}>{item.value}</button>
+            {/if}
+          {/each}
+          {#if hasMore}
+            <div class="emoji-sentinel" bind:this={sentinel} aria-hidden="true"></div>
           {/if}
-        {/each}
-      {/if}
+        {/if}
       </div>
     </div>
     <div class="bufo-helper">

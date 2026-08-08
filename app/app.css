@@ -668,9 +668,11 @@ button[type="submit"]:hover,
   border-radius: var(--radius);
   /* fixed geometry, driven only by the viewport. height, not max-height: the sheet
      must not resize when results load, a search runs, or a tab changes. dvh, not vh,
-     so the mobile keyboard shrinks it instead of leaving it under the keyboard. */
-  width: min(420px, calc(100vw - 2rem));
-  height: min(620px, calc(100dvh - 4rem));
+     so the mobile keyboard shrinks it instead of leaving it under the keyboard.
+     the width grows with the viewport because the grid is auto-fill: a wider sheet
+     is simply more columns, which is the whole point of being on a desktop. */
+  width: min(780px, calc(100vw - 2rem));
+  height: min(680px, calc(100dvh - 4rem));
   display: flex;
   flex-direction: column;
   overscroll-behavior: contain;
@@ -840,6 +842,8 @@ button[type="submit"]:hover,
   gap: 2px;
   padding: 4px;
   min-height: 72px;
+  /* anchors the loading shimmer below */
+  position: relative;
 }
 
 .bufo-btn img,
@@ -859,6 +863,56 @@ button[type="submit"]:hover,
 .bufo-score {
   font-size: 0.6rem;
   color: var(--text-secondary);
+}
+
+/* Each tile reserves its box and shimmers until its image settles, so a grid of
+   bufos fills in place instead of being blank and then reflowing all at once. */
+.bufo-btn.pending img {
+  opacity: 0;
+}
+
+.bufo-btn img {
+  opacity: 1;
+  transition: opacity 0.18s ease-out;
+}
+
+.bufo-btn.pending::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 6px;
+  background: linear-gradient(100deg, var(--bg) 30%, var(--border) 50%, var(--bg) 70%);
+  background-size: 300% 100%;
+  animation: bufo-shimmer 1.1s ease-in-out infinite;
+}
+
+.bufo-btn {
+  position: relative;
+}
+
+@keyframes bufo-shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bufo-btn.pending::before {
+    animation: none;
+  }
+  .bufo-btn img {
+    transition: none;
+  }
+}
+
+/* spans the grid so it is reliably reached by scrolling; zero height so it can
+   never add a visible row of its own. */
+.emoji-sentinel {
+  grid-column: 1 / -1;
+  height: 1px;
 }
 
 .bufo-helper {

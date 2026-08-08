@@ -104,6 +104,8 @@ let emojiDataCache: {
   categories: Record<string, string[]>;
 } | null = null;
 
+// Shown until the popularity feed answers, and if it ever fails. Not a ranking —
+// just a plausible grid so the first tab is never empty.
 const DEFAULT_FREQUENT = [
   "😊",
   "👍",
@@ -124,6 +126,32 @@ const DEFAULT_FREQUENT = [
 ];
 
 export { DEFAULT_FREQUENT };
+
+/** One statusView per distinct emoji, ordered by all-time global use. */
+type PopularItem = { emoji?: string };
+
+let popularCache: string[] | null = null;
+
+/**
+ * All-time global popularity, computed server-side over every status record the
+ * index has seen. The feed speaks in records, so each item is the most recent
+ * status using that emoji — only `.emoji` matters here.
+ */
+export async function loadPopularEmoji(
+  fetchFeed: () => Promise<{ items?: PopularItem[] } | undefined>,
+): Promise<string[]> {
+  if (popularCache) return popularCache;
+
+  const res = await fetchFeed();
+
+  const emojis = (res?.items ?? [])
+    .map((i) => i.emoji)
+    .filter((e): e is string => typeof e === "string" && e.length > 0);
+
+  // a cold or empty index must not render an empty first tab
+  popularCache = emojis.length > 0 ? emojis : [...DEFAULT_FREQUENT];
+  return popularCache;
+}
 
 export async function loadEmojiData() {
   if (emojiDataCache) return emojiDataCache;

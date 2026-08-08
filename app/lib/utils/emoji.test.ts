@@ -1,5 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { bufoImageUrl, resolveBufoUrl } from "./emoji.ts";
+
+/** loadPopularEmoji memoizes per module instance, so each case gets a fresh one. */
+async function freshEmojiModule() {
+  vi.resetModules();
+  return import("./emoji.ts");
+}
 
 describe("bufoImageUrl", () => {
   // regression: bufo-stopsign exists only as a .gif. the old client-side
@@ -38,5 +44,49 @@ describe("resolveBufoUrl", () => {
     await expect(resolveBufoUrl("nope", fetchFn)).resolves.toBe(
       "https://all-the.bufo.zone/nope.png",
     );
+  });
+});
+
+describe("loadPopularEmoji", () => {
+  // the ⭐ tab used to render a hardcoded array that no usage ever touched.
+  // it is now the all-time global ranking, computed server-side.
+  it("returns the feed's emoji in the order the server ranked them", async () => {
+    const { loadPopularEmoji } = await freshEmojiModule();
+    const fetchFeed = vi.fn(async () => ({
+      items: [
+        { emoji: "😊", text: "a" },
+        { emoji: "🥔", text: "b" },
+        { emoji: "custom:bufo-alarma", text: "c" },
+      ],
+    }));
+
+    await expect(loadPopularEmoji(fetchFeed)).resolves.toEqual(["😊", "🥔", "custom:bufo-alarma"]);
+  });
+
+  it("memoizes, so reopening the picker does not refetch", async () => {
+    const { loadPopularEmoji } = await freshEmojiModule();
+    const fetchFeed = vi.fn(async () => ({ items: [{ emoji: "😊" }] }));
+
+    await loadPopularEmoji(fetchFeed);
+    await loadPopularEmoji(fetchFeed);
+
+    expect(fetchFeed).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to the seed list when the index is empty", async () => {
+    const { loadPopularEmoji, DEFAULT_FREQUENT } = await freshEmojiModule();
+    const fetchFeed = vi.fn(async () => ({ items: [] }));
+
+    // a cold index must never render an empty first tab
+    await expect(loadPopularEmoji(fetchFeed)).resolves.toEqual(DEFAULT_FREQUENT);
+  });
+
+  it("drops items the feed returned without an emoji", async () => {
+    const { loadPopularEmoji } = await freshEmojiModule();
+    const fetchFeed = vi.fn(async () => ({
+      items: [{ emoji: "😊" }, { text: "no emoji" }, { emoji: "" }, { emoji: "🥔" }],
+    }));
+
+    await expect(loadPopularEmoji(fetchFeed)).resolves.toEqual(["😊", "🥔"]);
   });
 });
