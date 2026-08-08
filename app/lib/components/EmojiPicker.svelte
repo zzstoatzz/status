@@ -11,7 +11,8 @@
   } from '$lib/utils/emoji'
   import CustomEmoji from './CustomEmoji.svelte'
   import GifImage from './GifImage.svelte'
-  import { loadGifCatalog, searchGifs, type GifPost, type GifRef } from '$lib/utils/gifdex'
+  import { fetchGifPage, type GifPage, type GifPost, type GifRef } from '$lib/utils/gifdex'
+  import { GIF_SOURCES } from '$lib/utils/gifsources'
 
   let { onselect, onclose }: {
     // a gif still carries an emoji: it is the fallback for anything that cannot
@@ -49,17 +50,30 @@
   // Gifs are the real bytes — median ~1MB, no thumbnail tier — so they extend in
   // much smaller steps than emoji do. Raise this once a resizer exists.
   const GIF_WINDOW_STEP = 12
+  // hatk types callXrpc against its known nsids; the gif util takes a plain
+  // string so it stays independent of the client. Widen once, here.
+  const xrpc = (nsid: string, params: Record<string, unknown>) =>
+    callXrpc(nsid as Parameters<typeof callXrpc>[0], params as never)
+  const emptyPage = (): GifPage => ({ gifs: [] })
   // the ⭐ tab is a leaderboard, not a feed — one screenful of the all-time top
   const POPULAR_LIMIT = 64
   let visibleCount = $state(WINDOW_STEP)
+  // gifs page from the server; the rest are local lists windowed client-side
+  let gifCursor: string | undefined = $state()
+  let gifExhausted = $state(false)
+  let loadingMore = $state(false)
   let sentinel: HTMLDivElement | undefined = $state()
   let gridEl: HTMLDivElement | undefined = $state()
 
   // names whose image has settled, so a tile knows to drop its skeleton
   let settled = $state(new Set<string>())
 
-  let visibleItems = $derived(gridItems.slice(0, visibleCount))
-  let hasMore = $derived(visibleCount < gridItems.length)
+  let visibleItems = $derived(
+    currentCategory === 'gifs' ? gridItems : gridItems.slice(0, visibleCount),
+  )
+  let hasMore = $derived(
+    currentCategory === 'gifs' ? !gifExhausted : visibleCount < gridItems.length,
+  )
   // a search spans bufos too, so results can be mixed — size the cells for images
   // whenever any are present rather than keying off the tab alone.
   let isBufoGrid = $derived(
@@ -111,8 +125,10 @@
         name,
       }))
     } else if (cat === 'gifs') {
-      const gifs = await loadGifCatalog().catch(() => [] as GifPost[])
-      next = gifs.map((g) => ({ type: 'gif' as const, value: g.uri, name: g.title, gif: g }))
+      const page = await fetchGifPage(xrpc).catch(emptyPage)
+      gifCursor = page.cursor
+      gifExhausted = !page.cursor
+      next = page.gifs.map((g) => ({ type: 'gif' as const, value: g.uri, name: g.title, gif: g }))
     } else if (cat === 'popular') {
       const popular = await loadPopularEmoji(() =>
         callXrpc('dev.hatk.getFeed', { feed: 'popular', limit: POPULAR_LIMIT }),
@@ -145,16 +161,22 @@
     resetWindow()
 
     if (currentCategory === 'gifs') {
-      // the whole catalog is already local, so this filters without a network hop
-      const gifs = await loadGifCatalog().catch(() => [] as GifPost[])
-      if (mine !== generation) return
-      gridItems = searchGifs(q, gifs).map((g) => ({
-        type: 'gif' as const,
-        value: g.uri,
-        name: g.title,
-        gif: g,
-      }))
-      loading = false
+      // full-text search runs in the index, not over an array we hold
+      clearTimeout(bufoSearchTimer)
+      loading = true
+      bufoSearchTimer = setTimeout(async () => {
+        const page = await fetchGifPage(xrpc, { query: q }).catch(emptyPage)
+        if (mine !== generation) return
+        gifCursor = page.cursor
+        gifExhausted = !page.cursor
+        gridItems = page.gifs.map((g) => ({
+          type: 'gif' as const,
+          value: g.uri,
+          name: g.title,
+          gif: g,
+        }))
+        loading = false
+      }, 250)
       return
     }
 
@@ -192,6 +214,27 @@
     loading = false
   }
 
+  /** Append the next page of gifs; the grid never holds more than what is shown. */
+  async function loadMoreGifs() {
+    if (loadingMore || gifExhausted || !gifCursor) return
+    const mine = generation
+    loadingMore = true
+    const page = await fetchGifPage(xrpc, {
+      query: searchQuery.trim() || undefined,
+      cursor: gifCursor,
+    }).catch(emptyPage)
+    if (mine === generation) {
+      gifCursor = page.cursor
+      gifExhausted = !page.cursor || page.gifs.length === 0
+      gridItems = [
+        ...gridItems,
+        ...page.gifs.map((g) => ({ type: 'gif' as const, value: g.uri, name: g.title, gif: g })),
+      ]
+      visibleCount = gridItems.length
+    }
+    loadingMore = false
+  }
+
   function select(value: string, gif?: GifPost) {
     onselect(gif ? GIF_FALLBACK_EMOJI : value, gif ? { uri: gif.uri, cid: gif.cid } : undefined)
     onclose()
@@ -224,7 +267,10 @@
     if (!sentinel || !gridEl) return
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((e) => e.isIntersecting) && visibleCount < gridItems.length) {
+        if (!entries.some((e) => e.isIntersecting)) return
+        if (currentCategory === 'gifs') {
+          loadMoreGifs()
+        } else if (visibleCount < gridItems.length) {
           visibleCount = Math.min(visibleCount + windowStep, gridItems.length)
         }
       },
@@ -334,7 +380,7 @@
       {#if currentCategory === 'custom'}
         <a href="https://find-bufo.com" target="_blank" rel="noopener">powered by find-bufo.com</a>
       {:else if currentCategory === 'gifs'}
-        <span>gifs from net.gifdex.gif.post on atproto</span>
+        <span>gifs from {GIF_SOURCES.map((s) => s.id).join(', ')} on atproto</span>
       {/if}
     </div>
   </div>

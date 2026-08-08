@@ -1,0 +1,47 @@
+{
+  "lexicon": 1,
+  "id": "net.gifdex.gif.post",
+  "description": "VENDORED, INFERRED. gifdex publishes no lexicon — gifdex.net does not resolve and there is no _lexicon TXT record for the NSID authority — so this is reconstructed from records in the wild. Kept deliberately permissive: only `media` is required, because a schema stricter than reality would make the indexer silently drop records it cannot validate.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["media"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Human-readable name; indexed for full-text search."
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Free-form tags; indexed for full-text search."
+          },
+          "languages": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "media": {
+            "type": "object",
+            "properties": {
+              "blob": { "type": "blob" },
+              "dimensions": {
+                "type": "object",
+                "properties": {
+                  "width": { "type": "integer" },
+                  "height": { "type": "integer" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

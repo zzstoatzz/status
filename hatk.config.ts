@@ -18,7 +18,12 @@ export default defineConfig({
   databaseEngine: "sqlite",
   database: isProd ? "/data/status.db" : "data/status.db",
   backfill: {
-    signalCollections: ["io.zzstoatzz.status.record"],
+    signalCollections: [
+      "io.zzstoatzz.status.record",
+      // indexing gifs rather than fanning out to every PDS on demand — see
+      // server/setup/gif-sources.ts for how existing repos get discovered
+      "net.gifdex.gif.post",
+    ],
     fullNetwork: false,
     parallelism: 2,
   },

@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  blobCidFromRkey,
-  gifFromRef,
-  parseAtUri,
-  gifBlobUrl,
-  searchGifs,
-  type GifPost,
-} from "./gifdex.ts";
+import { fetchGifPage, gifBlobUrl, gifFromRef, gifPreviewUrl } from "./gifdex.ts";
+import { gifdexBlobCidFromRkey, parseAtUri } from "./gifsources.ts";
+import { vi } from "vitest";
 
 // a real record, from blooym.dev's repo
 const DID = "did:plc:p5yjdr64h7mk5l3kh6oszryk";
@@ -30,21 +25,21 @@ describe("parseAtUri", () => {
   });
 });
 
-describe("blobCidFromRkey", () => {
+describe("gifdexBlobCidFromRkey", () => {
   // gifdex rkeys are `<tid>:<blobCid>`, verified across every repo publishing
   // them — which is what lets a gif render with no record fetch at all.
   it("extracts the blob cid embedded in the rkey", () => {
-    expect(blobCidFromRkey(RKEY)).toBe(BLOB);
+    expect(gifdexBlobCidFromRkey(RKEY)).toBe(BLOB);
   });
 
   it("returns null for a plain tid rkey", () => {
     // gif.save records use bare tids; a future gif.post might too
-    expect(blobCidFromRkey("3mrubv4zyvs2f")).toBeNull();
+    expect(gifdexBlobCidFromRkey("3mrubv4zyvs2f")).toBeNull();
   });
 
   it("rejects a colon that is not followed by a cid", () => {
     for (const bad of ["tid:", "tid:nope", "tid:zzz-not-base32", ":leading"]) {
-      expect(blobCidFromRkey(bad)).toBeNull();
+      expect(gifdexBlobCidFromRkey(bad)).toBeNull();
     }
   });
 });
@@ -97,59 +92,6 @@ describe("gifBlobUrl", () => {
   });
 });
 
-describe("searchGifs", () => {
-  const gifs: GifPost[] = [
-    {
-      uri: "at://a/net.gifdex.gif.post/1:b",
-      cid: "c",
-      did: "a",
-      rkey: "1:b",
-      blobCid: "b",
-      title: "Bunny kisses",
-      tags: ["bunny", "cuddle", "love"],
-    },
-    {
-      uri: "at://a/net.gifdex.gif.post/2:b",
-      cid: "c",
-      did: "a",
-      rkey: "2:b",
-      blobCid: "b",
-      title: "Freedom",
-      tags: ["puppygirl", "arf", "discord"],
-    },
-    {
-      uri: "at://a/net.gifdex.gif.post/3:b",
-      cid: "c",
-      did: "a",
-      rkey: "3:b",
-      blobCid: "b",
-      tags: ["bocchi"],
-    },
-  ];
-
-  it("matches on title and on tags", () => {
-    expect(searchGifs("bunny", gifs).map((g) => g.title)).toEqual(["Bunny kisses"]);
-    expect(searchGifs("discord", gifs).map((g) => g.title)).toEqual(["Freedom"]);
-  });
-
-  it("is case-insensitive", () => {
-    expect(searchGifs("FREEDOM", gifs)).toHaveLength(1);
-  });
-
-  it("requires every term to match, across title and tags together", () => {
-    expect(searchGifs("bunny love", gifs)).toHaveLength(1);
-    expect(searchGifs("bunny discord", gifs)).toHaveLength(0);
-  });
-
-  it("tolerates a record with no title", () => {
-    expect(searchGifs("bocchi", gifs)).toHaveLength(1);
-  });
-
-  it("returns everything for an empty query", () => {
-    expect(searchGifs("   ", gifs)).toHaveLength(3);
-  });
-});
-
 describe("gifFromRef with hatk's flattened shape", () => {
   // hatk stores a strongRef as {name}_uri + {name}_cid, then hydrates only the
   // uri back into the view — so the read path hands us a bare string even
@@ -162,5 +104,86 @@ describe("gifFromRef with hatk's flattened shape", () => {
   it("still rejects a bare string that is not a gifdex post", () => {
     expect(gifFromRef(`at://${DID}/app.bsky.feed.post/${RKEY}`)).toBeNull();
     expect(gifFromRef("")).toBeNull();
+  });
+});
+
+describe("gifPreviewUrl", () => {
+  // a gif status should preview as the gif. porxie serves it CID-verified at a
+  // stable public url, and bluesky's card proxy passes gifs through unmodified.
+  it("gives a public image url for a saved gif", () => {
+    expect(gifPreviewUrl({ uri: URI, cid: "bafyanything" })).toBe(
+      `https://zzstoatzz-porxie.fly.dev/${encodeURIComponent(DID)}/${BLOB}`,
+    );
+  });
+
+  it("is null when there is no gif, so the emoji preview is used instead", () => {
+    expect(gifPreviewUrl(undefined)).toBeNull();
+    expect(gifPreviewUrl("")).toBeNull();
+  });
+});
+
+describe("source registry", () => {
+  it("resolves a gif only for a registered collection", async () => {
+    const { sourceForCollection } = await import("./gifsources.ts");
+    expect(sourceForCollection("net.gifdex.gif.post")?.id).toBe("gifdex");
+    expect(sourceForCollection("com.example.gif.post")).toBeUndefined();
+  });
+
+  // the tid:blobCid rkey trick is gifdex's convention, not a general one — a
+  // future source without it must fall back rather than render a broken image
+  it("returns null for a collection with no rkey shortcut", () => {
+    expect(gifFromRef(`at://${DID}/com.example.gif.post/${RKEY}`)).toBeNull();
+  });
+});
+
+describe("fetchGifPage", () => {
+  const row = {
+    uri: URI,
+    cid: "bafyrecord",
+    media: { blob: { ref: { $link: BLOB } }, dimensions: { width: 360, height: 377 } },
+    title: "Bunny kisses",
+    tags: ["bunny"],
+  };
+
+  // the catalog is assumed unbounded: never fetch it whole, never hold it whole
+  it("browses one page at a time and passes the cursor back", async () => {
+    const callXrpc = vi.fn(async () => ({ items: [row], cursor: "page2" }));
+    const page = await fetchGifPage(callXrpc, { limit: 30 });
+
+    expect(callXrpc).toHaveBeenCalledWith("dev.hatk.getRecords", {
+      collection: "net.gifdex.gif.post",
+      limit: 30,
+      cursor: undefined,
+      sort: "indexed_at",
+      order: "DESC",
+    });
+    expect(page.cursor).toBe("page2");
+    expect(page.gifs).toHaveLength(1);
+    expect(page.gifs[0]).toMatchObject({ did: DID, blobCid: BLOB, title: "Bunny kisses" });
+  });
+
+  it("searches through the index rather than filtering locally", async () => {
+    const callXrpc = vi.fn(async () => ({ items: [] }));
+    await fetchGifPage(callXrpc, { query: "  bunny " });
+
+    expect(callXrpc).toHaveBeenCalledWith("dev.hatk.searchRecords", {
+      collection: "net.gifdex.gif.post",
+      q: "bunny",
+      limit: 30,
+      cursor: undefined,
+    });
+  });
+
+  it("reports exhaustion by omitting a cursor", async () => {
+    const callXrpc = vi.fn(async () => ({ items: [row] }));
+    await expect(fetchGifPage(callXrpc)).resolves.toMatchObject({ cursor: undefined });
+  });
+
+  it("drops rows it cannot render instead of emitting broken tiles", async () => {
+    const callXrpc = vi.fn(async () => ({
+      items: [row, { uri: "not-an-at-uri" }, { uri: URI.replace(RKEY, "plaintid"), media: {} }],
+    }));
+    const page = await fetchGifPage(callXrpc);
+    expect(page.gifs).toHaveLength(1);
   });
 });

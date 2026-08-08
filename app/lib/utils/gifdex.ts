@@ -1,58 +1,20 @@
 /**
- * gifdex (net.gifdex.*) support.
+ * Rendering and searching gifs, across every registered source.
  *
- * There is no gifdex instance — gifdex.net does not resolve, and no lexicon is
- * published for the NSID authority. Everything here is inferred from records in
- * the wild, so it stays tolerant: anything unexpected degrades to "no gif" and
- * the status falls back to its emoji.
+ * Source-specific knowledge lives in `gifsources.ts`; nothing here names a
+ * collection. Everything degrades to "no gif" rather than a broken image, since
+ * these schemas are inferred from records in the wild and can change.
  */
 
-export const GIFDEX_POST = "net.gifdex.gif.post";
+import { GIF_SOURCES, parseAtUri, sourceForCollection } from "./gifsources.ts";
 
-export type GifRef = { uri: string; cid: string };
-
-export type GifPost = {
-  uri: string;
-  cid: string;
-  did: string;
-  rkey: string;
-  title?: string;
-  tags: string[];
-  blobCid: string;
-  width?: number;
-  height?: number;
-};
-
-/** at://<did>/<collection>/<rkey> — returns null for anything else. */
-export function parseAtUri(uri: string): { did: string; collection: string; rkey: string } | null {
-  const m = /^at:\/\/([^/]+)\/([^/]+)\/(.+)$/.exec(uri ?? "");
-  if (!m) return null;
-  return { did: m[1], collection: m[2], rkey: m[3] };
-}
-
-/**
- * gifdex rkeys are `<tid>:<blobCid>`, and the embedded cid is the media blob's
- * — verified across every record sampled from every repo publishing them. That
- * makes a gif renderable straight from its at-uri with no record fetch at all.
- *
- * Returns null when the rkey does not carry a cid, so callers can fall back to
- * reading the record rather than rendering something broken.
- */
-export function blobCidFromRkey(rkey: string): string | null {
-  const idx = rkey.indexOf(":");
-  if (idx <= 0) return null;
-  const cid = rkey.slice(idx + 1);
-  // base32 CIDv1 — "b" prefix, lowercase alphanumeric. Guards against a rkey
-  // that merely happens to contain a colon.
-  return /^b[a-z2-7]{20,}$/.test(cid) ? cid : null;
-}
+export type { GifPost, GifRef } from "./gifsources.ts";
+import type { GifPost, GifRef } from "./gifsources.ts";
 
 /**
  * Blob bytes come from our porxie instance (codeberg.org/Blooym/porxie), which
  * fetches from the owning PDS, **verifies the bytes against the CID**, and
- * rejects anything that does not match. Its route is `/{did}/{cid}`, which is
- * exactly what a gifdex rkey already gives us — so no PDS resolution is needed
- * here at all.
+ * rejects anything that does not match. Its route is `/{did}/{cid}`.
  *
  * Deliberately not bsky's CDN: it transcodes to jpeg, so it cannot serve an
  * animated gif, and its bytes can never hash to the blob's CID — which would
@@ -69,8 +31,11 @@ export function gifBlobUrl(did: string, blobCid: string): string {
  *
  * Accepts either shape, because the two directions disagree: we *write* a proper
  * strongRef `{uri, cid}` to the PDS, but hatk collapses it to a bare uri string
- * when hydrating a view (the cid lives in its own column and is not surfaced).
- * Rendering never needs the cid — the blob's cid is in the rkey.
+ * when hydrating a view. Rendering never needs the record's cid — the blob's cid
+ * comes from the source's rkey shortcut.
+ *
+ * Returns null for a source with no shortcut, so callers fall back to the
+ * catalog rather than rendering something broken.
  */
 export function gifFromRef(ref: GifRef | string | null | undefined): {
   did: string;
@@ -80,31 +45,93 @@ export function gifFromRef(ref: GifRef | string | null | undefined): {
   const uri = typeof ref === "string" ? ref : ref?.uri;
   if (!uri) return null;
   const parsed = parseAtUri(uri);
-  if (!parsed || parsed.collection !== GIFDEX_POST) return null;
-  const blobCid = blobCidFromRkey(parsed.rkey);
+  if (!parsed) return null;
+
+  const source = sourceForCollection(parsed.collection);
+  const blobCid = source?.blobCidFromRkey?.(parsed.rkey);
   if (!blobCid) return null;
+
   return { did: parsed.did, rkey: parsed.rkey, blobCid };
 }
 
-/** Case-insensitive match over title and tags. */
-export function searchGifs(query: string, gifs: GifPost[]): GifPost[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return gifs;
-  const terms = q.split(/\s+/);
-  return gifs.filter((g) => {
-    const haystack = `${g.title ?? ""} ${g.tags.join(" ")}`.toLowerCase();
-    return terms.every((t) => haystack.includes(t));
-  });
+/** A publicly fetchable image url for a saved gif — used for link previews. */
+export function gifPreviewUrl(ref: GifRef | string | null | undefined): string | null {
+  const g = gifFromRef(ref);
+  return g ? gifBlobUrl(g.did, g.blobCid) : null;
 }
 
-let catalogCache: GifPost[] | null = null;
+/** One page of gifs, and the cursor to ask for the next. */
+export type GifPage = { gifs: GifPost[]; cursor?: string };
 
-/** The whole gifdex catalog — small enough (~150 records) to hold in memory. */
-export async function loadGifCatalog(fetchFn: typeof fetch = fetch): Promise<GifPost[]> {
-  if (catalogCache) return catalogCache;
-  const res = await fetchFn("/api/gifs");
-  if (!res.ok) throw new Error("failed to load gif catalog");
-  const data = (await res.json()) as { gifs?: GifPost[] };
-  catalogCache = data.gifs ?? [];
-  return catalogCache;
+type XrpcFn = (nsid: string, params: Record<string, unknown>) => Promise<unknown>;
+
+type IndexedRecord = { uri?: string; cid?: string; did?: string; [k: string]: unknown };
+
+/**
+ * Normalise whatever the index returns into GifPosts, via the owning source.
+ *
+ * hatk hands back the indexed row rather than the original record, so `media`
+ * arrives as parsed JSON under the same key; each source's fromRecord already
+ * reads it defensively.
+ */
+function toPosts(items: unknown[], collection: string): GifPost[] {
+  const source = sourceForCollection(collection);
+  if (!source) return [];
+  const out: GifPost[] = [];
+  for (const item of items) {
+    const r = item as IndexedRecord;
+    const uri = typeof r.uri === "string" ? r.uri : "";
+    const parsed = parseAtUri(uri);
+    if (!parsed) continue;
+    const post = source.fromRecord({
+      uri,
+      cid: typeof r.cid === "string" ? r.cid : "",
+      did: parsed.did,
+      rkey: parsed.rkey,
+      value: r as Record<string, unknown>,
+    });
+    if (post) out.push(post);
+  }
+  return out;
+}
+
+/**
+ * Browse or search gifs, one page at a time.
+ *
+ * Everything is paginated and server-side. The catalog is assumed to be
+ * unbounded — nothing here holds more than the page being shown, and search
+ * runs against hatk's full-text index rather than an array we shipped to the
+ * client.
+ *
+ * Only the first registered source is queried per call; when a second exists
+ * this fans out per source and merges, which is why the return shape is a page
+ * rather than a raw response.
+ */
+export async function fetchGifPage(
+  callXrpc: XrpcFn,
+  opts: { query?: string; cursor?: string; limit?: number } = {},
+): Promise<GifPage> {
+  const source = GIF_SOURCES[0];
+  if (!source) return { gifs: [] };
+
+  const q = opts.query?.trim();
+  const limit = opts.limit ?? 30;
+
+  const res = (await callXrpc(
+    q ? "dev.hatk.searchRecords" : "dev.hatk.getRecords",
+    q
+      ? { collection: source.collection, q, limit, cursor: opts.cursor }
+      : {
+          collection: source.collection,
+          limit,
+          cursor: opts.cursor,
+          sort: "indexed_at",
+          order: "DESC",
+        },
+  )) as { items?: unknown[]; cursor?: string } | undefined;
+
+  return {
+    gifs: toPosts(res?.items ?? [], source.collection),
+    cursor: res?.cursor,
+  };
 }

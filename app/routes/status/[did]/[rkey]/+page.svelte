@@ -16,6 +16,7 @@
   let ogDescription = $derived(text || (emoji && isCustomEmoji(emoji) ? customEmojiName(emoji).replace(/-/g, ' ') : emoji) || 'share your status')
   let ogUrl = $derived(`https://status.zzstoatzz.io/status/${data.did}/${data.rkey}`)
   let ogImage = $derived(data.ogImage ?? null)
+  let ogImageIsGif = $derived(data.ogImageIsGif ?? false)
 </script>
 
 <svelte:head>
@@ -28,6 +29,9 @@
     <meta property="og:site_name" content="status" />
     {#if ogImage}
       <meta property="og:image" content={ogImage} />
+      {#if ogImageIsGif}
+        <meta property="og:image:type" content="image/gif" />
+      {/if}
       <meta name="twitter:image" content={ogImage} />
       <meta name="twitter:card" content="summary_large_image" />
     {:else}
