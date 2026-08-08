@@ -128,7 +128,7 @@ index 037715c..d59f7da 100644
      await searchPort.buildIndex(safeName, sourceQuery, searchColNames);
      searchColumnCache.set(collection, searchColNames);
 diff --git a/node_modules/@hatk/hatk/dist/indexer.js b/node_modules/@hatk/hatk/dist/indexer.js
-index 04df7a0..b30633f 100644
+index 04df7a0..39dbc8b 100644
 --- a/node_modules/@hatk/hatk/dist/indexer.js
 +++ b/node_modules/@hatk/hatk/dist/indexer.js
 @@ -22,6 +22,14 @@ const backfillPromises = new Map();
@@ -206,7 +206,17 @@ index 04df7a0..b30633f 100644
      let wsUrl = `${relayUrl}/xrpc/com.atproto.sync.subscribeRepos`;
      if (cursor) {
          wsUrl += `?cursor=${cursor}`;
-@@ -289,6 +327,126 @@ export async function startIndexer(opts) {
+@@ -285,10 +323,140 @@ export async function startIndexer(opts) {
+     ws.addEventListener('open', () => log('[indexer] Connected to relay'));
+     ws.addEventListener('close', () => {
+         log('[indexer] Disconnected, reconnecting in 3s...');
+-        setTimeout(() => startIndexer(opts), 3000);
++        // Resume from where we actually got to, not from where this process
++        // started. Relays drop the connection every few minutes; reusing the
++        // original opts.cursor rewound that far back on every reconnect, so an
++        // indexer behind by more than one disconnect interval could never catch
++        // up — it replayed the same window forever.
++        setTimeout(() => startIndexer({ ...opts, cursor: lastSeq ?? opts.cursor }), 3000);
      });
      return ws;
  }
@@ -250,7 +260,12 @@ index 04df7a0..b30633f 100644
 +    ws.addEventListener('open', () => log('[indexer] Connected to jetstream'));
 +    ws.addEventListener('close', () => {
 +        log('[indexer] Disconnected, reconnecting in 3s...');
-+        setTimeout(() => startIndexer(opts), 3000);
++        // Resume from where we actually got to, not from where this process
++        // started. Relays drop the connection every few minutes; reusing the
++        // original opts.cursor rewound that far back on every reconnect, so an
++        // indexer behind by more than one disconnect interval could never catch
++        // up — it replayed the same window forever.
++        setTimeout(() => startIndexer({ ...opts, cursor: lastSeq ?? opts.cursor }), 3000);
 +    });
 +    return ws;
 +}
@@ -333,7 +348,7 @@ index 04df7a0..b30633f 100644
  /**
   * Process a single firehose message. Decodes the CBOR header/body, filters
   * for relevant collections, validates records against lexicons, and routes
-@@ -357,32 +515,35 @@ function processMessage(bytes, collections) {
+@@ -357,32 +525,35 @@ function processMessage(bytes, collections) {
              deleteRecord(collection, uri);
              continue;
          }
