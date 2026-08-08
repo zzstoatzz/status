@@ -1,30 +1,3 @@
-diff --git a/node_modules/@hatk/hatk/dist/config.d.ts b/node_modules/@hatk/hatk/dist/config.d.ts
-index d78f161..074eb95 100644
---- a/node_modules/@hatk/hatk/dist/config.d.ts
-+++ b/node_modules/@hatk/hatk/dist/config.d.ts
-@@ -32,6 +32,8 @@ export interface BackfillConfig {
- }
- export interface HatkConfig {
-     relay: string;
-+    /** Optional Jetstream endpoint for filtered ingest (e.g. wss://stream.waow.tech/subscribe). */
-+    jetstream?: string;
-     plc: string;
-     port: number;
-     databaseEngine: 'duckdb' | 'sqlite';
-diff --git a/node_modules/@hatk/hatk/dist/config.js b/node_modules/@hatk/hatk/dist/config.js
-index 50162fa..c2cbf55 100644
---- a/node_modules/@hatk/hatk/dist/config.js
-+++ b/node_modules/@hatk/hatk/dist/config.js
-@@ -40,6 +40,9 @@ export async function loadConfig(configPath) {
-     const database = env.DATABASE || parsed.database;
-     const config = {
-         relay: env.RELAY || parsed.relay || 'ws://localhost:2583',
-+        // Optional filtered ingest. When set, the indexer subscribes here with
-+        // wantedCollections instead of tailing the whole relay firehose.
-+        jetstream: env.JETSTREAM || parsed.jetstream || undefined,
-         plc: env.DID_PLC_URL || parsed.plc || 'https://plc.directory',
-         port: parseInt(env.PORT || '') || parsed.port || 3000,
-         databaseEngine: (env.DATABASE_ENGINE || parsed.databaseEngine || 'sqlite'),
 diff --git a/node_modules/@hatk/hatk/dist/database/db.js b/node_modules/@hatk/hatk/dist/database/db.js
 index 0d6b89c..d2a8ecf 100644
 --- a/node_modules/@hatk/hatk/dist/database/db.js
@@ -128,10 +101,10 @@ index 037715c..d59f7da 100644
      await searchPort.buildIndex(safeName, sourceQuery, searchColNames);
      searchColumnCache.set(collection, searchColNames);
 diff --git a/node_modules/@hatk/hatk/dist/indexer.js b/node_modules/@hatk/hatk/dist/indexer.js
-index 04df7a0..39dbc8b 100644
+index 04df7a0..8029061 100644
 --- a/node_modules/@hatk/hatk/dist/indexer.js
 +++ b/node_modules/@hatk/hatk/dist/indexer.js
-@@ -22,6 +22,14 @@ const backfillPromises = new Map();
+@@ -22,6 +22,12 @@ const backfillPromises = new Map();
  const pendingReschedule = new Set();
  // In-memory cache of repo status to avoid flooding the DB read queue
  const repoStatusCache = new Map();
@@ -139,23 +112,12 @@ index 04df7a0..39dbc8b 100644
 +// once across all `startIndexer` invocations (the function is re-entered on
 +// every reconnect).
 +let cursorSaverStarted = false;
-+/** Which _cursor row this indexer owns — 'relay' (firehose seq) or 'jetstream' (time_us). */
-+let cursorKey = 'relay';
 +/** How often to persist `lastSeq` to `_cursor.relay` independent of buffer flushes. */
 +const CURSOR_SAVE_INTERVAL_MS = 10_000;
  // Set by startIndexer
  let indexerCollections;
  let indexerSignalCollections;
-@@ -55,7 +63,7 @@ async function flushBuffer() {
-     }
-     if (lastSeq !== null) {
-         try {
--            await setCursor('relay', String(lastSeq));
-+            await setCursor(cursorKey, String(lastSeq));
-         }
-         catch (err) {
-             cursorError = err.message;
-@@ -231,6 +239,31 @@ function startMemoryDiagnostics() {
+@@ -231,6 +237,31 @@ function startMemoryDiagnostics() {
          });
      }, 30_000);
  }
@@ -180,14 +142,14 @@ index 04df7a0..39dbc8b 100644
 +    cursorSaverStarted = true;
 +    setInterval(() => {
 +        if (lastSeq !== null) {
-+            setCursor(cursorKey, String(lastSeq)).catch(() => { });
++            setCursor('relay', String(lastSeq)).catch(() => { });
 +        }
 +    }, CURSOR_SAVE_INTERVAL_MS);
 +}
  /**
   * Connect to the AT Protocol relay firehose and begin indexing.
   *
-@@ -251,6 +284,7 @@ export async function startIndexer(opts) {
+@@ -251,6 +282,7 @@ export async function startIndexer(opts) {
      indexerFetchTimeout = fetchTimeout;
      indexerMaxRetries = opts.maxRetries;
      maxConcurrentBackfills = opts.parallelism ?? 3;
@@ -195,160 +157,21 @@ index 04df7a0..39dbc8b 100644
      // Pre-populate repo status cache from DB so non-signal updates
      // (e.g. profile changes) are processed for already-tracked DIDs
      if (repoStatusCache.size === 0) {
-@@ -261,6 +295,10 @@ export async function startIndexer(opts) {
-         log(`[indexer] Warmed repo status cache with ${statuses.length} entries`);
-     }
-     // startMemoryDiagnostics()
-+    if (opts.jetstreamUrl) {
-+        return startJetstreamIndexer(opts);
-+    }
-+    cursorKey = 'relay';
-     let wsUrl = `${relayUrl}/xrpc/com.atproto.sync.subscribeRepos`;
-     if (cursor) {
-         wsUrl += `?cursor=${cursor}`;
-@@ -285,10 +323,140 @@ export async function startIndexer(opts) {
+@@ -285,7 +317,12 @@ export async function startIndexer(opts) {
      ws.addEventListener('open', () => log('[indexer] Connected to relay'));
      ws.addEventListener('close', () => {
          log('[indexer] Disconnected, reconnecting in 3s...');
 -        setTimeout(() => startIndexer(opts), 3000);
 +        // Resume from where we actually got to, not from where this process
-+        // started. Relays drop the connection every few minutes; reusing the
-+        // original opts.cursor rewound that far back on every reconnect, so an
-+        // indexer behind by more than one disconnect interval could never catch
-+        // up — it replayed the same window forever.
++        // started. Relays drop the connection every few minutes, and reusing the
++        // original opts.cursor rewound that far on every reconnect — so an
++        // indexer behind by more than one disconnect interval replayed the same
++        // window forever and could never catch up.
 +        setTimeout(() => startIndexer({ ...opts, cursor: lastSeq ?? opts.cursor }), 3000);
      });
      return ws;
  }
-+
-+/**
-+ * Filtered ingest via a Jetstream endpoint.
-+ *
-+ * `subscribeRepos` delivers every commit on the network — for an app indexing a
-+ * rare collection that means chewing through thousands of irrelevant events per
-+ * second to find one that matters, and any downtime takes many times its own
-+ * duration to recover. Jetstream applies `wantedCollections` server-side, so the
-+ * socket carries only what this app indexes and the indexer cannot fall behind.
-+ *
-+ * Cursors here are microsecond timestamps (`time_us`), not sequence numbers.
-+ */
-+async function startJetstreamIndexer(opts) {
-+    const { jetstreamUrl, collections, cursor } = opts;
-+    cursorKey = 'jetstream';
-+    const params = new URLSearchParams();
-+    // Jetstream caps the post-dedupe collection list at 100.
-+    for (const c of [...collections].slice(0, 100)) {
-+        params.append('wantedCollections', c);
-+    }
-+    if (cursor) {
-+        params.set('cursor', String(cursor));
-+        log(`[indexer] Resuming from jetstream cursor ${cursor}`);
-+    }
-+    const wsUrl = `${jetstreamUrl}?${params.toString()}`;
-+    log(`[indexer] Connecting to ${jetstreamUrl} (filtered: ${[...collections].join(', ')})...`);
-+    const ws = new WebSocket(wsUrl);
-+    ws.addEventListener('message', (event) => {
-+        try {
-+            if (typeof event.data !== 'string')
-+                return;
-+            processJetstreamEvent(JSON.parse(event.data), collections);
-+        }
-+        catch {
-+            // Skip unparseable events silently, as the firehose path does
-+        }
-+    });
-+    ws.addEventListener('open', () => log('[indexer] Connected to jetstream'));
-+    ws.addEventListener('close', () => {
-+        log('[indexer] Disconnected, reconnecting in 3s...');
-+        // Resume from where we actually got to, not from where this process
-+        // started. Relays drop the connection every few minutes; reusing the
-+        // original opts.cursor rewound that far back on every reconnect, so an
-+        // indexer behind by more than one disconnect interval could never catch
-+        // up — it replayed the same window forever.
-+        setTimeout(() => startIndexer({ ...opts, cursor: lastSeq ?? opts.cursor }), 3000);
-+    });
-+    return ws;
-+}
-+/**
-+ * Handle one Jetstream event, mirroring the decisions {@link processMessage}
-+ * makes for the firehose: identity updates, auto-backfill on signal
-+ * collections, lexicon validation, and buffered writes.
-+ */
-+function processJetstreamEvent(evt, collections) {
-+    if (evt.time_us)
-+        lastSeq = evt.time_us;
-+    const did = evt.did;
-+    if (!did)
-+        return;
-+    if (indexerPinnedRepos && !indexerPinnedRepos.has(did))
-+        return;
-+    if (evt.kind === 'identity') {
-+        const handle = evt.identity?.handle;
-+        if (handle && repoStatusCache.has(did)) {
-+            updateRepoHandle(did, handle).catch(() => { });
-+        }
-+        return;
-+    }
-+    if (evt.kind !== 'commit' || !evt.commit)
-+        return;
-+    const op = evt.commit;
-+    const collection = op.collection;
-+    // identity/account events bypass wantedCollections, and a server could widen
-+    // the filter; never trust it as the only gate.
-+    if (!collection || !collections.has(collection))
-+        return;
-+    const uri = `at://${did}/${collection}/${op.rkey}`;
-+    const isSignal = indexerSignalCollections.has(collection);
-+    const cachedStatus = repoStatusCache.get(did);
-+    const repoStatus = cachedStatus === undefined || cachedStatus === 'unknown' ? null : cachedStatus;
-+    if (cachedStatus === undefined) {
-+        repoStatusCache.set(did, 'unknown');
-+    }
-+    if (isSignal) {
-+        if (repoStatus === null && backfillInFlight.size < maxConcurrentBackfills) {
-+            repoStatusCache.set(did, 'pending');
-+            triggerAutoBackfill(did);
-+        }
-+        else if (repoStatus === null) {
-+            repoStatusCache.set(did, 'pending');
-+            setRepoStatus(did, 'pending');
-+        }
-+    }
-+    else if (repoStatus === null) {
-+        // non-signal collection from a DID we do not track yet
-+        return;
-+    }
-+    if (op.operation === 'delete') {
-+        deleteRecord(collection, uri);
-+        return;
-+    }
-+    const record = op.record;
-+    if (!record || !op.cid)
-+        return;
-+    if (record.$type && record.$type !== collection)
-+        return;
-+    const validationError = validateRecord(getLexiconArray(), collection, record);
-+    if (validationError) {
-+        emit('indexer', 'validation_skip', {
-+            uri,
-+            collection,
-+            path: validationError.path,
-+            error: validationError.message,
-+        });
-+        return;
-+    }
-+    const item = { collection, uri, cid: op.cid, authorDid: did, record };
-+    if (pendingBuffers.has(did)) {
-+        pendingBuffers.get(did).push(item);
-+    }
-+    else {
-+        bufferWrite(item);
-+    }
-+}
- /**
-  * Process a single firehose message. Decodes the CBOR header/body, filters
-  * for relevant collections, validates records against lexicons, and routes
-@@ -357,32 +525,35 @@ function processMessage(bytes, collections) {
+@@ -357,32 +394,35 @@ function processMessage(bytes, collections) {
              deleteRecord(collection, uri);
              continue;
          }
@@ -408,22 +231,3 @@ index 04df7a0..39dbc8b 100644
 +        catch { }
      }
  }
-diff --git a/node_modules/@hatk/hatk/dist/main.js b/node_modules/@hatk/hatk/dist/main.js
-index 8559dc3..0b5cea8 100644
---- a/node_modules/@hatk/hatk/dist/main.js
-+++ b/node_modules/@hatk/hatk/dist/main.js
-@@ -186,9 +186,13 @@ log(`  Feeds: ${listFeeds()
-     .map((f) => f.name)
-     .join(', ')}`);
- // 6. Start indexer with cursor
--const cursor = await getCursor('relay');
-+// Cursors are not interchangeable: the firehose counts sequence numbers, a
-+// Jetstream cursor is a microsecond timestamp. Keep them under separate keys so
-+// switching ingest modes cannot resume from a nonsensical position.
-+const cursor = await getCursor(config.jetstream ? 'jetstream' : 'relay');
- startIndexer({
-     relayUrl: config.relay,
-+    jetstreamUrl: config.jetstream,
-     collections: collectionSet,
-     signalCollections: config.backfill.signalCollections ? new Set(config.backfill.signalCollections) : undefined,
-     pinnedRepos: config.backfill.repos ? new Set(config.backfill.repos) : undefined,

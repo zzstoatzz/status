@@ -9,13 +9,10 @@ const scopes = [
 ].join(" ");
 
 export default defineConfig({
-  relay: isProd ? "wss://bsky.network" : "ws://localhost:2583",
-  // Filtered ingest. The relay firehose carries the whole network (~230 events/s)
-  // to find a collection that produces a handful of records a day, so any
-  // downtime costs many times its own length to replay. Jetstream applies
-  // wantedCollections server-side, leaving a trickle the indexer cannot fall
-  // behind on. `relay` above is still used for backfill's HTTP endpoints.
-  jetstream: isProd ? "wss://stream.waow.tech/subscribe" : undefined,
+  // our own relay. note that seq numbering is per-relay — switching hosts
+  // invalidates any saved _cursor.relay, which must be cleared rather than
+  // carried across.
+  relay: isProd ? "wss://zlay.waow.tech" : "ws://localhost:2583",
   plc: isProd ? "https://plc.directory" : "http://localhost:2582",
   port: 3000,
   databaseEngine: "sqlite",
