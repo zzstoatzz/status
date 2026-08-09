@@ -13,6 +13,7 @@
   import GifImage from './GifImage.svelte'
   import { fetchGifPage, type GifPage, type GifPost, type GifRef } from '$lib/utils/gifdex'
   import { GIF_SOURCES } from '$lib/utils/gifsources'
+  import { nextGrowth } from '$lib/utils/grid'
 
   let { onselect, onclose }: {
     // a gif still carries an emoji: it is the fallback for anything that cannot
@@ -81,8 +82,12 @@
   let hasMore = $derived(
     visibleCount < gridItems.length || (currentCategory === 'gifs' && !gifExhausted),
   )
-  /** tiles on screen still waiting on their image */
-  let pending = $derived(visibleItems.filter((i) => !settled.has(i.value)).length)
+  /** Tiles on screen still waiting on an image.
+      Only gifs and bufos load one — a unicode emoji never reports settling, so
+      counting it here would leave the grid permanently "still loading". */
+  let pending = $derived(
+    visibleItems.filter((i) => i.type !== 'emoji' && !settled.has(i.value)).length,
+  )
   // a search spans bufos too, so results can be mixed — size the cells for images
   // whenever any are present rather than keying off the tab alone.
   let isBufoGrid = $derived(
@@ -241,6 +246,8 @@
       ]
     }
     loadingMore = false
+    // a fresh page usually means there is now something to reveal
+    maybeGrow()
   }
 
   /** Best name for a gif: its title, else its tags, else nothing useful. */
@@ -281,6 +288,7 @@
     const observer = new IntersectionObserver(
       (entries) => {
         sentinelVisible = entries.some((e) => e.isIntersecting)
+        if (sentinelVisible) maybeGrow()
       },
       { root: gridEl, rootMargin: '300px' },
     )
@@ -295,23 +303,36 @@
    * Grow the grid, one batch at a time.
    *
    * Reveal what is already fetched before asking the server for more, and hold
-   * off entirely while the current batch is still loading — otherwise a grid of
+   * off while the current batch is still loading — otherwise a grid of
    * skeletons keeps the sentinel on screen and every pass piles more requests
    * onto a browser that only runs a handful per host.
    *
-   * Reading `pending` here is what makes this progressive: each settled image
-   * re-runs the effect, so the next batch starts as the previous one lands,
-   * without needing another scroll.
+   * Deliberately NOT an $effect. It assigns `visibleCount`, which it also has to
+   * read, and an effect that writes what it reads re-runs itself: that cycle
+   * froze the whole picker. Callers drive it instead — the sentinel appearing,
+   * an image settling, the grid scrolling — and a frame's worth of coalescing
+   * keeps a burst of those to one pass.
    */
-  $effect(() => {
-    if (!sentinelVisible || loading) return
-    if (pending > MAX_IN_FLIGHT) return
-    if (visibleCount < gridItems.length) {
-      visibleCount = Math.min(visibleCount + windowStep, gridItems.length)
-    } else if (currentCategory === 'gifs') {
-      loadMoreGifs()
-    }
-  })
+  let growQueued = false
+  function maybeGrow() {
+    if (growQueued) return
+    growQueued = true
+    requestAnimationFrame(() => {
+      growQueued = false
+      const step = nextGrowth({
+        visibleCount,
+        total: gridItems.length,
+        windowStep,
+        pending,
+        maxInFlight: MAX_IN_FLIGHT,
+        sentinelVisible,
+        loading,
+        canFetchMore: currentCategory === 'gifs' && !gifExhausted && !!gifCursor,
+      })
+      if (step.kind === 'reveal') visibleCount = step.visibleCount
+      else if (step.kind === 'fetch') loadMoreGifs()
+    })
+  }
 </script>
 
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape') onclose() }} />
@@ -361,7 +382,13 @@
     </div>
     <div class="emoji-grid-wrap">
       <div class="emoji-loading-bar" class:visible={loading} aria-hidden="true"></div>
-      <div class="emoji-grid" class:bufo-grid={isBufoGrid} class:gif-grid={isGifGrid} bind:this={gridEl}>
+      <div
+        class="emoji-grid"
+        class:bufo-grid={isBufoGrid}
+        class:gif-grid={isGifGrid}
+        bind:this={gridEl}
+        onscroll={maybeGrow}
+      >
         {#if !loading && gridItems.length === 0}
           <div class="no-results">{isGifGrid ? 'no gifs found' : 'no emojis found'}</div>
         {:else}
@@ -381,7 +408,7 @@
                   blobCid={item.gif.blobCid}
                   source={item.gif.source}
                   alt={item.gif.title ?? ''}
-                  onsettled={() => { settled = new Set(settled).add(item.value) }}
+                  onsettled={() => { settled = new Set(settled).add(item.value); maybeGrow() }}
                 />
               </button>
             {:else if item.type === 'bufo'}
@@ -394,7 +421,7 @@
                 <CustomEmoji
                   name={item.name ?? ''}
                   loading="lazy"
-                  onsettled={() => { settled = new Set(settled).add(item.value) }}
+                  onsettled={() => { settled = new Set(settled).add(item.value); maybeGrow() }}
                 />
                 {#if item.score != null}
                   <span class="bufo-score">{Math.round(item.score * 100)}%</span>
