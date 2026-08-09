@@ -43,6 +43,8 @@
   // The status stores only a strongRef, so the gif's name comes from our own
   // index. Native tooltips must be set before the pointer arrives, so this
   // cannot wait for hover.
+  let hasAuthor = $derived(showAuthor && !!(status.handle || status.did))
+
   let gifTitle = $state<string | null>(null)
   $effect(() => {
     const uri = typeof status.gif === 'string' ? status.gif : status.gif?.uri
@@ -86,21 +88,21 @@
       {status.emoji}
     {/if}
   </span>
-  <div class="content">
-    <div>
-      {#if showAuthor && (status.handle || status.did)}
-        <a href="/@{status.handle ?? status.did}" class="author">@{status.handle ?? status.did?.slice(0, 18)}</a>
-      {/if}
-      {#if status.text}
-        <span class="text">{@html parseLinks(status.text)}</span>
-      {/if}
-    </div>
+  <!-- handle, status, then when — three stacked lines, never sharing one -->
+  <div class="content" class:with-author={hasAuthor}>
+    {#if hasAuthor}
+      <a href="/@{status.handle ?? status.did}" class="author">@{status.handle ?? status.did?.slice(0, 18)}</a>
+    {/if}
+    {#if status.text}
+      <span class="text" title={status.text}>{@html parseLinks(status.text)}</span>
+    {/if}
     <span class="time">
       <time datetime={status.createdAt} title={absoluteTime(status.createdAt)}>
         {relativeTime(status.createdAt)}
       </time>
       {#if status.expires}
-        &middot; <time datetime={status.expires} title={absoluteTime(status.expires)}>
+        &middot;
+        <time datetime={status.expires} title={absoluteTime(status.expires)}>
           {formatExpiration(status.expires)}
         </time>
       {/if}
