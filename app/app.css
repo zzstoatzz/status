@@ -390,14 +390,18 @@ button[type="submit"]:hover,
   text-align: center;
 }
 
+/* The card is the widest thing on the page and its whole job is showing one
+   status, so the glyph scales with the viewport instead of sitting at a fixed
+   size in the middle of it. Clamped so it stays sane on a phone and stops
+   growing before it dominates a desktop card. */
 .big-emoji {
-  font-size: 5rem;
+  font-size: clamp(5rem, 18vw, 9rem);
   line-height: 1;
 }
 .big-emoji img,
 .big-emoji .custom-emoji-missing {
-  width: 5rem;
-  height: 5rem;
+  width: clamp(5rem, 18vw, 9rem);
+  height: clamp(5rem, 18vw, 9rem);
   object-fit: contain;
 }
 .status-info {
@@ -470,18 +474,20 @@ button[type="submit"]:hover,
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
+  font-size: 2.25rem;
   flex-shrink: 0;
   transition: border-color 0.15s;
+  overflow: hidden;
 }
 
 .emoji-trigger:hover {
   border-color: var(--accent);
 }
+/* fill the 48px button, leaving only enough inset to clear the rounded border */
 .emoji-trigger img,
 .emoji-trigger .custom-emoji-missing {
-  width: 2rem;
-  height: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
   object-fit: contain;
 }
 
@@ -553,15 +559,26 @@ button[type="submit"]:hover,
 .status-item:hover {
   border-color: var(--accent);
 }
+/* A fixed square box, so every row reserves the same footprint no matter how
+   wide or tall the bufo is — the container is what keeps a list consistent
+   (bluesky's AutoSizedImage does the same, clamping the box rather than the
+   image). `contain` rather than `cover`: these are stickers, and cropping one
+   cuts off the character. Centered, since the text beside it may wrap. */
 .status-item .emoji {
-  font-size: 2.5rem;
+  font-size: 3rem;
   line-height: 1;
   flex-shrink: 0;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
 }
 .status-item .emoji img,
 .status-item .emoji .custom-emoji-missing {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 3rem;
+  height: 3rem;
   object-fit: contain;
 }
 .status-item .content {

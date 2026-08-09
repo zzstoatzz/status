@@ -47,9 +47,13 @@
   // rendering them all is what made opening it hang for seconds. The sentinel at
   // the end of the grid extends the window as it scrolls into view.
   const WINDOW_STEP = 60
-  // Gifs are the real bytes — median ~1MB, no thumbnail tier — so they extend in
-  // much smaller steps than emoji do. Raise this once a resizer exists.
+  // Gifs are the real bytes even as a ~95KB gif_preview rendition, so they
+  // extend in much smaller steps than emoji do.
   const GIF_WINDOW_STEP = 12
+  // Never leave more than this many images loading at once. Browsers run ~6
+  // requests per host; queueing thirty behind that is what made the grid look
+  // stuck rather than slow.
+  const MAX_IN_FLIGHT = 6
   // hatk types callXrpc against its known nsids; the gif util takes a plain
   // string so it stays independent of the client. Widen once, here.
   const xrpc = (nsid: string, params: Record<string, unknown>) =>
@@ -64,16 +68,21 @@
   let loadingMore = $state(false)
   let sentinel: HTMLDivElement | undefined = $state()
   let gridEl: HTMLDivElement | undefined = $state()
+  let sentinelVisible = $state(false)
 
   // names whose image has settled, so a tile knows to drop its skeleton
   let settled = $state(new Set<string>())
 
-  let visibleItems = $derived(
-    currentCategory === 'gifs' ? gridItems : gridItems.slice(0, visibleCount),
-  )
+  // Gifs are windowed like everything else. They used to render `gridItems`
+  // whole, so a 30-gif page put 30 image requests in flight at once, the
+  // sentinel stayed on screen behind the skeletons, and each firing fetched
+  // another page and rendered that whole too — the grid never caught up.
+  let visibleItems = $derived(gridItems.slice(0, visibleCount))
   let hasMore = $derived(
-    currentCategory === 'gifs' ? !gifExhausted : visibleCount < gridItems.length,
+    visibleCount < gridItems.length || (currentCategory === 'gifs' && !gifExhausted),
   )
+  /** tiles on screen still waiting on their image */
+  let pending = $derived(visibleItems.filter((i) => !settled.has(i.value)).length)
   // a search spans bufos too, so results can be mixed — size the cells for images
   // whenever any are present rather than keying off the tab alone.
   let isBufoGrid = $derived(
@@ -230,7 +239,6 @@
         ...gridItems,
         ...page.gifs.map((g) => ({ type: 'gif' as const, value: g.uri, name: g.title, gif: g })),
       ]
-      visibleCount = gridItems.length
     }
     loadingMore = false
   }
@@ -267,17 +275,37 @@
     if (!sentinel || !gridEl) return
     const observer = new IntersectionObserver(
       (entries) => {
-        if (!entries.some((e) => e.isIntersecting)) return
-        if (currentCategory === 'gifs') {
-          loadMoreGifs()
-        } else if (visibleCount < gridItems.length) {
-          visibleCount = Math.min(visibleCount + windowStep, gridItems.length)
-        }
+        sentinelVisible = entries.some((e) => e.isIntersecting)
       },
       { root: gridEl, rootMargin: '300px' },
     )
     observer.observe(sentinel)
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      sentinelVisible = false
+    }
+  })
+
+  /**
+   * Grow the grid, one batch at a time.
+   *
+   * Reveal what is already fetched before asking the server for more, and hold
+   * off entirely while the current batch is still loading — otherwise a grid of
+   * skeletons keeps the sentinel on screen and every pass piles more requests
+   * onto a browser that only runs a handful per host.
+   *
+   * Reading `pending` here is what makes this progressive: each settled image
+   * re-runs the effect, so the next batch starts as the previous one lands,
+   * without needing another scroll.
+   */
+  $effect(() => {
+    if (!sentinelVisible || loading) return
+    if (pending > MAX_IN_FLIGHT) return
+    if (visibleCount < gridItems.length) {
+      visibleCount = Math.min(visibleCount + windowStep, gridItems.length)
+    } else if (currentCategory === 'gifs') {
+      loadMoreGifs()
+    }
   })
 </script>
 
