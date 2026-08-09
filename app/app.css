@@ -565,7 +565,7 @@ button[type="submit"]:hover,
    whatever it holds and whatever the viewport — a feed of ragged rows reads as
    broken — so the text is what yields, clamping to two lines. */
 .status-item {
-  --row-height: 4.5rem;
+  --row-height: 4rem;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -589,7 +589,7 @@ button[type="submit"]:hover,
    (bluesky's AutoSizedImage clamps the box, not the image). `contain` rather
    than `cover`: these are stickers, and cropping one cuts off the character. */
 .status-item .emoji {
-  --emoji-size: calc(var(--row-height) - 1.5rem);
+  --emoji-size: calc(var(--row-height) - 1rem);
   font-size: var(--emoji-size);
   line-height: 1;
   flex-shrink: 0;
@@ -648,31 +648,58 @@ button[type="submit"]:hover,
 .status-item .text a:hover {
   text-decoration: underline;
 }
-/* Trailing supporting text, in material's sense: when it happened, hard against
-   the right edge, dimmer and smaller than the content it annotates. Bluesky
-   does the same in PostMeta — right-aligned, contrast-medium, never wrapping,
-   with the full date as a tooltip. */
-.status-item .meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: space-between;
-  align-self: stretch;
-  padding: 0.15rem 0;
+/* One trailing slot, holding two things that never appear together: the
+   timestamp at rest, the actions when you reach for them. Gmail's swap. It is
+   what lets the row stay calm — nothing here competes for space, which is the
+   quality the very first version of this card had. */
+.status-item .trailing {
+  display: grid;
+  align-items: center;
+  justify-items: end;
+  align-self: center;
   flex-shrink: 0;
 }
+.status-item .trailing > * {
+  grid-area: 1 / 1;
+  transition: opacity 0.15s;
+}
 .status-item .time {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
   font-size: 0.75rem;
   line-height: 1.3;
   color: var(--text-secondary);
   white-space: nowrap;
 }
 .status-item .time .expiry {
-  font-size: 0.6875rem;
   opacity: 0.8;
+}
+
+@media (hover: hover) {
+  /* at rest the date; on hover the buttons take its place */
+  .status-item .status-actions {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .status-item:hover .status-actions,
+  .status-item:focus-within .status-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .status-item:hover .time,
+  .status-item:focus-within .time {
+    opacity: 0;
+  }
+}
+
+/* no hover to swap with, so the two sit side by side instead of stacked */
+@media (hover: none) {
+  .status-item .trailing {
+    grid-auto-flow: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .status-item .trailing > * {
+    grid-area: auto;
+  }
 }
 
 .status-actions {
@@ -697,16 +724,8 @@ button[type="submit"]:hover,
   position: relative;
 }
 
-@media (hover: hover) {
-  .share-btn,
-  .delete-btn {
-    opacity: 0;
-  }
-  .status-item:hover .share-btn,
-  .status-item:hover .delete-btn {
-    opacity: 1;
-  }
-}
+/* no per-button hide: the whole trailing slot swaps, and the only other place
+   these buttons appear is the current status, where they are always shown */
 .share-btn:hover {
   color: var(--accent);
 }
@@ -782,17 +801,8 @@ button.backlink-btn {
   color: var(--accent);
 }
 
-/* Same escape hatch the share/delete buttons use: hide-until-hover applies only
-   where hovering exists. On touch there is no hover, so it stays visible. */
-@media (hover: hover) {
-  .status-item .backlink-btn {
-    opacity: 0;
-  }
-  .status-item:hover .backlink-btn,
-  .status-item .backlink-btn:focus-visible {
-    opacity: 1;
-  }
-}
+/* no rule for the feed here either: the backlink sits inside .status-actions,
+   which the trailing slot already swaps in and out as a whole */
 
 /* the current status' own actions are always shown, so its backlink is too */
 .current-status-actions .backlink-btn {

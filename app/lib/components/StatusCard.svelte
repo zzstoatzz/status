@@ -97,16 +97,17 @@
       <span class="text" title={status.text}>{@html parseLinks(status.text)}</span>
     {/if}
   </div>
-  <div class="meta">
+  <!-- one trailing slot: when it happened, until you reach for what to do about
+       it. Gmail's swap — the two never compete for the same space. -->
+  <div class="trailing">
     <span class="time">
       <time datetime={status.createdAt} title={absoluteTime(status.createdAt)}>
         {relativeTime(status.createdAt)}
-      </time>
-      {#if status.expires}
-        <time class="expiry" datetime={status.expires} title={absoluteTime(status.expires)}>
-          {formatExpiration(status.expires)}
-        </time>
-      {/if}
+      </time>{#if status.expires}<span class="expiry"
+        >&middot; <time datetime={status.expires} title={absoluteTime(status.expires)}
+          >{formatExpiration(status.expires)}</time
+        ></span
+      >{/if}
     </span>
     <div class="status-actions">
       {#if permalink}
