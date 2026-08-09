@@ -98,6 +98,12 @@ export function gifdexBlobCidFromRkey(rkey: string): string | null {
  * are documented but currently answer "unknown or unsupported media kind", and
  * `gif_placeholder` is a static frame — wrong for anything that should move.
  *
+ * `preview` is what every caller wants in practice: measured on a real record,
+ * `gif` and `gif_preview` are the same 374x374 with the same 96 frames and only
+ * differ in compression — 2.5MB against 846KB — and nothing here renders larger
+ * than 224px. `full` stays in the type because a future source may genuinely
+ * offer a bigger rendition; for gifdex it would just be more bytes.
+ *
  * This is a rendition, not the blob: the bytes are re-encoded, so they cannot
  * hash to the cid. Anywhere the cid is the point, use the verifying proxy.
  */

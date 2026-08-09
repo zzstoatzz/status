@@ -1,12 +1,17 @@
 <script lang="ts">
   import { isCustomEmoji, customEmojiName, bufoImageUrl, parseLinks } from '$lib/utils/emoji'
   import CustomEmoji from '$lib/components/CustomEmoji.svelte'
+  import GifImage from '$lib/components/GifImage.svelte'
+  import { gifFromRef } from '$lib/utils/gifdex'
   import { relativeTime, formatExpiration, absoluteTime } from '$lib/utils/time'
 
   let { data } = $props()
 
   let status = $derived(data.status)
   let emoji = $derived(status?.emoji ?? status?.value?.emoji)
+  // the server reads it the same way; this page rendered only the emoji, so a
+  // gif status fell back to the film-reel placeholder that stands in for one
+  let gif = $derived(status?.value?.gif ?? status?.gif)
   let text = $derived(status?.text ?? status?.value?.text)
   let handle = $derived(status?.handle ?? status?.value?.handle ?? data.did)
   let createdAt = $derived(status?.createdAt ?? status?.value?.createdAt)
@@ -46,7 +51,16 @@
   <div class="profile-card">
     <div class="current-status">
       <span class="big-emoji">
-        {#if emoji && isCustomEmoji(emoji)}
+        {#if gifFromRef(gif)}
+          {@const g = gifFromRef(gif)!}
+          <GifImage
+            did={g.did}
+            blobCid={g.blobCid}
+            source={g.source}
+           
+            alt={text ?? 'status gif'}
+          />
+        {:else if emoji && isCustomEmoji(emoji)}
           {@const name = customEmojiName(emoji)}
           <CustomEmoji {name} />
         {:else}
