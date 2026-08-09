@@ -7,18 +7,50 @@
   import EmojiPicker from './EmojiPicker.svelte'
   import { gifFromRef, type GifRef } from '$lib/utils/gifdex'
   import { toast } from '$lib/toast.svelte'
+  import { onMount } from 'svelte'
+  import { fly } from 'svelte/transition'
+  import { loadPopularEmoji, DEFAULT_FREQUENT } from '$lib/utils/emoji'
+  import { buildSuggestions } from '$lib/utils/suggestions'
 
-  let { currentEmoji = '😊', oncreated }: { currentEmoji?: string; oncreated?: () => void } = $props()
+  let {
+    currentEmoji = '😊',
+    recent = [],
+    oncreated,
+  }: { currentEmoji?: string; recent?: string[]; oncreated?: () => void } = $props()
 
-  // follows the prop until the user picks something, then holds that choice
-  let selectedEmoji = $derived(currentEmoji)
+  /** set once you choose for yourself; from then on nothing cycles */
+  let picked: string | undefined = $state()
+  let popular: string[] = $state([])
+  let cycleIndex = $state(0)
+  let paused = $state(false)
+
+  let suggestions = $derived(buildSuggestions({ current: currentEmoji, recent, popular }))
+  let suggestion = $derived(suggestions[cycleIndex % (suggestions.length || 1)] ?? currentEmoji)
+  // your choice wins; until then the composer posts whatever it is showing
+  let selectedEmoji = $derived(picked ?? suggestion)
   let selectedGif: GifRef | undefined = $state()
   let selectedGifMedia = $derived(gifFromRef(selectedGif))
+  let cycling = $derived(!picked && !paused && !selectedGif && suggestions.length > 1)
   let text = $state('')
   let expiresValue = $state('')
   let customDatetime = $state('')
   let showPicker = $state(false)
   let submitting = $state(false)
+
+  const CYCLE_MS = 3200
+  let reduced = $state(false)
+
+  onMount(() => {
+    reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    loadPopularEmoji(() => callXrpc('dev.hatk.getFeed', { feed: 'popular', limit: 32 }))
+      .then((list) => { popular = list })
+      .catch(() => { popular = [...DEFAULT_FREQUENT] })
+
+    const id = setInterval(() => {
+      if (cycling) cycleIndex += 1
+    }, CYCLE_MS)
+    return () => clearInterval(id)
+  })
 
   function toLocalDatetimeString(date: Date) {
     const offset = date.getTimezoneOffset()
@@ -67,6 +99,8 @@
 
       text = ''
       expiresValue = ''
+      picked = undefined
+      selectedGif = undefined
       oncreated?.()
       toast.success('status posted')
     } catch (err: any) {
@@ -79,7 +113,21 @@
 
 <form class="status-form" onsubmit={submit}>
   <div class="emoji-input-row">
-    <button type="button" class="emoji-trigger" onclick={() => showPicker = true}>
+    <!-- Until you pick, this cycles through your own emoji and then the site's
+         popular ones, and posts whatever it is showing. Any contact with it —
+         hover, focus, or a finger — stops the cycle where it stands. -->
+    <button
+      type="button"
+      class="emoji-trigger"
+      class:cycling
+      onclick={() => showPicker = true}
+      onpointerenter={() => (paused = true)}
+      onpointerleave={() => (paused = false)}
+      onpointerdown={() => (paused = true)}
+      onfocusin={() => (paused = true)}
+      onfocusout={() => (paused = false)}
+      aria-label="choose an emoji"
+    >
       {#if selectedGifMedia}
         <GifImage
           did={selectedGifMedia.did}
@@ -87,11 +135,21 @@
           source={selectedGifMedia.source}
           alt="selected gif"
         />
-      {:else if isCustomEmoji(selectedEmoji)}
-        {@const name = customEmojiName(selectedEmoji)}
-        <CustomEmoji {name} />
       {:else}
-        {selectedEmoji}
+        {#key selectedEmoji}
+          <span
+            class="emoji-trigger-glyph"
+            in:fly={{ x: reduced ? 0 : 22, duration: reduced ? 0 : 240 }}
+            out:fly={{ x: reduced ? 0 : -22, duration: reduced ? 0 : 240 }}
+          >
+            {#if isCustomEmoji(selectedEmoji)}
+              {@const name = customEmojiName(selectedEmoji)}
+              <CustomEmoji {name} />
+            {:else}
+              {selectedEmoji}
+            {/if}
+          </span>
+        {/key}
       {/if}
     </button>
     <input type="text" placeholder="what's happening?" maxlength="256" bind:value={text} />
@@ -119,7 +177,7 @@
 
 {#if showPicker}
   <EmojiPicker
-    onselect={(emoji, gif) => { selectedEmoji = emoji; selectedGif = gif; showPicker = false }}
+    onselect={(emoji, gif) => { picked = emoji; selectedGif = gif; showPicker = false }}
     onclose={() => showPicker = false}
   />
 {/if}

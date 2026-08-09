@@ -142,7 +142,11 @@
     </section>
   {/if}
 
-  <CreateStatusForm currentEmoji={current?.emoji ?? '😊'} oncreated={refresh} />
+  <CreateStatusForm
+    currentEmoji={current?.emoji ?? '😊'}
+    recent={statuses.map((s) => s.emoji)}
+    oncreated={refresh}
+  />
 
   {#if history.length > 0}
     <section class="history">
