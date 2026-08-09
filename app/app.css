@@ -392,24 +392,23 @@ button[type="submit"]:hover,
   text-align: center;
 }
 
-/* The card's whole job is showing one status, so the image takes the card's
-   width rather than sitting at a fixed size in the middle of it. Sized off the
-   container, not the viewport — a vw cap left most of the card empty. Natural
-   aspect ratio, with a height cap so a tall gif cannot run away. */
+/* Sized by height, not width. The image is usually square, so anything that
+   widens it also lengthens the card — capping the height is what lets the glyph
+   grow while the card stays roughly the size it was. A wide gif still gets to
+   be wide: width follows the aspect ratio up to the card's edge. */
 .big-emoji {
-  font-size: clamp(6rem, 26vw, 13rem);
+  font-size: clamp(5rem, 22vw, 11rem);
   line-height: 1;
-  width: 100%;
-  max-width: 24rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  max-width: 100%;
 }
 .big-emoji img,
 .big-emoji .custom-emoji-missing {
-  width: 100%;
-  height: auto;
-  max-height: 24rem;
+  height: 14rem;
+  width: auto;
+  max-width: 100%;
   object-fit: contain;
 }
 .status-info {
