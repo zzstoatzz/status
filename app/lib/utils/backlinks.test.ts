@@ -3,7 +3,8 @@ import {
   _resetBacklinkCache,
   bskyPaths,
   fetchBacklink,
-  newest,
+  newestFirst,
+  resolveHandles,
   sourceParam,
   statusPermalink,
 } from "./backlinks.ts";
@@ -78,15 +79,25 @@ describe("sourceParam", () => {
   });
 });
 
-describe("newest", () => {
+describe("newestFirst", () => {
+  const p = (rkey: string) => ({ did: DID, rkey });
   // rkeys are TIDs, so lexicographic order is creation order
-  it("picks the latest rkey regardless of response order", () => {
-    expect(newest([{ rkey: "3aaa" }, { rkey: "3zzz" }, { rkey: "3mmm" }])?.rkey).toBe("3zzz");
+  it("orders newest first regardless of response order", () => {
+    expect(newestFirst([p("3aaa"), p("3zzz"), p("3mmm")]).map((r) => r.rkey)).toEqual([
+      "3zzz",
+      "3mmm",
+      "3aaa",
+    ]);
   });
 
-  it("is null for nothing usable", () => {
-    expect(newest([])).toBeNull();
-    expect(newest([{ rkey: "" }])).toBeNull();
+  it("drops records missing a did or rkey rather than rendering a dead link", () => {
+    expect(
+      newestFirst([
+        { did: DID, rkey: "" },
+        { did: "", rkey: "3aaa" },
+      ]),
+    ).toEqual([]);
+    expect(newestFirst([])).toEqual([]);
   });
 });
 
@@ -101,8 +112,7 @@ describe("fetchBacklink", () => {
 
     expect(await fetchBacklink(PERMALINK, fetchFn as never)).toEqual({
       count: 1,
-      did: DID,
-      rkey: "3msm4v3sdnc2q",
+      posts: [{ did: DID, rkey: "3msm4v3sdnc2q" }],
     });
 
     // the target must be the permalink exactly — constellation treats a
@@ -119,7 +129,7 @@ describe("fetchBacklink", () => {
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
-  it("sums counts across paths but links to the newest post", async () => {
+  it("sums counts across paths and offers every post, newest first", async () => {
     const fetchFn = vi
       .fn()
       .mockResolvedValueOnce(
@@ -138,10 +148,13 @@ describe("fetchBacklink", () => {
         }),
       );
 
+    // every post is offered, newest first, so the reader can pick one
     expect(await fetchBacklink(PERMALINK, fetchFn as never)).toEqual({
       count: 3,
-      did: "did:plc:other",
-      rkey: "3zzz",
+      posts: [
+        { did: "did:plc:other", rkey: "3zzz" },
+        { did: DID, rkey: "3aaa" },
+      ],
     });
   });
 
@@ -196,6 +209,43 @@ describe("fetchBacklink", () => {
     await fetchBacklink(PERMALINK, fetchFn as never);
     await fetchBacklink(PERMALINK, fetchFn as never);
     expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("resolveHandles", () => {
+  beforeEach(() => _resetBacklinkCache());
+
+  it("labels the menu with handles, in one request for the whole set", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      ok({
+        profiles: [
+          { did: DID, handle: "zzstoatzz.io" },
+          { did: "did:plc:other", handle: "blooym.dev" },
+        ],
+      }),
+    );
+    expect(await resolveHandles([DID, "did:plc:other"], fetchFn as never)).toEqual({
+      [DID]: "zzstoatzz.io",
+      "did:plc:other": "blooym.dev",
+    });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("caches, and asks for nothing when every did is known", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(ok({ profiles: [{ did: DID, handle: "a.test" }] }));
+    await resolveHandles([DID], fetchFn as never);
+    await resolveHandles([DID], fetchFn as never);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("degrades to no handles rather than throwing — the menu shows dids", async () => {
+    for (const bad of [
+      vi.fn().mockRejectedValue(new Error("offline")),
+      vi.fn().mockResolvedValue({ ok: false } as Response),
+    ]) {
+      _resetBacklinkCache();
+      await expect(resolveHandles([DID], bad as never)).resolves.toEqual({});
+    }
   });
 });
 

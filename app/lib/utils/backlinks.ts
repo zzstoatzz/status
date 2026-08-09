@@ -36,12 +36,14 @@ export function statusPermalink(origin: string, uri: string): string {
  */
 const BSKY_POST = "app.bsky.feed.post";
 
+/** one bluesky post that references a status */
+export type BacklinkPost = { did: string; rkey: string };
+
 export type Backlink = {
-  /** how many bluesky posts reference this status */
+  /** how many bluesky posts reference this status, across every link path */
   count: number;
-  /** the most recent referencing post, for the outbound link */
-  did: string;
-  rkey: string;
+  /** every post we could resolve, newest first, so the reader can pick one */
+  posts: BacklinkPost[];
 };
 
 /** `{collection: {path: {records, distinct_dids}}}` */
@@ -69,18 +71,13 @@ export function sourceParam(path: string): string {
 }
 
 /**
- * The newest of a set of records.
+ * Records newest first, dropping anything unusable.
  *
- * rkeys are TIDs, which sort lexicographically in creation order, so this needs
- * no extra fetch and does not depend on constellation's result ordering.
+ * rkeys are TIDs, which sort lexicographically in creation order, so ordering
+ * needs no extra fetch and does not depend on constellation's result order.
  */
-export function newest<T extends { rkey: string }>(records: T[]): T | null {
-  let best: T | null = null;
-  for (const r of records) {
-    if (!r?.rkey) continue;
-    if (!best || r.rkey > best.rkey) best = r;
-  }
-  return best;
+export function newestFirst<T extends { rkey: string; did: string }>(records: T[]): T[] {
+  return records.filter((r) => r?.rkey && r?.did).sort((a, b) => (a.rkey > b.rkey ? -1 : 1));
 }
 
 /**
@@ -102,6 +99,50 @@ function remember(key: string, value: Backlink | null): Backlink | null {
 /** Test seam. */
 export function _resetBacklinkCache(): void {
   cache.clear();
+  handleCache.clear();
+}
+
+const handleCache = new Map<string, string>();
+
+/**
+ * Handles for the backlink menu, so it reads as people rather than DIDs.
+ *
+ * One request for the whole set — the public appview takes up to 25 actors at
+ * a time, which is the same ceiling we ask constellation for. Only called when
+ * a menu is opened, so most statuses never trigger it. Anything unresolved is
+ * simply absent, and the caller falls back to a truncated DID.
+ */
+export async function resolveHandles(
+  dids: string[],
+  fetchFn: FetchLike = globalThis.fetch,
+): Promise<Record<string, string>> {
+  const unique = [...new Set(dids)].filter(Boolean);
+  const out: Record<string, string> = {};
+  const missing: string[] = [];
+  for (const did of unique) {
+    const hit = handleCache.get(did);
+    if (hit) out[did] = hit;
+    else missing.push(did);
+  }
+  if (missing.length === 0) return out;
+
+  try {
+    const params = new URLSearchParams();
+    for (const did of missing.slice(0, 25)) params.append("actors", did);
+    const res = await fetchFn(
+      `https://public.api.bsky.app/xrpc/app.bsky.actor.getProfiles?${params}`,
+    );
+    if (!res.ok) return out;
+    const body = (await res.json()) as { profiles?: { did: string; handle: string }[] };
+    for (const p of body.profiles ?? []) {
+      if (!p?.did || !p?.handle) continue;
+      handleCache.set(p.did, p.handle);
+      out[p.did] = p.handle;
+    }
+  } catch {
+    // a menu of truncated DIDs still works
+  }
+  return out;
 }
 
 /**
@@ -129,16 +170,17 @@ export async function fetchBacklink(
     const params = new URLSearchParams({
       subject: permalink,
       source: sourceParam(paths[0].path),
-      limit: "10",
+      // enough to offer a real choice without paging; the tail is rare
+      limit: "25",
     });
     const res = await fetchFn(`${CONSTELLATION}/xrpc/blue.microcosm.links.getBacklinks?${params}`);
     if (!res.ok) return null;
 
-    const body = (await res.json()) as { records?: { did: string; rkey: string }[] };
-    const latest = newest(body.records ?? []);
-    if (!latest) return remember(permalink, null);
+    const body = (await res.json()) as { records?: BacklinkPost[] };
+    const posts = newestFirst(body.records ?? []).map(({ did, rkey }) => ({ did, rkey }));
+    if (posts.length === 0) return remember(permalink, null);
 
-    return remember(permalink, { count, did: latest.did, rkey: latest.rkey });
+    return remember(permalink, { count, posts });
   } catch {
     // offline, blocked, malformed — the status still renders
     return null;
