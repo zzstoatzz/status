@@ -392,18 +392,24 @@ button[type="submit"]:hover,
   text-align: center;
 }
 
-/* The card is the widest thing on the page and its whole job is showing one
-   status, so the glyph scales with the viewport instead of sitting at a fixed
-   size in the middle of it. Clamped so it stays sane on a phone and stops
-   growing before it dominates a desktop card. */
+/* The card's whole job is showing one status, so the image takes the card's
+   width rather than sitting at a fixed size in the middle of it. Sized off the
+   container, not the viewport — a vw cap left most of the card empty. Natural
+   aspect ratio, with a height cap so a tall gif cannot run away. */
 .big-emoji {
-  font-size: clamp(6rem, 22vw, 11rem);
+  font-size: clamp(6rem, 26vw, 13rem);
   line-height: 1;
+  width: 100%;
+  max-width: 24rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .big-emoji img,
 .big-emoji .custom-emoji-missing {
-  width: clamp(6rem, 22vw, 11rem);
-  height: clamp(6rem, 22vw, 11rem);
+  width: 100%;
+  height: auto;
+  max-height: 24rem;
   object-fit: contain;
 }
 .status-info {
@@ -584,7 +590,7 @@ button[type="submit"]:hover,
    (bluesky's AutoSizedImage clamps the box, not the image). `contain` rather
    than `cover`: these are stickers, and cropping one cuts off the character. */
 .status-item .emoji {
-  --emoji-size: calc(var(--row-height) - 1rem);
+  --emoji-size: calc(var(--row-height) - 1.5rem);
   font-size: var(--emoji-size);
   line-height: 1;
   flex-shrink: 0;
