@@ -8,6 +8,7 @@
   import { relativeTime, formatExpiration, absoluteTime } from '$lib/utils/time'
   import { Link, X } from 'lucide-svelte'
   import { browser } from '$app/environment'
+  import { goto } from '$app/navigation'
   import BacklinkLink from './BacklinkLink.svelte'
   import { statusPermalink } from '$lib/utils/backlinks'
 
@@ -64,13 +65,40 @@
     }
   }
 
+  /**
+   * The whole row opens the status, the way a list row does everywhere else.
+   *
+   * Yields to anything genuinely interactive inside it — the action buttons,
+   * the author link, links in the status text — and to a text selection, so
+   * dragging to copy does not navigate out from under you.
+   */
+  function openStatus(event: MouseEvent | KeyboardEvent) {
+    if (!permalink) return
+    const target = event.target as HTMLElement | null
+    if (target?.closest('a, button')) return
+    if (window.getSelection()?.toString()) return
+    const { did, rkey } = parseStatusUri(status.uri)
+    goto(`/status/${did}/${rkey}`)
+  }
+
   function handleDelete() {
     const { rkey } = parseStatusUri(status.uri)
     ondelete?.(rkey)
   }
 </script>
 
-<div class="status-item">
+<div
+  class="status-item"
+  role="link"
+  tabindex="0"
+  onclick={openStatus}
+  onkeydown={(e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      openStatus(e)
+    }
+  }}
+>
   <span class="emoji">
     {#if gifFromRef(status.gif)}
       {@const g = gifFromRef(status.gif)!}

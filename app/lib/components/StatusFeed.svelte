@@ -18,6 +18,7 @@
 
   let {
     feed,
+    actor,
     initialItems = [],
     initialCursor,
     showAuthor = false,
@@ -25,6 +26,8 @@
     ondelete,
   }: {
     feed: string
+    /** required by the actor feed — without it the server returns nothing */
+    actor?: string
     initialItems?: StatusItem[]
     initialCursor?: string
     showAuthor?: boolean
@@ -34,6 +37,14 @@
 
   let items: StatusItem[] = $state(untrack(() => [...initialItems]))
   let cursor: string | undefined = $state(untrack(() => initialCursor))
+
+  // Resync when the query behind us refetches — posting or deleting a status
+  // has to show up. Writes only; reading `items` here would make this re-run
+  // itself, which is the cycle that froze the emoji picker.
+  $effect(() => {
+    items = [...initialItems]
+    cursor = initialCursor
+  })
   let loadingMore = $state(false)
   let hasMore = $derived(!!cursor)
 
@@ -41,7 +52,9 @@
     if (!cursor || loadingMore) return
     loadingMore = true
     try {
-      const res = await callXrpc('dev.hatk.getFeed', { feed, cursor, limit: 20 })
+      // `actor` matters: the actor feed returns an empty page without it, so
+      // paging a profile or your own history silently yielded nothing
+      const res = await callXrpc('dev.hatk.getFeed', { feed, actor, cursor, limit: 20 })
       items = [...items, ...(res.items ?? [])]
       cursor = res.cursor
     } catch (err) {

@@ -57,7 +57,9 @@
       <h2>history</h2>
       <StatusFeed
         feed="actor"
+        actor={data.did}
         initialItems={statuses.slice(1)}
+        initialCursor={feed.data?.cursor}
         showAuthor={false}
       />
     </section>

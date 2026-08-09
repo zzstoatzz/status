@@ -576,7 +576,12 @@ button[type="submit"]:hover,
   border-radius: var(--radius);
   height: var(--row-height);
   box-sizing: border-box;
+  cursor: pointer;
   transition: border-color 0.15s;
+}
+.status-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .status-item:hover {

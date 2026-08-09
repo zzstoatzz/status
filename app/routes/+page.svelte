@@ -11,7 +11,7 @@
   import { relativeTime, formatExpiration, absoluteTime } from '$lib/utils/time'
   import LoginCard from '$lib/components/LoginCard.svelte'
   import CreateStatusForm from '$lib/components/CreateStatusForm.svelte'
-  import StatusCard from '$lib/components/StatusCard.svelte'
+  import StatusFeed from '$lib/components/StatusFeed.svelte'
   import BacklinkLink from '$lib/components/BacklinkLink.svelte'
   import { statusPermalink } from '$lib/utils/backlinks'
   import { browser } from '$app/environment'
@@ -117,11 +117,16 @@
   {#if history.length > 0}
     <section class="history">
       <h2>history</h2>
-      <div class="feed-list">
-        {#each history as status (status.uri)}
-          <StatusCard {status} showDelete ondelete={deleteStatus} />
-        {/each}
-      </div>
+      <!-- StatusFeed, not a bare each: your history paginates, and rendering
+           the first page by hand is why only 20 ever showed -->
+      <StatusFeed
+        feed="actor"
+        actor={viewer?.did}
+        initialItems={history}
+        initialCursor={feed.data?.cursor}
+        showDelete
+        ondelete={deleteStatus}
+      />
     </section>
   {/if}
 {/if}
