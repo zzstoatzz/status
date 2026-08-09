@@ -8,7 +8,7 @@
   import { toast } from '$lib/toast.svelte'
   import GifImage from '$lib/components/GifImage.svelte'
   import CustomEmoji from '$lib/components/CustomEmoji.svelte'
-  import { relativeTime, formatExpiration } from '$lib/utils/time'
+  import { relativeTime, formatExpiration, absoluteTime } from '$lib/utils/time'
   import LoginCard from '$lib/components/LoginCard.svelte'
   import CreateStatusForm from '$lib/components/CreateStatusForm.svelte'
   import StatusCard from '$lib/components/StatusCard.svelte'
@@ -86,7 +86,7 @@
             <span class="current-text">{@html parseLinks(current.text)}</span>
           {/if}
           <span class="meta">
-            since {relativeTime(current.createdAt)}
+            since <time datetime={current.createdAt} title={absoluteTime(current.createdAt)}>{relativeTime(current.createdAt)}</time>
             {#if current.expires}
               &middot; {formatExpiration(current.expires)}
             {/if}

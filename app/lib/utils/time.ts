@@ -1,3 +1,24 @@
+/**
+ * The full timestamp behind a relative one, for a hover tooltip.
+ *
+ * "4d 1h ago" is the right thing to read at a glance and the wrong thing when
+ * you actually want to know when — github solves this the same way. Rendered in
+ * the reader's own locale and zone, with the zone named so it is unambiguous.
+ */
+export function absoluteTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+}
+
 export function relativeTime(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
@@ -10,26 +31,18 @@ export function relativeTime(dateStr: string): string {
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffHours < 24) {
     const remainingMins = diffMins % 60;
-    return remainingMins === 0
-      ? `${diffHours}h ago`
-      : `${diffHours}h ${remainingMins}m ago`;
+    return remainingMins === 0 ? `${diffHours}h ago` : `${diffHours}h ${remainingMins}m ago`;
   }
   if (diffDays < 7) {
     const remainingHours = diffHours % 24;
-    return remainingHours === 0
-      ? `${diffDays}d ago`
-      : `${diffDays}d ${remainingHours}h ago`;
+    return remainingHours === 0 ? `${diffDays}d ago` : `${diffDays}d ${remainingHours}h ago`;
   }
 
   const timeStr = date
     .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
     .toLowerCase();
   if (date.getFullYear() === now.getFullYear()) {
-    return (
-      date.toLocaleDateString("en-US", { month: "short", day: "numeric" }) +
-      ", " +
-      timeStr
-    );
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", " + timeStr;
   }
   return (
     date.toLocaleDateString("en-US", {
@@ -76,26 +89,18 @@ export function relativeTimeFuture(dateStr: string): string {
   if (diffMins < 60) return `in ${diffMins}m`;
   if (diffHours < 24) {
     const remainingMins = diffMins % 60;
-    return remainingMins === 0
-      ? `in ${diffHours}h`
-      : `in ${diffHours}h ${remainingMins}m`;
+    return remainingMins === 0 ? `in ${diffHours}h` : `in ${diffHours}h ${remainingMins}m`;
   }
   if (diffDays < 7) {
     const remainingHours = diffHours % 24;
-    return remainingHours === 0
-      ? `in ${diffDays}d`
-      : `in ${diffDays}d ${remainingHours}h`;
+    return remainingHours === 0 ? `in ${diffDays}d` : `in ${diffDays}d ${remainingHours}h`;
   }
 
   const timeStr = date
     .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
     .toLowerCase();
   if (date.getFullYear() === now.getFullYear()) {
-    return (
-      date.toLocaleDateString("en-US", { month: "short", day: "numeric" }) +
-      ", " +
-      timeStr
-    );
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", " + timeStr;
   }
   return (
     date.toLocaleDateString("en-US", {

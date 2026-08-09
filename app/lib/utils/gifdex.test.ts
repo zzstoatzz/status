@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { fetchGifPage, gifBlobUrl, gifFromRef, gifPreviewUrl, gifRenditionUrl } from "./gifdex.ts";
+import {
+  fetchGifPage,
+  fetchGifTitle,
+  gifBlobUrl,
+  gifFromRef,
+  gifPreviewUrl,
+  gifRenditionUrl,
+} from "./gifdex.ts";
 import { gifdexBlobCidFromRkey, parseAtUri } from "./gifsources.ts";
 import { vi } from "vitest";
 
@@ -214,5 +221,40 @@ describe("fetchGifPage", () => {
     }));
     const page = await fetchGifPage(callXrpc);
     expect(page.gifs).toHaveLength(1);
+  });
+});
+
+describe("fetchGifTitle", () => {
+  // the status stores only a strongRef, so a tooltip needs the source record —
+  // which we index ourselves, so this is a local lookup
+  it("prefers the title", async () => {
+    const callXrpc = vi.fn(async () => ({ record: { title: "Bunny kisses", tags: ["bunny"] } }));
+    await expect(fetchGifTitle(callXrpc, URI)).resolves.toBe("Bunny kisses");
+    expect(callXrpc).toHaveBeenCalledWith("dev.hatk.getRecord", { uri: URI });
+  });
+
+  it("falls back to alt text, then tags — many records have no title", async () => {
+    const alt = vi.fn(async () => ({ record: { media: { alt: "a cat loafing" } } }));
+    await expect(fetchGifTitle(alt, `${URI}-a`)).resolves.toBe("a cat loafing");
+
+    const tags = vi.fn(async () => ({ record: { tags: ["cat", "loaf"] } }));
+    await expect(fetchGifTitle(tags, `${URI}-b`)).resolves.toBe("cat, loaf");
+  });
+
+  it("caches, so a feed does not re-ask for a repeated gif", async () => {
+    const callXrpc = vi.fn(async () => ({ record: { title: "once" } }));
+    await fetchGifTitle(callXrpc, `${URI}-c`);
+    await fetchGifTitle(callXrpc, `${URI}-c`);
+    expect(callXrpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("is null rather than throwing when there is nothing useful", async () => {
+    const empty = vi.fn(async () => ({ record: {} }));
+    await expect(fetchGifTitle(empty, `${URI}-d`)).resolves.toBeNull();
+    const boom = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    await expect(fetchGifTitle(boom, `${URI}-e`)).resolves.toBeNull();
+    await expect(fetchGifTitle(boom, "")).resolves.toBeNull();
   });
 });

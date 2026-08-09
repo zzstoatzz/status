@@ -2,9 +2,10 @@
   import { isCustomEmoji, customEmojiName, parseLinks, parseStatusUri } from '$lib/utils/emoji'
   import CustomEmoji from './CustomEmoji.svelte'
   import GifImage from './GifImage.svelte'
-  import { gifFromRef, type GifRef } from '$lib/utils/gifdex'
+  import { gifFromRef, fetchGifTitle, type GifRef } from '$lib/utils/gifdex'
+  import { callXrpc } from '$hatk/client'
   import { toast } from '$lib/toast.svelte'
-  import { relativeTime, formatExpiration } from '$lib/utils/time'
+  import { relativeTime, formatExpiration, absoluteTime } from '$lib/utils/time'
   import { Link, X } from 'lucide-svelte'
   import { browser } from '$app/environment'
   import BacklinkLink from './BacklinkLink.svelte'
@@ -39,6 +40,19 @@
   // so a backlink lookup has to use the permalink people actually shared
   let permalink = $derived(browser ? statusPermalink(window.location.origin, status.uri) : '')
 
+  // The status stores only a strongRef, so the gif's name comes from our own
+  // index. Native tooltips must be set before the pointer arrives, so this
+  // cannot wait for hover.
+  let gifTitle = $state<string | null>(null)
+  $effect(() => {
+    const uri = typeof status.gif === 'string' ? status.gif : status.gif?.uri
+    if (!browser || !uri || !gifFromRef(status.gif)) return
+    fetchGifTitle(
+      (nsid, params) => callXrpc(nsid as Parameters<typeof callXrpc>[0], params as never),
+      uri,
+    ).then((t) => { gifTitle = t })
+  })
+
   async function share() {
     try {
       await navigator.clipboard.writeText(permalink)
@@ -58,7 +72,13 @@
   <span class="emoji">
     {#if gifFromRef(status.gif)}
       {@const g = gifFromRef(status.gif)!}
-      <GifImage did={g.did} blobCid={g.blobCid} source={g.source} alt={status.text ?? 'gif status'} />
+      <GifImage
+        did={g.did}
+        blobCid={g.blobCid}
+        source={g.source}
+        alt={gifTitle ?? status.text ?? 'gif status'}
+        title={gifTitle ?? undefined}
+      />
     {:else if isCustomEmoji(status.emoji)}
       {@const name = customEmojiName(status.emoji)}
       <CustomEmoji {name} loading="lazy" />
@@ -76,9 +96,13 @@
       {/if}
     </div>
     <span class="time">
-      {relativeTime(status.createdAt)}
+      <time datetime={status.createdAt} title={absoluteTime(status.createdAt)}>
+        {relativeTime(status.createdAt)}
+      </time>
       {#if status.expires}
-        &middot; {formatExpiration(status.expires)}
+        &middot; <time datetime={status.expires} title={absoluteTime(status.expires)}>
+          {formatExpiration(status.expires)}
+        </time>
       {/if}
     </span>
   </div>

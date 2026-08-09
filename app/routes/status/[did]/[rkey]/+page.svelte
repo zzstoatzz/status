@@ -1,7 +1,7 @@
 <script lang="ts">
   import { isCustomEmoji, customEmojiName, bufoImageUrl, parseLinks } from '$lib/utils/emoji'
   import CustomEmoji from '$lib/components/CustomEmoji.svelte'
-  import { relativeTime, formatExpiration } from '$lib/utils/time'
+  import { relativeTime, formatExpiration, absoluteTime } from '$lib/utils/time'
 
   let { data } = $props()
 
@@ -58,7 +58,7 @@
           <span class="current-text">{@html parseLinks(text)}</span>
         {/if}
         <span class="meta">
-          {#if createdAt}{relativeTime(createdAt)}{/if}
+          {#if createdAt}<time datetime={createdAt} title={absoluteTime(createdAt)}>{relativeTime(createdAt)}</time>{/if}
           {#if expires}
             &middot; {formatExpiration(expires)}
           {/if}

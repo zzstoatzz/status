@@ -243,6 +243,11 @@
     loadingMore = false
   }
 
+  /** Best name for a gif: its title, else its tags, else nothing useful. */
+  function gifLabel(gif: GifPost): string {
+    return gif.title?.trim() || gif.tags.join(', ') || 'gif'
+  }
+
   function select(value: string, gif?: GifPost) {
     onselect(gif ? GIF_FALLBACK_EMOJI : value, gif ? { uri: gif.uri, cid: gif.cid } : undefined)
     onclose()
@@ -366,7 +371,7 @@
                 class="emoji-btn gif-btn"
                 class:pending={!settled.has(item.value)}
                 onclick={() => select(item.value, item.gif)}
-                title={item.gif.title ?? 'gif'}
+                title={gifLabel(item.gif)}
                 style={item.gif.width && item.gif.height
                   ? `aspect-ratio: ${item.gif.width} / ${item.gif.height}`
                   : undefined}

@@ -619,7 +619,9 @@ button[type="submit"]:hover,
 .status-item .author:hover {
   color: var(--accent);
 }
-.status-item .text {
+/* only space the text off an author that is actually rendered — otherwise it
+   indents past the timestamp beneath it and the column looks ragged */
+.status-item .author + .text {
   margin-left: 0.5rem;
 }
 .status-item .text a {

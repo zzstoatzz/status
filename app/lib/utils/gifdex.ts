@@ -80,6 +80,50 @@ export function gifPreviewUrl(ref: GifRef | string | null | undefined): string |
   return g ? gifBlobUrl(g.did, g.blobCid) : null;
 }
 
+const titleCache = new Map<string, string>();
+const MAX_TITLE_CACHE = 300;
+
+/**
+ * A gif's own name, for a tooltip on a status that uses it.
+ *
+ * The status record stores only a strongRef, so the name lives on the source
+ * record — which we already index, making this a local lookup rather than a
+ * trip to someone's PDS. Falls back to alt text, then tags, since a good number
+ * of gifdex records carry no title at all.
+ *
+ * Bounded, like every other cache here: a feed is not assumed to be small.
+ */
+export async function fetchGifTitle(callXrpc: XrpcFn, uri: string): Promise<string | null> {
+  if (!uri) return null;
+  const hit = titleCache.get(uri);
+  if (hit !== undefined) return hit || null;
+
+  let label = "";
+  try {
+    const res = (await callXrpc("dev.hatk.getRecord", { uri })) as
+      | { record?: { title?: unknown; tags?: unknown; media?: { alt?: unknown } } }
+      | undefined;
+    const v = res?.record;
+    const tags = Array.isArray(v?.tags)
+      ? v.tags.filter((t): t is string => typeof t === "string").join(", ")
+      : "";
+    label =
+      (typeof v?.title === "string" && v.title.trim()) ||
+      (typeof v?.media?.alt === "string" && v.media.alt.trim()) ||
+      tags;
+  } catch {
+    // no tooltip is fine; the gif still renders
+    return null;
+  }
+
+  if (titleCache.size >= MAX_TITLE_CACHE) {
+    const oldest = titleCache.keys().next().value;
+    if (oldest !== undefined) titleCache.delete(oldest);
+  }
+  titleCache.set(uri, label);
+  return label || null;
+}
+
 /** One page of gifs, and the cursor to ask for the next. */
 export type GifPage = { gifs: GifPost[]; cursor?: string };
 
