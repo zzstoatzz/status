@@ -378,7 +378,9 @@ button[type="submit"]:hover,
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 2rem;
+  /* tighter than it looks like it should be on purpose: the reclaimed padding
+     is what lets the glyph grow without the card growing with it */
+  padding: 1.25rem;
   margin-bottom: 1.5rem;
 }
 
@@ -386,7 +388,7 @@ button[type="submit"]:hover,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   text-align: center;
 }
 
@@ -395,13 +397,13 @@ button[type="submit"]:hover,
    size in the middle of it. Clamped so it stays sane on a phone and stops
    growing before it dominates a desktop card. */
 .big-emoji {
-  font-size: clamp(5rem, 18vw, 9rem);
+  font-size: clamp(6rem, 22vw, 11rem);
   line-height: 1;
 }
 .big-emoji img,
 .big-emoji .custom-emoji-missing {
-  width: clamp(5rem, 18vw, 9rem);
-  height: clamp(5rem, 18vw, 9rem);
+  width: clamp(6rem, 22vw, 11rem);
+  height: clamp(6rem, 22vw, 11rem);
   object-fit: contain;
 }
 .status-info {
@@ -558,7 +560,7 @@ button[type="submit"]:hover,
    whatever it holds and whatever the viewport — a feed of ragged rows reads as
    broken — so the text is what yields, clamping to two lines. */
 .status-item {
-  --row-height: 4.75rem;
+  --row-height: 4.5rem;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -582,7 +584,7 @@ button[type="submit"]:hover,
    (bluesky's AutoSizedImage clamps the box, not the image). `contain` rather
    than `cover`: these are stickers, and cropping one cuts off the character. */
 .status-item .emoji {
-  --emoji-size: calc(var(--row-height) - 0.75rem);
+  --emoji-size: calc(var(--row-height) - 1rem);
   font-size: var(--emoji-size);
   line-height: 1;
   flex-shrink: 0;
@@ -628,7 +630,7 @@ button[type="submit"]:hover,
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  line-height: 1.35;
+  line-height: 1.3;
   overflow-wrap: anywhere;
 }
 .status-item .content.with-author .text {
