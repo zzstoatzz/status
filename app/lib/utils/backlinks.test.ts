@@ -129,28 +129,45 @@ describe("fetchBacklink", () => {
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
-  it("sums counts across paths and offers every post, newest first", async () => {
+  it("counts distinct posts, not per-path records", async () => {
+    // the real shape: one post that both links inline and carries a link card,
+    // so constellation indexes it under two paths. Summing said 2; it is 1.
+    const twoPaths = ok({
+      links: {
+        "app.bsky.feed.post": {
+          ".embed.external.uri": { records: 1 },
+          ".facets[].features[app.bsky.richtext.facet#link].uri": { records: 1 },
+        },
+      },
+    });
+    const samePost = { did: DID, rkey: "3mj72ahqoik2x" };
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(twoPaths)
+      .mockResolvedValueOnce(ok({ records: [samePost] }))
+      .mockResolvedValueOnce(ok({ records: [samePost] }));
+
+    expect(await fetchBacklink(PERMALINK, fetchFn as never)).toEqual({
+      count: 1,
+      posts: [samePost],
+    });
+  });
+
+  it("unions genuinely different posts across paths, newest first", async () => {
     const fetchFn = vi
       .fn()
       .mockResolvedValueOnce(
         ok({
           links: {
-            "app.bsky.feed.post": { ".embed.external.uri": { records: 2 }, ".x": { records: 1 } },
+            "app.bsky.feed.post": { ".embed.external.uri": { records: 1 }, ".x": { records: 1 } },
           },
         }),
       )
-      .mockResolvedValueOnce(
-        ok({
-          records: [
-            { did: DID, rkey: "3aaa" },
-            { did: "did:plc:other", rkey: "3zzz" },
-          ],
-        }),
-      );
+      .mockResolvedValueOnce(ok({ records: [{ did: DID, rkey: "3aaa" }] }))
+      .mockResolvedValueOnce(ok({ records: [{ did: "did:plc:other", rkey: "3zzz" }] }));
 
-    // every post is offered, newest first, so the reader can pick one
     expect(await fetchBacklink(PERMALINK, fetchFn as never)).toEqual({
-      count: 3,
+      count: 2,
       posts: [
         { did: "did:plc:other", rkey: "3zzz" },
         { did: DID, rkey: "3aaa" },

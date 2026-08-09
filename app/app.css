@@ -425,6 +425,53 @@ button[type="submit"]:hover,
   font-variant-numeric: tabular-nums;
 }
 
+/* Embed panel — the snippet you paste on your own site. Restored from the
+   pre-hatk styles; the port kept the toggle button and dropped all of this. */
+.embed-section {
+  margin-bottom: 1.5rem;
+}
+.embed-description {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  margin-bottom: 0.5rem;
+}
+.embed-code-container {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.embed-code {
+  padding: 1rem;
+  padding-right: 3rem;
+  overflow-x: auto;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  margin: 0;
+}
+.embed-code code {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.copy-embed-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+.copy-embed-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .current-status-actions {
   display: flex;
   gap: 0.5rem;

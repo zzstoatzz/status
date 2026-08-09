@@ -14,8 +14,9 @@
   import StatusFeed from '$lib/components/StatusFeed.svelte'
   import BacklinkLink from '$lib/components/BacklinkLink.svelte'
   import { statusPermalink } from '$lib/utils/backlinks'
+  import { buildEmbedCode } from '$lib/utils/embed'
   import { browser } from '$app/environment'
-  import { Link, Code, X } from 'lucide-svelte'
+  import { Link, Code, X, Copy } from 'lucide-svelte'
 
   const queryClient = useQueryClient()
   const viewer = $derived($page.data.viewer)
@@ -30,6 +31,23 @@
   const history = $derived(statuses.slice(1))
 
   let showEmbed = $state(false)
+
+  // The button existed since the rewrite but toggled nothing — the panel was
+  // lost in the port from the old site. Rebuilt here.
+  let embedCode = $derived(
+    browser && viewer?.did
+      ? buildEmbedCode({ did: viewer.did, handle: viewer.handle, origin: window.location.origin })
+      : '',
+  )
+
+  async function copyEmbed() {
+    try {
+      await navigator.clipboard.writeText(embedCode)
+      toast.success('embed code copied')
+    } catch {
+      toast.error('could not copy embed code')
+    }
+  }
 
   function refresh() {
     queryClient.invalidateQueries({ queryKey: ['getFeed', 'actor'] })
@@ -111,6 +129,18 @@
       {/if}
     </div>
   </div>
+
+  {#if showEmbed && embedCode}
+    <section class="embed-section">
+      <p class="embed-description">paste this on your site to show your current status:</p>
+      <div class="embed-code-container">
+        <pre class="embed-code"><code>{embedCode}</code></pre>
+        <button class="copy-embed-btn" onclick={copyEmbed} title="copy code">
+          <Copy size={16} />
+        </button>
+      </div>
+    </section>
+  {/if}
 
   <CreateStatusForm currentEmoji={current?.emoji ?? '😊'} oncreated={refresh} />
 
