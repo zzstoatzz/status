@@ -24,8 +24,22 @@
   let cycleIndex = $state(0)
   let paused = $state(false)
 
-  let suggestions = $derived(buildSuggestions({ current: currentEmoji, recent, popular }))
-  let suggestion = $derived(suggestions[cycleIndex % (suggestions.length || 1)] ?? currentEmoji)
+  let suggestions: string[] = $state([])
+
+  function reshuffle() {
+    suggestions = buildSuggestions({ current: currentEmoji, recent, popular })
+  }
+
+  // Redraw when the inputs change — popular arrives a moment after mount.
+  // Writes only; reading `suggestions` here would make it re-run itself, which
+  // is the cycle that froze the emoji picker.
+  $effect(() => {
+    void currentEmoji
+    void recent
+    void popular
+    reshuffle()
+  })
+  let suggestion = $derived(suggestions[cycleIndex] ?? suggestions[0] ?? currentEmoji)
   // your choice wins; until then the composer posts whatever it is showing
   let selectedEmoji = $derived(picked ?? suggestion)
   let selectedGif: GifRef | undefined = $state()
@@ -47,7 +61,15 @@
       .catch(() => { popular = [...DEFAULT_FREQUENT] })
 
     const id = setInterval(() => {
-      if (cycling) cycleIndex += 1
+      if (!cycling) return
+      const next = cycleIndex + 1
+      if (next >= suggestions.length) {
+        // a fresh draw each pass, so it never settles into one fixed order
+        cycleIndex = 0
+        reshuffle()
+      } else {
+        cycleIndex = next
+      }
     }, CYCLE_MS)
     return () => clearInterval(id)
   })
