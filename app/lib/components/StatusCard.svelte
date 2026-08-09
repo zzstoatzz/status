@@ -88,7 +88,7 @@
       {status.emoji}
     {/if}
   </span>
-  <!-- handle, status, then when — three stacked lines, never sharing one -->
+  <!-- two rows: who, then what. when lives in the trailing column. -->
   <div class="content" class:with-author={hasAuthor}>
     {#if hasAuthor}
       <a href="/@{status.handle ?? status.did}" class="author">@{status.handle ?? status.did?.slice(0, 18)}</a>
@@ -96,29 +96,30 @@
     {#if status.text}
       <span class="text" title={status.text}>{@html parseLinks(status.text)}</span>
     {/if}
+  </div>
+  <div class="meta">
     <span class="time">
       <time datetime={status.createdAt} title={absoluteTime(status.createdAt)}>
         {relativeTime(status.createdAt)}
       </time>
       {#if status.expires}
-        &middot;
-        <time datetime={status.expires} title={absoluteTime(status.expires)}>
+        <time class="expiry" datetime={status.expires} title={absoluteTime(status.expires)}>
           {formatExpiration(status.expires)}
         </time>
       {/if}
     </span>
-  </div>
-  <div class="status-actions">
-    {#if permalink}
-      <BacklinkLink {permalink} />
-    {/if}
-    <button class="share-btn" onclick={share} title="copy link">
-      <Link size={14} />
-    </button>
-    {#if showDelete && ondelete}
-      <button class="delete-btn" onclick={handleDelete} title="delete">
-        <X size={14} />
+    <div class="status-actions">
+      {#if permalink}
+        <BacklinkLink {permalink} />
+      {/if}
+      <button class="share-btn" onclick={share} title="copy link">
+        <Link size={14} />
       </button>
-    {/if}
+      {#if showDelete && ondelete}
+        <button class="delete-btn" onclick={handleDelete} title="delete">
+          <X size={14} />
+        </button>
+      {/if}
+    </div>
   </div>
 </div>
